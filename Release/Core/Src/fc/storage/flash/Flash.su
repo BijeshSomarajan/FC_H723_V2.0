@@ -1,0 +1,4 @@
+../Core/Src/fc/storage/flash/Flash.c:13:9:initFlash	0	static
+../Core/Src/fc/storage/flash/Flash.c:21:9:writeWordsToFlash	88	static
+../Core/Src/fc/storage/flash/Flash.c:74:9:readWordsFromFlash	4	static
+../Core/Src/fc/storage/flash/Flash.c:82:10:readWordFromFlash	0	static

@@ -1,0 +1,5 @@
+../Core/Src/fc/managers/config/ConfigManager.c:16:9:initConfigManager	8	static
+../Core/Src/fc/managers/config/ConfigManager.c:66:9:manageConfigurationSave	0	static
+../Core/Src/fc/managers/config/ConfigManager.c:73:9:hasNewConfiguration	0	static
+../Core/Src/fc/managers/config/ConfigManager.c:80:6:manageConfigDataPacket	384	static
+../Core/Src/fc/managers/config/ConfigManager.c:57:6:doConfigManagement	8	static

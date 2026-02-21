@@ -1,0 +1,2 @@
+../Core/Src/fc/logger/Logger.c:5:9:initLogger	8	static
+../Core/Src/fc/logger/Logger.c:13:6:logString	8	static

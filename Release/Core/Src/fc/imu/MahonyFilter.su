@@ -1,0 +1,9 @@
+../Core/Src/fc/imu/MahonyFilter.c:16:10:imuFilterGetStabilizationCount	0	static
+../Core/Src/fc/imu/MahonyFilter.c:25:6:imuFilterUpdateAngles	8	static
+../Core/Src/fc/imu/MahonyFilter.c:41:6:imuFilterUpdateHeading	0	static
+../Core/Src/fc/imu/MahonyFilter.c:66:6:mahonyFilterUpdateRotationMatrix	0	static
+../Core/Src/fc/imu/MahonyFilter.c:90:6:imuFilterUpdate	64	static
+../Core/Src/fc/imu/MahonyFilter.c:176:6:imuFilterSetMode	0	static
+../Core/Src/fc/imu/MahonyFilter.c:186:9:imuFilterInit	8	static
+../Core/Src/fc/imu/MahonyFilter.c:194:6:mahonyFilterResetRotationMatrix	0	static
+../Core/Src/fc/imu/MahonyFilter.c:202:6:imuFilterReset	0	static

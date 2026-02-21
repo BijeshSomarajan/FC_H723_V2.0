@@ -1,0 +1,19 @@
+#ifndef SRC_FC_MANAGERS_ATTITUDEMANAGER_H_
+#define SRC_FC_MANAGERS_ATTITUDEMANAGER_H_
+
+#include <sys/_stdint.h>
+#include "../../sensors/attitude/AttitudeSensor.h"
+
+uint8_t initAttitudeManager(void);
+void doAttitudeManagement(void);
+uint8_t resetAttitudeManager(void);
+
+#define ATTITUDE_SENSOR_AGT_READ_FREQUENCY SENSOR_AGT_SAMPLE_FREQUENCY
+#define ATTITUDE_SENSOR_MAG_READ_FREQUENCY SENSOR_MAG_SAMPLE_FREQUENCY
+#define ATTITUDE_CONTROL_MAX_PITCH_ROLL 60.0f
+#define ATTITUDE_CONTROL_MIN_TH_PERCENT 0.1f
+
+#define ATTITUDE_SENSOR_ACC_CRASH_G_GAIN 0.95f
+#define ATTITUDE_SENSOR_ACC_CRASH_SAMPLES_COUNT 10
+
+#endif /* SRC_FC_MANAGERS_ATTITUDEMANAGER_H_ */

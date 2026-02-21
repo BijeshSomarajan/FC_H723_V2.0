@@ -1,0 +1,10 @@
+../Core/Src/fc/io/indicator/Indicator.c:8:9:initIndicators	0	static
+../Core/Src/fc/io/indicator/Indicator.c:12:6:startUpIndicatorOff	0	static
+../Core/Src/fc/io/indicator/Indicator.c:16:6:startUpIndicatorBlink	0	static
+../Core/Src/fc/io/indicator/Indicator.c:20:6:startUpIndicatorOn	0	static
+../Core/Src/fc/io/indicator/Indicator.c:24:6:processingIndicatorOff	0	static
+../Core/Src/fc/io/indicator/Indicator.c:28:6:processingIndicatorBlink	0	static
+../Core/Src/fc/io/indicator/Indicator.c:32:6:processingIndicatorOn	0	static
+../Core/Src/fc/io/indicator/Indicator.c:36:6:errorIndicatorOff	0	static
+../Core/Src/fc/io/indicator/Indicator.c:40:6:errorIndicatorBlink	0	static
+../Core/Src/fc/io/indicator/Indicator.c:44:6:errorIndicatorOn	0	static

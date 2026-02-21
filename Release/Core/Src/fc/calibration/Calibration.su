@@ -1,0 +1,12 @@
+../Core/Src/fc/calibration/Calibration.c:11:9:initCalibration	0	static
+../Core/Src/fc/calibration/Calibration.c:15:9:getCalibrationScalableValue	0	static
+../Core/Src/fc/calibration/Calibration.c:19:10:getCalibrationData	0	static
+../Core/Src/fc/calibration/Calibration.c:23:9:getCalibrationValue	0	static
+../Core/Src/fc/calibration/Calibration.c:27:6:setCalibrationValue	0	static
+../Core/Src/fc/calibration/Calibration.c:31:7:getScaledCalibrationValue	0	static
+../Core/Src/fc/calibration/Calibration.c:35:6:setScaledCalibrationValue	0	static
+../Core/Src/fc/calibration/Calibration.c:39:6:setExtraScaledCalibrationValue	0	static
+../Core/Src/fc/calibration/Calibration.c:46:6:setDefaultCalibration	8	static
+../Core/Src/fc/calibration/Calibration.c:178:9:saveCalibration	0	static
+../Core/Src/fc/calibration/Calibration.c:186:6:loadCalibration	16	static
+../Core/Src/fc/calibration/Calibration.c:196:9:isCalibrated	8	static

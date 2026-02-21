@@ -1,0 +1,7 @@
+../Core/Src/fc/sensors/altitude/AltitudeSensor.c:16:9:initAltitudeSensors	8	static
+../Core/Src/fc/sensors/altitude/AltitudeSensor.c:30:6:scaleSeaLevelAlt	0	static
+../Core/Src/fc/sensors/altitude/AltitudeSensor.c:35:6:filterSeaLevelAlt	16	static
+../Core/Src/fc/sensors/altitude/AltitudeSensor.c:41:6:updateAltitudeSensorData	16	static
+../Core/Src/fc/sensors/altitude/AltitudeSensor.c:48:9:loadAltitudeSensorsData	8	static
+../Core/Src/fc/sensors/altitude/AltitudeSensor.c:56:9:readAltitudeSensors	0	static
+../Core/Src/fc/sensors/altitude/AltitudeSensor.c:60:6:resetAltitudeSensors	16	static

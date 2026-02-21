@@ -1,0 +1,7 @@
+../Core/Src/fc/managers/FCManager.c:22:6:dispatchManagers	2
+../Core/Src/fc/managers/FCManager.c:31:6:runFC	2
+../Core/Src/fc/managers/FCManager.c:39:9:initTimers	1
+../Core/Src/fc/managers/FCManager.c:45:9:initManagers	8
+../Core/Src/fc/managers/FCManager.c:134:9:initPeripherals	2
+../Core/Src/fc/managers/FCManager.c:157:6:presetGPIOs	1
+../Core/Src/fc/managers/FCManager.c:161:9:initFC	3

@@ -1,0 +1,5 @@
+../Core/Src/fc/dsp/CircularQueue.c:6:6:circularQueueInit	4
+../Core/Src/fc/dsp/CircularQueue.c:32:9:circularQueueWrite	6
+../Core/Src/fc/dsp/CircularQueue.c:49:9:circularQueueRead	6
+../Core/Src/fc/dsp/CircularQueue.c:66:10:circularQueueAvailableData	2
+../Core/Src/fc/dsp/CircularQueue.c:75:10:circularQueueFree	2

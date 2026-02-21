@@ -1,0 +1,5 @@
+../Core/Src/fc/dsp/LowPassFilter.c:6:6:lowPassFilterInit	0	static
+../Core/Src/fc/dsp/LowPassFilter.c:15:6:lowPassFilterSetCutOff	0	static
+../Core/Src/fc/dsp/LowPassFilter.c:23:6:lowPassFilterReset	0	static
+../Core/Src/fc/dsp/LowPassFilter.c:30:6:lowPassFilterResetToValue	0	static
+../Core/Src/fc/dsp/LowPassFilter.c:38:7:lowPassFilterUpdate	0	static

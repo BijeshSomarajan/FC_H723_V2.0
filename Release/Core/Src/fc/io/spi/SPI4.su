@@ -1,0 +1,7 @@
+../Core/Src/fc/io/spi/SPI4.c:60:16:spi4ClearDMAFlags	16	static
+../Core/Src/fc/io/spi/SPI4.c:99:6:DMA1_Stream0_IRQHandler	16	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI4.c:198:9:spi4Init	112	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI4.c:241:9:spi4ReadRegisterAsync	32	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI4.c:291:9:spi4ReadRegister	16	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI4.c:311:9:spi4WriteRegisterAsync	32	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI4.c:365:9:spi4WriteRegister	40	static,ignoring_inline_asm

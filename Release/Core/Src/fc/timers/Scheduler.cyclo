@@ -1,0 +1,4 @@
+../Core/Src/fc/timers/Scheduler.c:36:9:schedulerInit	2
+../Core/Src/fc/timers/Scheduler.c:60:6:TIM5_IRQHandler	2
+../Core/Src/fc/timers/Scheduler.c:91:9:schedulerAddTask	34
+../Core/Src/fc/timers/Scheduler.c:119:6:dispatchScheduler	5

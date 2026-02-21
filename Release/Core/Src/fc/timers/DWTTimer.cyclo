@@ -1,0 +1,4 @@
+../Core/Src/fc/timers/DWTTimer.c:20:9:initDeltaTimer	2
+../Core/Src/fc/timers/DWTTimer.c:46:7:getDeltaTime	2
+../Core/Src/fc/timers/DWTTimer.c:68:6:resetDeltaTime	2
+../Core/Src/fc/timers/DWTTimer.c:75:6:resetAllDeltaTimes	1

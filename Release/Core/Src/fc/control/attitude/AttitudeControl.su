@@ -1,0 +1,5 @@
+../Core/Src/fc/control/attitude/AttitudeControl.c:19:9:initAttitudeControl	40	static
+../Core/Src/fc/control/attitude/AttitudeControl.c:60:6:resetAttitudeControl	8	static
+../Core/Src/fc/control/attitude/AttitudeControl.c:88:7:updateHeadingDelta	16	static
+../Core/Src/fc/control/attitude/AttitudeControl.c:102:6:controlAttitudeWithGains	64	static
+../Core/Src/fc/control/attitude/AttitudeControl.c:139:6:controlAttitude	56	static

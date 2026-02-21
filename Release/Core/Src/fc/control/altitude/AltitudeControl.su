@@ -1,0 +1,12 @@
+../Core/Src/fc/control/altitude/AltitudeControl.c:16:9:initAltitudeControl	16	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:44:6:resetAltitudeControlMaster	0	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:48:6:resetAltitudeControlRate	0	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:52:6:resetAltitudeControl	8	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:64:6:suspendAltitudeRateIControl	0	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:68:6:resumeAltitudeRateIControl	0	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:72:6:setAltitudeRateIControl	8	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:76:6:resetAltitudeRateControl	8	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:81:6:resetAltitudeRateIControl	0	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:85:6:resetAltitudeMasterControl	8	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:91:6:controlAltitude	24	static
+../Core/Src/fc/control/altitude/AltitudeControl.c:105:6:controlAltitudeWithGains	24	static

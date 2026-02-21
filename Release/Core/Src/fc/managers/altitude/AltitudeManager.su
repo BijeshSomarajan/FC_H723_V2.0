@@ -1,0 +1,13 @@
+../Core/Src/fc/managers/altitude/AltitudeManager.c:83:6:readBaroSensorTimerCallback	0	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:50:9:initAltitudeManager	8	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:87:6:startAltitudeSensorsRead	8	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:93:6:manageAltControlSettings	24	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:132:6:handleThrottleChange	8	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:155:6:updateTiltCompThDelta	32	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:220:6:updateAltitudeRefernces	0	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:228:7:getClampedCurrentAltitude	8	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:235:6:manageAltitude	32	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:289:6:manageAltitudeTask	16	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:264:6:resetAltMgrStates	4	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:302:6:doAltitudeManagement	16	static
+../Core/Src/fc/managers/altitude/AltitudeManager.c:318:6:resetAltitudeManager	8	static

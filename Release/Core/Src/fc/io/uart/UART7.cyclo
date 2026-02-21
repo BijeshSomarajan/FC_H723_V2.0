@@ -1,0 +1,10 @@
+../Core/Src/fc/io/uart/UART7.c:22:6:DMA1_Stream5_IRQHandler	3
+../Core/Src/fc/io/uart/UART7.c:31:6:DMA1_Stream4_IRQHandler	16
+../Core/Src/fc/io/uart/UART7.c:70:6:uart7DMAConfigTX	3
+../Core/Src/fc/io/uart/UART7.c:102:6:uart7DMAConfigRX	3
+../Core/Src/fc/io/uart/UART7.c:134:6:uart7DMAConfig	2
+../Core/Src/fc/io/uart/UART7.c:146:6:uart7Config	3
+../Core/Src/fc/io/uart/UART7.c:181:9:uart7Init	5
+../Core/Src/fc/io/uart/UART7.c:195:6:uart7WriteDMA	4
+../Core/Src/fc/io/uart/UART7.c:209:6:uart7Write	5
+../Core/Src/fc/io/uart/UART7.c:222:9:uart7ReadStart	6

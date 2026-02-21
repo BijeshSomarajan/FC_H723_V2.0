@@ -1,0 +1,7 @@
+../Core/Src/fc/sensors/rc/RCSensor.c:10:9:initRCSensor	2
+../Core/Src/fc/sensors/rc/RCSensor.c:20:10:getRCFrameRate	1
+../Core/Src/fc/sensors/rc/RCSensor.c:24:9:readRCSensor	1
+../Core/Src/fc/sensors/rc/RCSensor.c:28:9:isRCTXxActive	1
+../Core/Src/fc/sensors/rc/RCSensor.c:32:10:getRCValue	1
+../Core/Src/fc/sensors/rc/RCSensor.c:36:6:resetRCSensor	1
+../Core/Src/fc/sensors/rc/RCSensor.c:40:6:calibrateRCSensor	2

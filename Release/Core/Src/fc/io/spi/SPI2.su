@@ -1,0 +1,8 @@
+../Core/Src/fc/io/spi/SPI2.c:55:9:spi2ClearDMAFlags	16	static
+../Core/Src/fc/io/spi/SPI2.c:92:6:spi2InitDMA	8	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI2.c:137:9:spi2Init	112	static
+../Core/Src/fc/io/spi/SPI2.c:183:6:DMA1_Stream6_IRQHandler	16	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI2.c:228:9:spi2ReadRegisterAsync	32	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI2.c:272:9:spi2ReadRegister	16	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI2.c:292:9:spi2WriteRegisterAsync	32	static,ignoring_inline_asm
+../Core/Src/fc/io/spi/SPI2.c:346:9:spi2WriteRegister	40	static,ignoring_inline_asm

@@ -1,0 +1,5 @@
+../Core/Src/fc/dsp/BiQuadFilter.c:4:6:biQuadFilterReset	1
+../Core/Src/fc/dsp/BiQuadFilter.c:11:6:biQuadCalculateCoeffs	9
+../Core/Src/fc/dsp/BiQuadFilter.c:106:6:biQuadFilterInit	2
+../Core/Src/fc/dsp/BiQuadFilter.c:118:6:biQuadFilterSetCenterFreq	1
+../Core/Src/fc/dsp/BiQuadFilter.c:123:7:biQuadFilterUpdate	1

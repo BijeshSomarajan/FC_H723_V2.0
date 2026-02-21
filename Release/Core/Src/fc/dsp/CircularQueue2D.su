@@ -1,0 +1,4 @@
+../Core/Src/fc/dsp/CircularQueue2D.c:6:6:circularQueue2DInit	4	static
+../Core/Src/fc/dsp/CircularQueue2D.c:25:9:circularQueue2DWrite	8	static
+../Core/Src/fc/dsp/CircularQueue2D.c:39:9:circularQueue2DRead	8	static
+../Core/Src/fc/dsp/CircularQueue2D.c:53:9:circularQueue2DHasDataAvailable	0	static

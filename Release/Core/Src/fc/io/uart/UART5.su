@@ -1,0 +1,10 @@
+../Core/Src/fc/io/uart/UART5.c:19:6:DMA1_Stream3_IRQHandler	0	static
+../Core/Src/fc/io/uart/UART5.c:29:6:DMA1_Stream2_IRQHandler	16	static,ignoring_inline_asm
+../Core/Src/fc/io/uart/UART5.c:67:6:uart5DMAConfigTX	8	static,ignoring_inline_asm
+../Core/Src/fc/io/uart/UART5.c:102:6:uart5DMAConfigRX	12	static,ignoring_inline_asm
+../Core/Src/fc/io/uart/UART5.c:134:6:uart5DMAConfig	16	static,ignoring_inline_asm
+../Core/Src/fc/io/uart/UART5.c:146:6:uart5Config	80	static,ignoring_inline_asm
+../Core/Src/fc/io/uart/UART5.c:182:9:uart5Init	16	static,ignoring_inline_asm
+../Core/Src/fc/io/uart/UART5.c:196:6:uart5WriteDMA	4	static,ignoring_inline_asm
+../Core/Src/fc/io/uart/UART5.c:210:6:uart5Write	0	static
+../Core/Src/fc/io/uart/UART5.c:223:9:uart5ReadStart	16	static,ignoring_inline_asm

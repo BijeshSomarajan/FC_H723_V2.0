@@ -1,0 +1,10 @@
+../Core/Src/fc/io/indicator/led/LED.c:19:9:deviceLedsInit	1
+../Core/Src/fc/io/indicator/led/LED.c:42:6:deviceLed1On	1
+../Core/Src/fc/io/indicator/led/LED.c:46:6:deviceLed1Off	1
+../Core/Src/fc/io/indicator/led/LED.c:50:6:deviceLed1Toggle	1
+../Core/Src/fc/io/indicator/led/LED.c:54:6:deviceLed2On	1
+../Core/Src/fc/io/indicator/led/LED.c:58:6:deviceLed2Off	1
+../Core/Src/fc/io/indicator/led/LED.c:62:6:deviceLed2Toggle	1
+../Core/Src/fc/io/indicator/led/LED.c:66:6:deviceLed3On	1
+../Core/Src/fc/io/indicator/led/LED.c:70:6:deviceLed3Off	1
+../Core/Src/fc/io/indicator/led/LED.c:74:6:deviceLed3Toggle	1

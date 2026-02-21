@@ -1,0 +1,146 @@
+#ifndef CALIBRATION_CALIBRATION_H_
+#define CALIBRATION_CALIBRATION_H_
+
+#include <stdint.h>
+
+#include "../storage/flash/Flash.h"
+
+/************************************************************************/
+/* Calibration configurations                                           */
+/************************************************************************/
+
+//Calibration for Attitude Control PID
+#define CALIB_PROP_PID_KP_PITCH_ADDR 0
+#define CALIB_PROP_PID_KP_ROLL_ADDR 1
+#define CALIB_PROP_PID_KP_YAW_ADDR 2
+
+#define CALIB_PROP_PID_PITCH_LIMIT_ADDR 6
+#define CALIB_PROP_PID_ROLL_LIMIT_ADDR 7
+#define CALIB_PROP_PID_YAW_LIMIT_ADDR 8
+
+#define CALIB_PROP_RATE_PID_KP_PITCH_ADDR 9
+#define CALIB_PROP_RATE_PID_KP_ROLL_ADDR 10
+#define CALIB_PROP_RATE_PID_KP_YAW_ADDR 11
+
+#define CALIB_PROP_RATE_PID_KI_PITCH_ADDR 3
+#define CALIB_PROP_RATE_PID_KI_ROLL_ADDR 4
+#define CALIB_PROP_RATE_PID_KI_YAW_ADDR 5
+
+#define CALIB_PROP_RATE_PID_KD_PITCH_ADDR 12
+#define CALIB_PROP_RATE_PID_KD_ROLL_ADDR 13
+#define CALIB_PROP_RATE_PID_KD_YAW_ADDR 14
+
+#define CALIB_PROP_RATE_PID_PITCH_LIMIT_ADDR 15
+#define CALIB_PROP_RATE_PID_ROLL_LIMIT_ADDR 16
+#define CALIB_PROP_RATE_PID_YAW_LIMIT_ADDR 17
+
+//ACC and Gyro biases
+#define CALIB_PROP_AX_BIAS_ADDR 21
+#define CALIB_PROP_AY_BIAS_ADDR 22
+#define CALIB_PROP_AZ_BIAS_ADDR 23
+#define CALIB_PROP_GX_BIAS_ADDR 24
+#define CALIB_PROP_GY_BIAS_ADDR 25
+#define CALIB_PROP_GZ_BIAS_ADDR 26
+
+//Magnetometer biases
+#define CALIB_PROP_MX_OFFSET_ADDR 27
+#define CALIB_PROP_MY_OFFSET_ADDR 28
+#define CALIB_PROP_MZ_OFFSET_ADDR 29
+#define CALIB_PROP_MX_BIAS_ADDR 30
+#define CALIB_PROP_MY_BIAS_ADDR 31
+#define CALIB_PROP_MZ_BIAS_ADDR 32
+#define CALIB_PROP_MX_SCALE_ADDR 33
+#define CALIB_PROP_MY_SCALE_ADDR 34
+#define CALIB_PROP_MZ_SCALE_ADDR 35
+
+//IMU Temperature LDDT configurations
+#define CALIB_PROP_IMU_TEMP_ADDR 36
+#define CALIB_PROP_IMU_TEMP_COEFF_AX_C_ADDR 37
+#define CALIB_PROP_IMU_TEMP_COEFF_AX_C1_ADDR 38
+#define CALIB_PROP_IMU_TEMP_COEFF_AX_C2_ADDR 39
+#define CALIB_PROP_IMU_TEMP_COEFF_AX_C3_ADDR 40
+#define CALIB_PROP_IMU_TEMP_COEFF_AY_C_ADDR 41
+#define CALIB_PROP_IMU_TEMP_COEFF_AY_C1_ADDR 42
+#define CALIB_PROP_IMU_TEMP_COEFF_AY_C2_ADDR 43
+#define CALIB_PROP_IMU_TEMP_COEFF_AY_C3_ADDR 44
+#define CALIB_PROP_IMU_TEMP_COEFF_AZ_C_ADDR 45
+#define CALIB_PROP_IMU_TEMP_COEFF_AZ_C1_ADDR 46
+#define CALIB_PROP_IMU_TEMP_COEFF_AZ_C2_ADDR 47
+#define CALIB_PROP_IMU_TEMP_COEFF_AZ_C3_ADDR 48
+#define CALIB_PROP_IMU_TEMP_COEFF_GX_C_ADDR 49
+#define CALIB_PROP_IMU_TEMP_COEFF_GX_C1_ADDR 50
+#define CALIB_PROP_IMU_TEMP_COEFF_GX_C2_ADDR 51
+#define CALIB_PROP_IMU_TEMP_COEFF_GX_C3_ADDR 52
+#define CALIB_PROP_IMU_TEMP_COEFF_GY_C_ADDR 53
+#define CALIB_PROP_IMU_TEMP_COEFF_GY_C1_ADDR 54
+#define CALIB_PROP_IMU_TEMP_COEFF_GY_C2_ADDR 55
+#define CALIB_PROP_IMU_TEMP_COEFF_GY_C3_ADDR 56
+#define CALIB_PROP_IMU_TEMP_COEFF_GZ_C_ADDR 57
+#define CALIB_PROP_IMU_TEMP_COEFF_GZ_C1_ADDR 58
+#define CALIB_PROP_IMU_TEMP_COEFF_GZ_C2_ADDR 59
+#define CALIB_PROP_IMU_TEMP_COEFF_GZ_C3_ADDR 60
+
+//Stick Rate PID configuration
+#define CALIB_PROP_RC_THROTTLE_RATE_K_ADDR 61
+#define CALIB_PROP_RC_PITCH_RATE_P_ADDR 62
+#define CALIB_PROP_RC_PITCH_RATE_I_ADDR 63
+#define CALIB_PROP_RC_ROLL_RATE_P_ADDR 64
+#define CALIB_PROP_RC_ROLL_RATE_I_ADDR 65
+#define CALIB_PROP_RC_YAW_RATE_P_ADDR 66
+#define CALIB_PROP_RC_YAW_RATE_I_ADDR 67
+
+//RC stick configurations
+#define CALIB_PROP_RC_THROTTLE_OFFSET_ADDR 68
+#define CALIB_PROP_RC_PITCH_OFFSET_ADDR 69
+#define CALIB_PROP_RC_ROLL_OFFSET_ADDR 70
+#define CALIB_PROP_RC_YAW_OFFSET_ADDR 71
+#define CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR 72
+
+//Altitude hold process configuration
+#define CALIB_PROP_ALT_HOLD_PID_KP_ADDR 73
+#define CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR 75
+
+#define CALIB_PROP_ALT_HOLD_RATE_PID_KP_ADDR 76
+#define CALIB_PROP_ALT_HOLD_RATE_PID_KI_ADDR 74
+#define CALIB_PROP_ALT_HOLD_RATE_PID_KD_ADDR 77
+#define CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR 78
+
+#define CALIB_PROP_ALT_HOLD_MAX_TERRAIN_HEIGHT_ADDR 18 //Note the index
+#define CALIB_PROP_ALT_HOLD_MAX_ASL_HEIGHT_ADDR 19 //Note the index
+
+//Position hold process configuration
+#define CALIB_PROP_POS_HOLD_PID_KP_ADDR 80
+#define CALIB_PROP_POS_HOLD_PID_KD_ADDR 81
+#define CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR 82
+
+#define CALIB_PROP_POS_HOLD_RATE_PID_KP_ADDR 83
+#define CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR 84
+#define CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR 20  //Note the index
+
+#define CALIB_PROP_ALT_HOLD_ACC_PID_KP_ADDR 85
+#define CALIB_PROP_ALT_HOLD_ACC_PID_KD_ADDR 86
+#define CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR 87
+
+//The Flight model configuration
+#define CALIB_PROP_FLIGHT_MODEL_ADDR 88
+
+#define CALIB_PROP_MAX_CONFIGURABLE_LENGTH 89
+#define CALIB_PROP_LENGTH (CALIB_PROP_MAX_CONFIGURABLE_LENGTH+1)
+
+uint8_t initCalibration(void);
+void setDefaultCalibration(void);
+uint8_t saveCalibration(void);
+void loadCalibration(void);
+uint8_t isCalibrated(void);
+
+int32_t getCalibrationScalableValue(float value);
+
+void setScaledCalibrationValue(uint8_t calidationIndex, float value);
+float getScaledCalibrationValue(uint8_t calidationIndex);
+
+void setCalibrationValue(uint8_t calidationIndex, int32_t value);
+int32_t getCalibrationValue(uint8_t calidationIndex);
+
+int32_t* getCalibrationData(void);
+
+#endif

@@ -1,0 +1,7 @@
+../Core/Src/fc/managers/FCManager.c:22:6:dispatchManagers	8	static
+../Core/Src/fc/managers/FCManager.c:31:6:runFC	8	static
+../Core/Src/fc/managers/FCManager.c:39:9:initTimers	8	static
+../Core/Src/fc/managers/FCManager.c:45:9:initManagers	8	static
+../Core/Src/fc/managers/FCManager.c:134:9:initPeripherals	8	static
+../Core/Src/fc/managers/FCManager.c:157:6:presetGPIOs	0	static
+../Core/Src/fc/managers/FCManager.c:161:9:initFC	8	static

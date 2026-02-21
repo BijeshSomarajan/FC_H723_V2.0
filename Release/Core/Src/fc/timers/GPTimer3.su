@@ -1,0 +1,4 @@
+../Core/Src/fc/timers/GPTimer3.c:17:9:initGPTimer3	16	static,ignoring_inline_asm
+../Core/Src/fc/timers/GPTimer3.c:68:6:startGPTimer3	0	static
+../Core/Src/fc/timers/GPTimer3.c:76:6:stopGPTimer3	0	static
+../Core/Src/fc/timers/GPTimer3.c:83:6:TIM3_IRQHandler	0	static

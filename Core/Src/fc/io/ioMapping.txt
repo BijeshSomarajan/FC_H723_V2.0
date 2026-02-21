@@ -1,0 +1,60 @@
+/*
+UART4
+-----
+PA0   ------> UART4_TX
+PA1   ------> UART4_RX
+
+UART5
+-----
+PB12   ------> UART5_RX
+PB13   ------> UART5_TX
+
+UART7
+-----
+PE7   ------> UART7_RX
+PE8   ------> UART7_TX
+
+SPI2
+----
+PB10  ------> SPI2_SCK
+PB14  ------> SPI2_MISO
+PB15  ------> SPI2_MOSI
+PD8   ------> SPI2_CS
+
+SPI4
+----
+PE12  ------> SPI4_SCK
+PE13  ------> SPI4_MISO
+PB14  ------> SPI4_MOSI
+PE15  ------> SPI4_CS
+
+SPI6
+----
+PA5  ------> SPI6_SCK
+PA6  ------> SPI6_MISO
+PA7  ------> SPI6_MOSI
+PA2  ------> SPI6_CS
+
+I2C
+---
+PB8 ------> I2C1_SCL
+PB9 ------> I2C1_SDA
+
+
+Timer1
+------
+PA11 ------> TIM1_CH4
+PA10 ------> TIM1_CH3
+PA9  ------> TIM1_CH2
+PE6  ------> TIM1_CH1
+
+Indicator
+--------
+PE3 ------> GPIO_INDICATOR1
+PE4 ------> GPIO_INDICATOR2
+PE5 ------> GPIO_INDICATOR3
+
+Analog
+-------------
+
+*/

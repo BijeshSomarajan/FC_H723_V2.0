@@ -1,0 +1,2 @@
+../Core/Src/fc/timers/fcTimer5.c:17:6:tim5CompareInit	16	static,ignoring_inline_asm
+../Core/Src/fc/timers/fcTimer5.c:54:6:TIM5_IRQHandler	8	static

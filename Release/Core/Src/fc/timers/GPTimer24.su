@@ -1,0 +1,4 @@
+../Core/Src/fc/timers/GPTimer24.c:17:9:initGPTimer24	16	static,ignoring_inline_asm
+../Core/Src/fc/timers/GPTimer24.c:61:6:startGPTimer24	0	static
+../Core/Src/fc/timers/GPTimer24.c:69:6:stopGPTimer24	0	static
+../Core/Src/fc/timers/GPTimer24.c:76:6:TIM24_IRQHandler	0	static

@@ -1,0 +1,8 @@
+../Core/Src/fc/sensors/rc/devices/FSIA.c:36:6:_processFSAIData	0	static
+../Core/Src/fc/sensors/rc/devices/FSIA.c:32:10:getFSIAFrameRate	0	static
+../Core/Src/fc/sensors/rc/devices/FSIA.c:44:9:initFSIA	8	static
+../Core/Src/fc/sensors/rc/devices/FSIA.c:88:9:updateFSIAData	20	static
+../Core/Src/fc/sensors/rc/devices/FSIA.c:60:9:readFSIA	8	static
+../Core/Src/fc/sensors/rc/devices/FSIA.c:140:10:getFSIAChannelValue	0	static
+../Core/Src/fc/sensors/rc/devices/FSIA.c:144:6:resetFSIAState	0	static
+../Core/Src/fc/sensors/rc/devices/FSIA.c:148:9:isFSIAActive	0	static

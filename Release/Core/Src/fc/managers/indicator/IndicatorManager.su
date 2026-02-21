@@ -1,0 +1,5 @@
+../Core/Src/fc/managers/indicator/IndicatorManager.c:49:6:updateIndictors	8	static
+../Core/Src/fc/managers/indicator/IndicatorManager.c:20:9:initIndicatorManager	8	static
+../Core/Src/fc/managers/indicator/IndicatorManager.c:28:6:indicateStartUpSuccess	8	static
+../Core/Src/fc/managers/indicator/IndicatorManager.c:33:6:indicateStartUpFailed	8	static
+../Core/Src/fc/managers/indicator/IndicatorManager.c:38:9:needIndicatorStateChange	0	static

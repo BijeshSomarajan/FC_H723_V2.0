@@ -1,0 +1,12 @@
+../Core/Src/fc/managers/config/ConfigHelper.c:38:9:initConfigHelper	3
+../Core/Src/fc/managers/config/ConfigHelper.c:54:9:isConfigProtocolHeader	5
+../Core/Src/fc/managers/config/ConfigHelper.c:71:9:isConfigProtocolFooter	5
+../Core/Src/fc/managers/config/ConfigHelper.c:87:6:handleConfigDataPacket	2
+../Core/Src/fc/managers/config/ConfigHelper.c:94:18:unmarshalConfigDataPacket	6
+../Core/Src/fc/managers/config/ConfigHelper.c:116:6:updateConfigPacketData	17
+../Core/Src/fc/managers/config/ConfigHelper.c:32:6:_processConfigData	2
+../Core/Src/fc/managers/config/ConfigHelper.c:141:9:marshalConfigDataPacket	5
+../Core/Src/fc/managers/config/ConfigHelper.c:175:9:hasConfigDataPacket	1
+../Core/Src/fc/managers/config/ConfigHelper.c:183:18:getConfigDataPacket	3
+../Core/Src/fc/managers/config/ConfigHelper.c:194:6:sendConfigDataPacket	1
+../Core/Src/fc/managers/config/ConfigHelper.c:200:6:sendConfigData	3

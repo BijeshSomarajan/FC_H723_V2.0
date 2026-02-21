@@ -1,0 +1,10 @@
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:36:6:updateNoiseFilterData	16	static
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:46:6:updateNoiseFilterCoefficients	40	static
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:110:6:filterGyroNoise	32	static
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:149:6:filterAccNoise	16	static
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:161:6:filterTempNoise	8	static
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:167:6:filterAGTNoise	16	static
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:175:6:filterMagNoise	16	static
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:183:6:calculateTempCorrectionOffsets	0	static
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:201:9:initAttitudeNoiseFilter	32	static
+../Core/Src/fc/sensors/attitude/noisefilter/AttitudeNoiseFilter.c:242:6:resetNoiseFilter	32	static

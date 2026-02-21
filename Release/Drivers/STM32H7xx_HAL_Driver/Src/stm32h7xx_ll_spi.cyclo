@@ -1,0 +1,7 @@
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_spi.c:239:13:LL_SPI_DeInit	7
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_spi.c:337:13:LL_SPI_Init	8
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_spi.c:430:6:LL_SPI_StructInit	1
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_spi.c:550:13:LL_I2S_DeInit	7
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_spi.c:568:13:LL_I2S_Init	8
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_spi.c:701:6:LL_I2S_StructInit	1
+../Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_ll_spi.c:724:6:LL_I2S_ConfigPrescaler	1

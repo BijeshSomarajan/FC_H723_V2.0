@@ -1,0 +1,4 @@
+../Core/Src/fc/timers/GPTimer4.c:17:9:initGPTimer4	3
+../Core/Src/fc/timers/GPTimer4.c:61:6:startGPTimer4	1
+../Core/Src/fc/timers/GPTimer4.c:69:6:stopGPTimer4	1
+../Core/Src/fc/timers/GPTimer4.c:76:6:TIM4_IRQHandler	3

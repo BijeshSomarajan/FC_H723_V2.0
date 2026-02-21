@@ -1,0 +1,11 @@
+../Core/Src/fc/managers/attitude/AttitudeManager.c:25:6:readAGTSensorTimerCallback	0	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:30:6:readMagSensorTimerCallback	0	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:34:6:startAttitudeSensorsRead	8	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:42:6:alignImuRateToBoard	0	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:49:6:alignImuAnglesToBoard	0	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:63:6:doAttitudeControl	24	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:87:6:checkForCrash	8	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:108:6:handleAttitudeSensorUpdates	24	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:157:6:doAttitudeManagement	24	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:161:9:initAttitudeManager	8	static
+../Core/Src/fc/managers/attitude/AttitudeManager.c:178:9:resetAttitudeManager	8	static

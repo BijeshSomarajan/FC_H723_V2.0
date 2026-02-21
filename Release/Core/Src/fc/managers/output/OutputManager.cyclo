@@ -1,0 +1,6 @@
+../Core/Src/fc/managers/output/OutputManager.c:52:6:outputControlTask	5
+../Core/Src/fc/managers/output/OutputManager.c:23:9:initOutputManager	4
+../Core/Src/fc/managers/output/OutputManager.c:44:6:updatePWMValues	2
+../Core/Src/fc/managers/output/OutputManager.c:74:6:idlePWMs	3
+../Core/Src/fc/managers/output/OutputManager.c:84:6:setPWMChannelValue	1
+../Core/Src/fc/managers/output/OutputManager.c:89:6:stopOutputs	3
