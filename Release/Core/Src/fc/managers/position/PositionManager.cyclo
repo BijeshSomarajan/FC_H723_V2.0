@@ -1,6 +1,8 @@
 ../Core/Src/fc/managers/position/PositionManager.c:19:9:initPositionManager	2
-../Core/Src/fc/managers/position/PositionManager.c:38:6:estimateAcceleration	1
-../Core/Src/fc/managers/position/PositionManager.c:57:6:managePositionTask	3
-../Core/Src/fc/managers/position/PositionManager.c:83:6:resetPositionManager	1
-../Core/Src/fc/managers/position/PositionManager.c:91:6:updatePositionManagerZMeasure	1
-../Core/Src/fc/managers/position/PositionManager.c:97:6:updatePositionManagerXYMeasure	1
+../Core/Src/fc/managers/position/PositionManager.c:38:6:upadatePositionVelocity	1
+../Core/Src/fc/managers/position/PositionManager.c:57:6:upadatePositionAcceleration	1
+../Core/Src/fc/managers/position/PositionManager.c:76:6:managePositionTask	3
+../Core/Src/fc/managers/position/PositionManager.c:106:6:resetPositionManager	1
+../Core/Src/fc/managers/position/PositionManager.c:114:6:updatePositionManagerZPosition	1
+../Core/Src/fc/managers/position/PositionManager.c:121:6:updatePositionManagerXYPosition	1
+../Core/Src/fc/managers/position/PositionManager.c:127:6:dampPositionManagerXYVelocity	1

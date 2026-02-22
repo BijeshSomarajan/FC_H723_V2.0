@@ -1,6 +1,8 @@
 ../Core/Src/fc/managers/position/PositionManager.c:19:9:initPositionManager	8	static
-../Core/Src/fc/managers/position/PositionManager.c:38:6:estimateAcceleration	32	static
-../Core/Src/fc/managers/position/PositionManager.c:57:6:managePositionTask	24	static
-../Core/Src/fc/managers/position/PositionManager.c:83:6:resetPositionManager	8	static
-../Core/Src/fc/managers/position/PositionManager.c:91:6:updatePositionManagerZMeasure	0	static
-../Core/Src/fc/managers/position/PositionManager.c:97:6:updatePositionManagerXYMeasure	0	static
+../Core/Src/fc/managers/position/PositionManager.c:38:6:upadatePositionVelocity	32	static
+../Core/Src/fc/managers/position/PositionManager.c:57:6:upadatePositionAcceleration	32	static
+../Core/Src/fc/managers/position/PositionManager.c:76:6:managePositionTask	32	static
+../Core/Src/fc/managers/position/PositionManager.c:106:6:resetPositionManager	8	static
+../Core/Src/fc/managers/position/PositionManager.c:114:6:updatePositionManagerZPosition	8	static
+../Core/Src/fc/managers/position/PositionManager.c:121:6:updatePositionManagerXYPosition	0	static
+../Core/Src/fc/managers/position/PositionManager.c:127:6:dampPositionManagerXYVelocity	0	static

@@ -7,6 +7,7 @@ struct _POSITION_DATA {
 	float xPosition, yPosition, zPosition;
 	float xVelocity, yVelocity, zVelocity;
 	float xAcceleration, yAcceleration, zAcceleration;
+	float xAccelerationBias, yAccelerationBias, zAccelerationBias;
 
 	float positionProcessDt;
 
@@ -27,17 +28,28 @@ extern POSITION_DATA positionData;
 #define POSITION_MGR_Y_ACC_LPF_FREQ   40.00f
 #define POSITION_MGR_Z_ACC_LPF_FREQ   40.00f
 
-#define POSITION_MGR_X_ACC_DEADBAND     4.0f    // Meter/Sec2
-#define POSITION_MGR_Y_ACC_DEADBAND     4.0f    // Meter/Sec2
-#define POSITION_MGR_Z_ACC_DEADBAND     4.0f    // Meter/Sec2
+#define POSITION_MGR_X_ACC_DEADBAND     1.0f    // Meter/Sec2
+#define POSITION_MGR_Y_ACC_DEADBAND     1.0f    // Meter/Sec2
+#define POSITION_MGR_Z_ACC_DEADBAND     1.0f    // Meter/Sec2
+
+#define POSITION_MGR_X_VEL_DEADBAND     1.0f    // Meter/Sec
+#define POSITION_MGR_Y_VEL_DEADBAND     1.0f    // Meter/Sec
+#define POSITION_MGR_Z_VEL_DEADBAND     1.0f    // Meter/Sec
+
+#define POSITION_MGR_X_VEL_MAX          500.0f  // cm/Sec2
+#define POSITION_MGR_Y_VEL_MAX          500.0f  // cm/Sec2
+#define POSITION_MGR_Z_VEL_MAX          500.0f  // cm/Sec2
 
 #define POSITION_MGR_X_ACC_MAX          500.0f  // cm/Sec2
 #define POSITION_MGR_Y_ACC_MAX          500.0f  // cm/Sec2
 #define POSITION_MGR_Z_ACC_MAX          500.0f  // cm/Sec2
 
+#define POSITION_MGR_XY_VEL_DAMP_STRENGTH   0.75f
+
 uint8_t initPositionManager(void);
-void updatePositionManagerZMeasure(float zPos, float dt);
-void updatePositionManagerXYMeasure(float xPos, float yPos, float dt);
+void updatePositionManagerZPosition(float zPos, float dt);
+void updatePositionManagerXYPosition(float xPos, float yPos, float dt);
+void dampPositionManagerXYVelocity(float dt);
 void resetPositionManager(void);
 
 #endif /* SRC_FC_MANAGERS_POSITION_POSITIONMANAGER_H_ */

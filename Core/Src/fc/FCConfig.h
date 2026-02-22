@@ -31,7 +31,7 @@
 #define FC_STABLILIZATION_PERIOD 8.0f
 #define FC_ARM_PERIOD 1.0f
 
-//#define DEBUG_ENABLED 1
+#define DEBUG_ENABLED 0
 
 
 #endif /* SRC_FC_MANAGERS_FCCONFIG_H_ */

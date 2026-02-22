@@ -144,75 +144,47 @@ void handleThrottleChange(float dt) {
 	}
 }
 
-
-/**
- * @brief Updates Tilt Compensation Throttle Delta with asymmetric response.
- * Sharp increase to prevent sinking on tilt; slow decrease to prevent
- * "bobbing" when leveling out.
- * * @param dt Loop delta time (e.g., 0.001f for 1kHz).
- */
 __ATTR_ITCM_TEXT
 void updateTiltCompThDelta(float dt) {
 	static float currentTiltCompThDelta = 0.0f;
 	float target = 0.0f;
-	// 1. Extract Attitude
+	// 1. Extract Attitude and determine dominant tilt
 	float pitch = sensorAttitudeData.pitch;
 	float roll = sensorAttitudeData.roll;
-	float tiltP = fabsf(pitch);
-	float tiltR = fabsf(roll);
-	// Determine the dominant tilt angle
-	float maxTilt = (tiltP > tiltR) ? tiltP : tiltR;
-	// 2. Only calculate if tilt exceeds a minimum threshold to save cycles
+	//float maxTilt = (fabsf(pitch) > fabsf(roll)) ? fabsf(pitch) : fabsf(roll);
+	float maxTilt = fastSqrtf(pitch * pitch + roll * roll);
+	// 2. Only calculate if tilt exceeds threshold
 	if (maxTilt > ALT_MGR_TILT_TH_MIN_ANGLE) {
 		float pRad = convertDegToRad(pitch);
 		float rRad = convertDegToRad(roll);
-		// Fast approximations for 1kHz loop
-		float cosP = cosApprox(pRad);
-		float cosR = cosApprox(rRad);
-		/* --- BASE LIFT LOSS CALCULATION --- */
-		// Calculate the vertical component of the thrust vector
-		float baseLiftComponent = cosP * cosR;
-		// Apply a floor to prevent extreme throttle spikes at high angles
+		// Calculate the vertical component (CosP * CosR)
+		float baseLiftComponent = cosApprox(pRad) * cosApprox(rRad);
 		if (baseLiftComponent < altMgrMaxLiftComponent) {
 			baseLiftComponent = altMgrMaxLiftComponent;
 		}
-		// Calculate loss and normalize to 0.0 - 1.0 range
+		// Calculate loss and normalize
 		float baseLiftLoss = 1.0f - baseLiftComponent;
 		float maxPossibleLoss = 1.0f - altMgrMaxLiftComponent;
 		float normalizedLoss = baseLiftLoss / (maxPossibleLoss > 0.0f ? maxPossibleLoss : 1.0f);
-		// Shape the response using an S-Curve for smoother mid-angle feel
+		// Shape the response
 		float shapedLoss = generateSCurve(normalizedLoss, ALT_MGR_TILT_COMP_S_CURVE_SHARPNESS);
-		// Calculate non-linear components to compensate for translational drag/loss
-		float nonlinearPitchLoss = fabsf(tanApprox(pRad)) * ALT_MGR_TILT_COMP_PITCH_NONLINEAR_FACTOR;
-		float nonlinearRollLoss = fabsf(tanApprox(rRad)) * ALT_MGR_TILT_COMP_ROLL_NONLINEAR_FACTOR;
-		// Apply base gain
+		// Start with the base gain
 		target = shapedLoss * ALT_MGR_TILT_COMP_TH_ADJUST_GAIN;
-		// Apply Asymmetric directional gains (e.g., nose-down vs nose-up compensation)
+		/* --- DIRECTIONAL GAIN ASPECT --- */
+		// if PITCH_DIR is -1 and pitch is negative (Nose Down), apply extra gain
 		if (ALT_MGR_TILT_COMP_TH_PITCH_DIR != 0 && ((ALT_MGR_TILT_COMP_TH_PITCH_DIR < 0 && pitch < 0) || (ALT_MGR_TILT_COMP_TH_PITCH_DIR > 0 && pitch > 0))) {
-			target += nonlinearPitchLoss * ALT_MGR_TILT_COMP_TH_ADJUST_ASSYMETRIC_GAIN;
+			target *= ALT_MGR_TILT_COMP_TH_ADJUST_ASSYMETRIC_GAIN;
 		}
 		if (ALT_MGR_TILT_COMP_TH_ROLL_DIR != 0 && ((ALT_MGR_TILT_COMP_TH_ROLL_DIR < 0 && roll < 0) || (ALT_MGR_TILT_COMP_TH_ROLL_DIR > 0 && roll > 0))) {
-			target += nonlinearRollLoss * ALT_MGR_TILT_COMP_TH_ADJUST_ASSYMETRIC_GAIN;
+			target *= ALT_MGR_TILT_COMP_TH_ADJUST_ASSYMETRIC_GAIN;
 		}
-		// Hard limit on how much throttle delta can be injected
+		// Hard limit for safety
 		target = constrainToRangeF(target, 0, ALT_MGR_TILT_TH_ADJUST_LIMIT);
 	}
-
-	/* --- ASYMMETRIC FILTERING (THE ATTACK/DECAY LOGIC) --- */
-	float activeTau;
-	if (target > currentTiltCompThDelta) {
-		// Target is higher than current: Apply "Sharp Increase" (Attack)
-		activeTau = ALT_MGR_TILT_COMP_TH_ADJUST_TAU;
-	} else {
-		// Target is lower than current: Apply "Slow Decrease" (Decay)
-		// Multiplier should be high (e.g., 5.0 - 10.0) to smooth the exit transition
-		activeTau = ALT_MGR_TILT_COMP_TH_ADJUST_TAU * ALT_MGR_TILT_COMP_EXIT_TAU_MULTIPLIER;
-	}
-	// Exponential Smoothing Filter: current = current + alpha * (target - current)
-	// Alpha = dt / (Tau + dt) is mathematically stable at all dt
+	/* --- ASYMMETRIC FILTERING (ATTACK/DECAY) --- */
+	float activeTau = (target > currentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU : (ALT_MGR_TILT_COMP_TH_ADJUST_TAU * ALT_MGR_TILT_COMP_EXIT_TAU_MULTIPLIER);
 	float alpha = dt / (activeTau + dt);
 	currentTiltCompThDelta += alpha * (target - currentTiltCompThDelta);
-	// Export to global control structure
 	controlData.tiltCompThDelta = currentTiltCompThDelta;
 }
 
@@ -247,7 +219,8 @@ void manageAltitude(float dt) {
 	}
 	manageAltControlSettings(dt);
 	if (fcStatusData.isFlying) {
-		updateTiltCompThDelta(dt);
+		//updateTiltCompThDelta(dt);
+		controlData.tiltCompThDelta = 0;
 		float clampedCurrentAltitude = getClampedCurrentAltitude();
 		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, clampedCurrentAltitude, altControlGains);
 	} else {
@@ -310,7 +283,7 @@ void doAltitudeManagement(void) {
 			float dt = getDeltaTime(SENSOR_BARO_READ_TIMER_CHANNEL);
 			sensorAltitudeData.altUpdateDt = dt;
 			updateAltitudeSensorData(dt);
-			updatePositionManagerZMeasure(sensorAltitudeData.altitudeSLScaled, dt);
+			updatePositionManagerZPosition(sensorAltitudeData.altitudeSLScaled, dt);
 		}
 	}
 }

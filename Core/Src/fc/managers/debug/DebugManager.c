@@ -68,15 +68,21 @@ extern PID altRatePID;
 float curAlt = 0;
 
 void debugPosition(float dt) {
-	if (curAlt == 0) {
-		curAlt = sensorAltitudeData.altitudeSLFiltered;
-	}
-	DEBUG_DATA_BUFFER[0] = positionData.zAcceleration;
-	DEBUG_DATA_BUFFER[1] = positionData.zVelocity;
-	DEBUG_DATA_BUFFER[2] = (sensorAltitudeData.altitudeSLFiltered - curAlt) * 10;
-	DEBUG_DATA_BUFFER[3] = (positionData.zPosition - curAlt) * 10;
-	DEBUG_DATA_BUFFER[4] = 1.0f / (positionData.positionProcessDt == 0 ? 1 : positionData.positionProcessDt);
-	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = controlData.tiltCompThDelta * 10;
+	DEBUG_DATA_BUFFER[1] = positionData.xVelocity * 10;
+	DEBUG_DATA_BUFFER[2] = positionData.yVelocity * 10;
+	DEBUG_DATA_BUFFER[3] = positionData.zVelocity * 10;
+
+	DEBUG_DATA_BUFFER[4] = positionData.xAcceleration * 10;
+	DEBUG_DATA_BUFFER[5] = positionData.yAcceleration * 10;
+	DEBUG_DATA_BUFFER[6] = positionData.zAcceleration * 10;
+
+	/*
+	 DEBUG_DATA_BUFFER[2] = (sensorAltitudeData.altitudeSLFiltered - curAlt) * 10;
+	 DEBUG_DATA_BUFFER[3] = (positionData.zPosition - curAlt) * 10;
+	 DEBUG_DATA_BUFFER[4] = 1.0f / (positionData.positionProcessDt == 0 ? 1 : positionData.positionProcessDt);
+	 */
+	sendConfigData(DEBUG_DATA_BUFFER,7, CMD_FC_DATA);
 }
 
 void currentDebug() {

@@ -19,11 +19,11 @@ void resetAltitudeManager(void);
 #define ALT_MGR_MAX_PERMISSIBLE_THROTTLE   RC_CHANNEL_MIN_VALUE + ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA
 #define ALT_MGR_ALT_AGGREGATION_GAIN  0.5f //meter per second
 
-#define ALT_MGR_MAX_ALT_DELTA 100 //Cms
+#define ALT_MGR_MAX_ALT_DELTA 500 //Cms
 #define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 10.0f//5.0f
 
 //Altitude estimate Complementary filter alpha
-#define ALT_MGR_TILT_TH_MIN_ANGLE 2.0f
+#define ALT_MGR_TILT_TH_MIN_ANGLE 5.0f
 #define ALT_MGR_TILT_TH_MAX_ANGLE 30.0f
 
 //Tilt compensation common settings
@@ -34,21 +34,8 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_COMP_TH_ADJUST_ASSYMETRIC_GAIN 200.0f
 
 #define ALT_MGR_TILT_COMP_S_CURVE_SHARPNESS 0.8f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU 0.1f//0.02f
-/*
- * If the drone sinks after leveling: Increase the multiplier (e.g., move from 5.0 to 7.0).
- * If the drone climbs (balloons) after leveling: Decrease the multiplier (e.g., move from 5.0 to 3.0).
- */
-#define ALT_MGR_TILT_COMP_EXIT_TAU_MULTIPLIER 50.0f
-/* * PITCH_NONLINEAR_FACTOR: Adjusts throttle boost specifically for the Pitch axis.
- * On Wide-X racing frames, this is typically LOWER than Roll (e.g., 0.45) because
- * the shorter longitudinal stance has less rotational inertia to overcome during
- * high-speed forward flight compared to the wider roll axis.
- * - Increase if drone sinks during forward/backward flight.
- * - Decrease if drone climbs during forward/backward flight.
- */
-#define ALT_MGR_TILT_COMP_PITCH_NONLINEAR_FACTOR 0.45f
-#define ALT_MGR_TILT_COMP_ROLL_NONLINEAR_FACTOR 0.55f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU 0.75f
+#define ALT_MGR_TILT_COMP_EXIT_TAU_MULTIPLIER 2.0f
 
 // Asymmetric Boost Directions: Set to 0 for no boost, -1 for negative angles, +1 for positive angles
 #define ALT_MGR_TILT_COMP_TH_PITCH_DIR -1
