@@ -20,28 +20,34 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_AGGREGATION_GAIN  0.5f //meter per second
 
 #define ALT_MGR_MAX_ALT_DELTA 500 //Cms
-#define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 10.0f//5.0f
+#define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 20.0f//5.0f
 
 //Altitude estimate Complementary filter alpha
-#define ALT_MGR_TILT_TH_MIN_ANGLE 5.0f
-#define ALT_MGR_TILT_TH_MAX_ANGLE 30.0f
+#define ALT_MGR_TILT_TH_MIN_ANGLE 2.0f
+#define ALT_MGR_TILT_TH_MAX_ANGLE 32.0f
 
 //Tilt compensation common settings
-#define ALT_MGR_TILT_TH_ADJUST_LIMIT 100
-
+#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT 60
 // --- Tilt Control ---
-#define ALT_MGR_TILT_COMP_TH_ADJUST_GAIN 100.0f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_ASSYMETRIC_GAIN 200.0f
-
-#define ALT_MGR_TILT_COMP_S_CURVE_SHARPNESS 0.8f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU 0.75f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_GAIN 2000.0f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU 0.1f
 #define ALT_MGR_TILT_COMP_EXIT_TAU_MULTIPLIER 2.0f
 
-// Asymmetric Boost Directions: Set to 0 for no boost, -1 for negative angles, +1 for positive angles
-#define ALT_MGR_TILT_COMP_TH_PITCH_DIR -1
-#define ALT_MGR_TILT_COMP_TH_ROLL_DIR 0
+
+
+// How fast the "speed" builds up
+#define ALT_MGR_VENTURI_ACCEL_SCALER 10.0f
+#define ALT_MGR_VENTURI_GAIN_BWD     1000 //0.03f
+#define ALT_MGR_VENTURI_GAIN_FWD     500 //0.01f
+#define ALT_MGR_VENTURI_TAU_RISE     0.1f
+#define ALT_MGR_VENTURI_TAU_FADE     2.0f
+#define ALT_MGR_VENTURI_DRAG_TAU 2.0f
+#define ALT_MGR_VENTURI_BIAS_MAX 80.0f //in Cms
+#define ALT_MGR_MAX_SPEED 10.0f
 
 // --- Alt Control Settings ---
+// This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.
+#define ALT_MGR_ALT_CONTROL_SETTING_LATERAL_DT_THRESHOLD 0.4f
 // In terms of throttle delta per second. This is used to calculate the rate of stick movement.
 #define ALT_MGR_ALT_CONTROL_SETTING_THROTTLE_RATE_MAX 10.0f
 // This scaler converts the raw throttle rate into a 0.0 to 1.0 range for gain attenuation. Adjust as needed based on testing.
@@ -50,6 +56,8 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_CONTROL_STICK_ATTENUATION_GAIN 1.0f
 // Higher = more aggressive PID ducking on fast moves
 #define ALT_MGR_THROTTLE_RATE_ATTENUATION_GAIN 0.80f
+
+
 /*
  * If the drone feels "mushy" for too long after centering: Reduce MP_TAU to 0.3s. This will make the drone "snap" into hover faster.
  * If the drone "bobs" up and down when you stop a climb: Increase RI_TAU to 1.2s.

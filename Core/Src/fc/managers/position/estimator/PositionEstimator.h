@@ -66,7 +66,7 @@
 #define POS_EKF_Z_Q_VEL         0.0128f
 #define POS_EKF_Z_Q_BIAS        0.001f
 #define POS_EKF_Z_R_MEAS        5000.0f
-#define POS_EKF_Z_GATE          6.0f
+#define POS_EKF_Z_GATE          4.0f
 #define POS_EKF_Z_PANIC         100
 
 /* --- Numerical Stability Limits --- */

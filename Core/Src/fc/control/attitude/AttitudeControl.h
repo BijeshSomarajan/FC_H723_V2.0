@@ -4,9 +4,9 @@
 #include <sys/_stdint.h>
 
 #define ATT_CONTROL_D_RATE_LPF_FREQ 32.0f
+
 #define ATT_CONTROL_RATE_PID_I_LIMIT_RATIO 1.0f
 #define ATT_CONTROL_RATE_PID_D_LIMIT_RATIO 1.0f
-
 
 uint8_t initAttitudeControl();
 void resetAttitudeControl(uint8_t hard);

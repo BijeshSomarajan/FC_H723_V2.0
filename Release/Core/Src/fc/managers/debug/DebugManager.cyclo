@@ -1,6 +1,6 @@
-../Core/Src/fc/managers/debug/DebugManager.c:103:6:debugTask	2
+../Core/Src/fc/managers/debug/DebugManager.c:115:6:debugTask	3
 ../Core/Src/fc/managers/debug/DebugManager.c:31:9:initDebugManager	1
 ../Core/Src/fc/managers/debug/DebugManager.c:36:6:debugTime	8
 ../Core/Src/fc/managers/debug/DebugManager.c:47:6:debugImu	2
-../Core/Src/fc/managers/debug/DebugManager.c:70:6:debugPosition	1
-../Core/Src/fc/managers/debug/DebugManager.c:88:6:currentDebug	1
+../Core/Src/fc/managers/debug/DebugManager.c:71:6:debugPosition	2
+../Core/Src/fc/managers/debug/DebugManager.c:100:6:currentDebug	1
