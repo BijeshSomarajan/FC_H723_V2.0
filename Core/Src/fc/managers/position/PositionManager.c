@@ -9,6 +9,7 @@
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "estimator/PositionEstimator.h"
+#include "../../status/FCStatus.h"
 
 POSITION_EKF positionEkf;
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
@@ -56,6 +57,7 @@ void upadatePositionVelocity(float vx, float vy, float vz, float dt) {
 __ATTR_ITCM_TEXT
 void upadatePositionAcceleration(float ax, float ay, float az, float dt) {
 	float acc;
+
 	// X Axis
 	acc = applyDeadBandFloat(0.0f, ax, POSITION_MGR_X_ACC_DEADBAND);
 	acc = constrainToRangeF(acc, -POSITION_MGR_X_ACC_MAX, POSITION_MGR_X_ACC_MAX);
@@ -77,9 +79,9 @@ void managePositionTask(void) {
 	float dt = getDeltaTime(POSITION_MANAGER_TIMER_CHANNEL);
 
 	if (dt <= 0.0f || dt > 0.1f) dt = 0.001f; // Safety guard for dt
-	float axEarth = imuData.axEarth * POSITION_MGR_ACC_OUTPUT_GAIN;
-	float ayEarth = imuData.ayEarth * POSITION_MGR_ACC_OUTPUT_GAIN;
-	float azEarth = imuData.azEarth * POSITION_MGR_ACC_OUTPUT_GAIN;
+	float axEarth = imuData.axEarthLinear * POSITION_MGR_ACC_OUTPUT_GAIN;
+	float ayEarth = imuData.ayEarthLinear * POSITION_MGR_ACC_OUTPUT_GAIN;
+	float azEarth = imuData.azEarthLinear * POSITION_MGR_ACC_OUTPUT_GAIN;
 
 	// 1. Prediction (Using raw or slightly scaled earth-frame acc)
 	positionEKFPredict(&positionEkf, axEarth, ayEarth, azEarth, dt);
@@ -101,6 +103,7 @@ void managePositionTask(void) {
 	upadatePositionVelocity(x[1], x[4], x[7], dt);
 
 	positionData.positionProcessDt = dt;
+
 }
 
 void resetPositionManager(void) {

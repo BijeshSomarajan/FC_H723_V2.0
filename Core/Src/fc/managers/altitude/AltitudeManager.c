@@ -182,66 +182,85 @@ float getClampedCurrentAltitude() {
 }
 
 __ATTR_ITCM_TEXT
-void calculateVenturiBiasOld(float dt) {
-	static float velocityProxy = 0.0f;
-	static float venturiBias = 0.0f;
-
-	// 1. Get current states
-	float pitchRad = convertDegToRad(sensorAttitudeData.pitch);
-	float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
-
-	// 2. Calculate Horizontal Acceleration
-	float horizontalThrust = netThrottlePct * sinApprox(pitchRad);
-
-	// 3. Integrate Force to Velocity with Time-Consistent Drag
-	velocityProxy += (horizontalThrust * dt * ALT_MGR_VENTURI_ACCEL_SCALER);
-	float dragAlpha = dt / (ALT_MGR_VENTURI_DRAG_TAU + dt);
-	velocityProxy -= dragAlpha * velocityProxy;
-
-	// 4. Calculate Venturi Bias
-	float gain = (velocityProxy < 0.0f) ? ALT_MGR_VENTURI_GAIN_BWD : ALT_MGR_VENTURI_GAIN_FWD;
-	float targetBias = -(velocityProxy * velocityProxy) * gain;
-
-	// 5. Smooth the output (Rise Fast, Fade Slow Logic)
-	// targetBias is always negative.
-	// If targetBias < venturiBias, it means the vacuum is INCREASING (Rise Fast)
-	float activeTau = (targetBias < venturiBias) ? ALT_MGR_VENTURI_TAU_RISE : ALT_MGR_VENTURI_TAU_FADE;
-	float alpha = dt / (activeTau + dt);
-	venturiBias += alpha * (targetBias - venturiBias);
-
-	// 6. Final safety clamp
-	sensorAltitudeData.altVenturiBias = constrainToRangeF(venturiBias, -ALT_MGR_VENTURI_BIAS_MAX, 0.0f);
+void calculateVenturiBiasMine(float dt) {
+// 1. Get current states
+	float pitch = sensorAttitudeData.pitch;
+	float pitchAbs = fabs(pitch);
+	float pitchRad = convertDegToRad(pitchAbs);
+	sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_TAU_FADE;
+	if (pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE) {
+		float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
+// 2. Acceleration Calculation
+		float horizontalThrust = netThrottlePct * sinApprox(pitchRad);
+// 3. Update Velocity with "Terminal Velocity" Cap
+// This prevents the math from overshooting the physical limits of the drone.
+		sensorAltitudeData.velocityEstimate += (horizontalThrust * dt * ALT_MGR_VENTURI_ACCEL_SCALER);
+// HARD LIMIT: Constrain proxy to realistic max speed (e.g., +/- 15.0m/s)
+		sensorAltitudeData.velocityEstimate = constrainToRangeF(sensorAltitudeData.velocityEstimate, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
+// 4. Time-Consistent Velocity
+// Increasing ALT_MGR_VENTURI_VELOCITY_TAU here will stop the "gradual decrease" while moving.
+		float velocityAlpha = dt / (ALT_MGR_VENTURI_VELOCITY_TAU + dt);
+		sensorAltitudeData.velocityEstimate -= velocityAlpha * sensorAltitudeData.velocityEstimate;
+// 5. Calculate Bias with Asymmetric Directional Gains
+		sensorAltitudeData.venturiGain = (pitch < 0.0f) ? ALT_MGR_VENTURI_GAIN_BWD : ALT_MGR_VENTURI_GAIN_FWD;
+		sensorAltitudeData.venturiEstimatedBias = -(sensorAltitudeData.velocityEstimate * sensorAltitudeData.velocityEstimate) * sensorAltitudeData.venturiGain;
+// 6. Rise Fast / Fade Slow Filter
+		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_TAU_RISE;
+	} else {
+		sensorAltitudeData.venturiEstimatedBias = 0;
+		sensorAltitudeData.velocityEstimate = 0;
+		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_TAU_FADE;
+	}
+	float alpha = dt / (sensorAltitudeData.venturiBiasTau + dt);
+	sensorAltitudeData.altVenturiBias += alpha * (sensorAltitudeData.venturiEstimatedBias - sensorAltitudeData.altVenturiBias);
+	sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, 0);
 }
-
-
-
 
 __ATTR_ITCM_TEXT
 void calculateVenturiBias(float dt) {
-	static float velocityProxy = 0.0f;
-	static float venturiBias = 0.0f;
-// 1. Get current states
-	float pitchRad = convertDegToRad(sensorAttitudeData.pitch);
-	float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
-// 2. Acceleration Calculation
-	float horizontalThrust = netThrottlePct * sinApprox(pitchRad);
-// 3. Update Velocity with "Terminal Velocity" Cap
-// This prevents the math from overshooting the physical limits of the drone.
-	velocityProxy += (horizontalThrust * dt * ALT_MGR_VENTURI_ACCEL_SCALER);
-// HARD LIMIT: Constrain proxy to realistic max speed (e.g., +/- 15.0m/s)
-	velocityProxy = constrainToRangeF(velocityProxy, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
-// 4. Time-Consistent Drag
-// Increasing DRAG_TAU here will stop the "gradual decrease" while moving.
-	float dragAlpha = dt / (ALT_MGR_VENTURI_DRAG_TAU + dt);
-	velocityProxy -= dragAlpha * velocityProxy;
-// 5. Calculate Bias with Asymmetric Directional Gains
-	float gain = (velocityProxy < 0.0f) ? ALT_MGR_VENTURI_GAIN_BWD : ALT_MGR_VENTURI_GAIN_FWD;
-	float targetBias = -(velocityProxy * velocityProxy) * gain;
-// 6. Rise Fast / Fade Slow Filter
-	float activeTau = (targetBias < venturiBias) ? ALT_MGR_VENTURI_TAU_RISE : ALT_MGR_VENTURI_TAU_FADE;
-	float alpha = dt / (activeTau + dt);
-	venturiBias += alpha * (targetBias - venturiBias);
-	sensorAltitudeData.altVenturiBias = constrainToRangeF(venturiBias, -ALT_MGR_VENTURI_BIAS_MAX, 0.0f);
+    // 1. Get current attitude and threshold check
+    float pitchRad = convertDegToRad(sensorAttitudeData.pitch);
+    float pitchAbs = fabsf(sensorAttitudeData.pitch);
+    float horizontalThrustN = 0.0f;
+    // 2. Calculate Horizontal Force (Newtons)
+    // Only calculate if above the minimum tilt threshold
+    if (pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE) {
+        // netThrottlePct: Amount of throttle currently contributing to acceleration
+        float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
+        // F = TotalThrust * sin(theta)
+        // THRUST_PER_PCT is based on your 750g mass and 40% hover
+        horizontalThrustN = netThrottlePct * THRUST_PER_PCT * sinApprox(pitchRad);
+    }
+    // 3. Active Braking Logic
+    // Detect if the pilot is pushing against the current direction of travel
+    uint8_t isBraking = (sensorAltitudeData.velocityEstimate * horizontalThrustN < 0.0f);
+    // Select the appropriate Time Constant (Tau)
+    // Braking uses a much smaller Tau to drain velocity/bias faster
+    float currentDragTau = isBraking ? (ALT_MGR_VENTURI_VELOCITY_TAU / 4.0f) : ALT_MGR_VENTURI_VELOCITY_TAU;
+    // 4. Correct Discrete-Time Physics Integration
+    // Physics: v_new = v_old + (accel_thrust - accel_drag) * dt
+    // Where accel_drag is defined as (velocity / tau)
+    float accelThrust = horizontalThrustN / DRONE_MASS_KG;
+    float dampingTerm = sensorAltitudeData.velocityEstimate / fmaxf(currentDragTau, 0.001f);
+    sensorAltitudeData.velocityEstimate += (accelThrust - dampingTerm) * dt;
+    // Hard Limit velocity to prevent mathematical runaway
+    sensorAltitudeData.velocityEstimate = constrainToRangeF(sensorAltitudeData.velocityEstimate, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
+    // 5. Asymmetric Gain Selection with Smoothing
+    // Switches between 400 (FWD) and 600 (BWD) based on velocity direction
+    float rawGain = (sensorAltitudeData.velocityEstimate < 0.0f) ? ALT_MGR_VENTURI_GAIN_BWD : ALT_MGR_VENTURI_GAIN_FWD;
+    static float smoothedGain = 0.0f;
+    float gainFilterAlpha = dt / (0.1f + dt); // 100ms smoothing to prevent "V" spikes at zero-crossing
+    smoothedGain += gainFilterAlpha * (rawGain - smoothedGain);
+    // 6. Calculate Target Bias (v^2 * Gain)
+    // Resulting target is in your preferred units (e.g., cm)
+    float targetBias = -(sensorAltitudeData.velocityEstimate * sensorAltitudeData.velocityEstimate) * smoothedGain;
+    // 7. Rise/Fade Filtering (Final Bias Output)
+    // Uses 0.1s for Rise (charging) and 1.5s for Fade (recovering)
+    float activeTau = (targetBias < sensorAltitudeData.altVenturiBias) ? ALT_MGR_VENTURI_TAU_RISE : ALT_MGR_VENTURI_TAU_FADE;
+    float alpha = dt / (activeTau + dt);
+    sensorAltitudeData.altVenturiBias += alpha * (targetBias - sensorAltitudeData.altVenturiBias);
+    // Safety clamp to your 100cm maximum
+    sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, 0.0f);
 }
 
 __ATTR_ITCM_TEXT

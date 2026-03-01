@@ -52,4 +52,8 @@ void updatePositionManagerXYPosition(float xPos, float yPos, float dt);
 void dampPositionManagerXYVelocity(float dt);
 void resetPositionManager(void);
 
+
+void updateLateralVel() ;
+void predictLateralVel(float dt);
+
 #endif /* SRC_FC_MANAGERS_POSITION_POSITIONMANAGER_H_ */

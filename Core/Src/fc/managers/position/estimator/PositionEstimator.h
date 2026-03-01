@@ -48,25 +48,27 @@
  Number of consecutive rejected measurements before the filter "gives up" and snaps to sensor.
  */
 
-#define POS_EKF_X_Q_POS         0.00013f
-#define POS_EKF_X_Q_VEL         0.0000001f
-#define POS_EKF_X_Q_BIAS        0.001f
-#define POS_EKF_X_R_MEAS        0.01f
-#define POS_EKF_X_GATE          100.0f
-#define POS_EKF_X_PANIC         1
+/* --- X-Axis Tuning (Lateral / Roll) @ 1kHz --- */
+#define POS_EKF_X_Q_POS         0.00013f       // Increased for high-speed tracking
+#define POS_EKF_X_Q_VEL         0.0128f       // HIGH: Forces velocity to integrate at 1kHz
+#define POS_EKF_X_Q_BIAS        0.001f // ULTRA-LOW: Prevents "Bias Walking" from eating speed
+#define POS_EKF_X_R_MEAS        5000.0f       // TRUST: Pulls Red line toward Orange slope quickly
+#define POS_EKF_X_GATE          15.0f       // WIDE: No rejection during high-speed 1kHz updates
+#define POS_EKF_X_PANIC         100         // Higher panic for 1kHz (100ms window)
 
+/* --- Y-Axis Tuning (Longitudinal / Pitch) @ 1kHz --- */
 #define POS_EKF_Y_Q_POS         0.00013f
-#define POS_EKF_Y_Q_VEL         0.0000001f
-#define POS_EKF_Y_Q_BIAS        0.001f
-#define POS_EKF_Y_R_MEAS        0.01f
-#define POS_EKF_Y_GATE          100.0f
-#define POS_EKF_Y_PANIC         1
+#define POS_EKF_Y_Q_VEL         0.0128f        // HIGH: Velocity will now climb as long as you are pitched
+#define POS_EKF_Y_Q_BIAS        0.001f // "Freeze" the bias during the flight
+#define POS_EKF_Y_R_MEAS        5000.0f       // Lower R = Red line follows the slope of Orange line
+#define POS_EKF_Y_GATE          15.0f
+#define POS_EKF_Y_PANIC         100
 
 #define POS_EKF_Z_Q_POS         0.00013f
 #define POS_EKF_Z_Q_VEL         0.0128f
 #define POS_EKF_Z_Q_BIAS        0.001f
 #define POS_EKF_Z_R_MEAS        5000.0f
-#define POS_EKF_Z_GATE          4.0f
+#define POS_EKF_Z_GATE          2.0f //Was 4
 #define POS_EKF_Z_PANIC         100
 
 /* --- Numerical Stability Limits --- */
