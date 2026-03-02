@@ -44,6 +44,8 @@ float altMgrCurrentThrottleRateGain = 1.0f;
 float altMgrLateralMovementDt = 0;
 uint8_t altMgrLateralFlightControlApplied = 0;
 
+float altMgrVenturiAccelScaler = 0;
+
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
 
@@ -61,6 +63,8 @@ uint8_t initAltitudeManager(void) {
 		altMgrMaxSLAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_ASL_HEIGHT_ADDR);
 		altMgrMaxGndAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_TERRAIN_HEIGHT_ADDR);
 		altMgrMaxLiftComponent = cosf(convertDegToRad(ALT_MGR_TILT_TH_MAX_ANGLE));
+
+		altMgrVenturiAccelScaler = ALT_MGR_DRONE_MASS_KG * 9.81f / fcStatusData.liftOffThrottlePercent;
 
 		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
 		altControlGains.masterPGain = 1.0f;
@@ -160,7 +164,7 @@ void calculateTiltCompThrottle(float dt) {
 		target = fminf(target, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
 	}
 	// Smooth filtering
-	float activeTau = (target > currentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU : (ALT_MGR_TILT_COMP_TH_ADJUST_TAU * ALT_MGR_TILT_COMP_EXIT_TAU_MULTIPLIER);
+	float activeTau = (target > currentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
 	float alpha = dt / (activeTau + dt);
 	currentTiltCompThDelta += alpha * (target - currentTiltCompThDelta);
 	controlData.tiltCompThDelta = currentTiltCompThDelta;
@@ -182,85 +186,80 @@ float getClampedCurrentAltitude() {
 }
 
 __ATTR_ITCM_TEXT
-void calculateVenturiBiasMine(float dt) {
-// 1. Get current states
+void calculateVenturiBias(float dt) {
 	float pitch = sensorAttitudeData.pitch;
 	float pitchAbs = fabs(pitch);
 	float pitchRad = convertDegToRad(pitchAbs);
-	sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_TAU_FADE;
+	sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
 	if (pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE) {
 		float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
-// 2. Acceleration Calculation
 		float horizontalThrust = netThrottlePct * sinApprox(pitchRad);
-// 3. Update Velocity with "Terminal Velocity" Cap
-// This prevents the math from overshooting the physical limits of the drone.
-		sensorAltitudeData.velocityEstimate += (horizontalThrust * dt * ALT_MGR_VENTURI_ACCEL_SCALER);
-// HARD LIMIT: Constrain proxy to realistic max speed (e.g., +/- 15.0m/s)
+		sensorAltitudeData.velocityEstimate += (horizontalThrust * dt * altMgrVenturiAccelScaler);
 		sensorAltitudeData.velocityEstimate = constrainToRangeF(sensorAltitudeData.velocityEstimate, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
-// 4. Time-Consistent Velocity
-// Increasing ALT_MGR_VENTURI_VELOCITY_TAU here will stop the "gradual decrease" while moving.
-		float velocityAlpha = dt / (ALT_MGR_VENTURI_VELOCITY_TAU + dt);
+		float velocityAlpha = dt / (ALT_MGR_VENTURI_VELOCITY_EST_TAU + dt);
 		sensorAltitudeData.velocityEstimate -= velocityAlpha * sensorAltitudeData.velocityEstimate;
-// 5. Calculate Bias with Asymmetric Directional Gains
-		sensorAltitudeData.venturiGain = (pitch < 0.0f) ? ALT_MGR_VENTURI_GAIN_BWD : ALT_MGR_VENTURI_GAIN_FWD;
+		sensorAltitudeData.venturiGain = (pitch < 0.0f) ? ALT_MGR_VENTURI_BIAS_GAIN_BWD : ALT_MGR_VENTURI_BIAS_GAIN_FWD;
 		sensorAltitudeData.venturiEstimatedBias = -(sensorAltitudeData.velocityEstimate * sensorAltitudeData.velocityEstimate) * sensorAltitudeData.venturiGain;
-// 6. Rise Fast / Fade Slow Filter
-		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_TAU_RISE;
+		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_RISE;
 	} else {
 		sensorAltitudeData.venturiEstimatedBias = 0;
 		sensorAltitudeData.velocityEstimate = 0;
-		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_TAU_FADE;
+		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
 	}
 	float alpha = dt / (sensorAltitudeData.venturiBiasTau + dt);
 	sensorAltitudeData.altVenturiBias += alpha * (sensorAltitudeData.venturiEstimatedBias - sensorAltitudeData.altVenturiBias);
-	sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, 0);
+	sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE ? ALT_MGR_VENTURI_BIAS_MAX / 4 : 0);
 }
 
 __ATTR_ITCM_TEXT
-void calculateVenturiBias(float dt) {
-    // 1. Get current attitude and threshold check
-    float pitchRad = convertDegToRad(sensorAttitudeData.pitch);
-    float pitchAbs = fabsf(sensorAttitudeData.pitch);
-    float horizontalThrustN = 0.0f;
-    // 2. Calculate Horizontal Force (Newtons)
-    // Only calculate if above the minimum tilt threshold
-    if (pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE) {
-        // netThrottlePct: Amount of throttle currently contributing to acceleration
-        float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
-        // F = TotalThrust * sin(theta)
-        // THRUST_PER_PCT is based on your 750g mass and 40% hover
-        horizontalThrustN = netThrottlePct * THRUST_PER_PCT * sinApprox(pitchRad);
-    }
-    // 3. Active Braking Logic
-    // Detect if the pilot is pushing against the current direction of travel
-    uint8_t isBraking = (sensorAltitudeData.velocityEstimate * horizontalThrustN < 0.0f);
-    // Select the appropriate Time Constant (Tau)
-    // Braking uses a much smaller Tau to drain velocity/bias faster
-    float currentDragTau = isBraking ? (ALT_MGR_VENTURI_VELOCITY_TAU / 4.0f) : ALT_MGR_VENTURI_VELOCITY_TAU;
-    // 4. Correct Discrete-Time Physics Integration
-    // Physics: v_new = v_old + (accel_thrust - accel_drag) * dt
-    // Where accel_drag is defined as (velocity / tau)
-    float accelThrust = horizontalThrustN / DRONE_MASS_KG;
-    float dampingTerm = sensorAltitudeData.velocityEstimate / fmaxf(currentDragTau, 0.001f);
-    sensorAltitudeData.velocityEstimate += (accelThrust - dampingTerm) * dt;
-    // Hard Limit velocity to prevent mathematical runaway
-    sensorAltitudeData.velocityEstimate = constrainToRangeF(sensorAltitudeData.velocityEstimate, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
-    // 5. Asymmetric Gain Selection with Smoothing
-    // Switches between 400 (FWD) and 600 (BWD) based on velocity direction
-    float rawGain = (sensorAltitudeData.velocityEstimate < 0.0f) ? ALT_MGR_VENTURI_GAIN_BWD : ALT_MGR_VENTURI_GAIN_FWD;
-    static float smoothedGain = 0.0f;
-    float gainFilterAlpha = dt / (0.1f + dt); // 100ms smoothing to prevent "V" spikes at zero-crossing
-    smoothedGain += gainFilterAlpha * (rawGain - smoothedGain);
-    // 6. Calculate Target Bias (v^2 * Gain)
-    // Resulting target is in your preferred units (e.g., cm)
-    float targetBias = -(sensorAltitudeData.velocityEstimate * sensorAltitudeData.velocityEstimate) * smoothedGain;
-    // 7. Rise/Fade Filtering (Final Bias Output)
-    // Uses 0.1s for Rise (charging) and 1.5s for Fade (recovering)
-    float activeTau = (targetBias < sensorAltitudeData.altVenturiBias) ? ALT_MGR_VENTURI_TAU_RISE : ALT_MGR_VENTURI_TAU_FADE;
-    float alpha = dt / (activeTau + dt);
-    sensorAltitudeData.altVenturiBias += alpha * (targetBias - sensorAltitudeData.altVenturiBias);
-    // Safety clamp to your 100cm maximum
-    sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, 0.0f);
+void calculateVenturiBiasBackup(float dt) {
+	float pitch = sensorAttitudeData.pitch;
+	float pitchAbs = fabs(pitch);
+	float pitchRad = convertDegToRad(pitchAbs);
+	sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
+	if (pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE) {
+		float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
+		float horizontalThrust = netThrottlePct * sinApprox(pitchRad);
+		sensorAltitudeData.velocityEstimate += (horizontalThrust * dt * altMgrVenturiAccelScaler);
+		sensorAltitudeData.velocityEstimate = constrainToRangeF(sensorAltitudeData.velocityEstimate, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
+		float velocityAlpha = dt / (ALT_MGR_VENTURI_VELOCITY_EST_TAU + dt);
+		sensorAltitudeData.velocityEstimate -= velocityAlpha * sensorAltitudeData.velocityEstimate;
+		sensorAltitudeData.venturiGain = (pitch < 0.0f) ? ALT_MGR_VENTURI_BIAS_GAIN_BWD : ALT_MGR_VENTURI_BIAS_GAIN_FWD;
+		sensorAltitudeData.venturiEstimatedBias = -(sensorAltitudeData.velocityEstimate * sensorAltitudeData.velocityEstimate) * sensorAltitudeData.venturiGain;
+		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_RISE;
+	} else {
+		sensorAltitudeData.venturiEstimatedBias = 0;
+		sensorAltitudeData.velocityEstimate = 0;
+		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
+	}
+	float alpha = dt / (sensorAltitudeData.venturiBiasTau + dt);
+	sensorAltitudeData.altVenturiBias += alpha * (sensorAltitudeData.venturiEstimatedBias - sensorAltitudeData.altVenturiBias);
+	sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE ? ALT_MGR_VENTURI_BIAS_MAX / 4 : 0);
+}
+
+void calculateVenturiBiasAI(float dt) {
+	float pitch = sensorAttitudeData.pitch;
+	float pitchAbs = fabsf(pitch);
+	float pitchRad = convertDegToRad(pitchAbs);
+	sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
+	float horizontalThrust = 0.0f;
+	if (pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE) {
+		float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
+		horizontalThrust = netThrottlePct * sinApprox(pitchRad);
+	}
+	sensorAltitudeData.velocityEstimate += (horizontalThrust * dt * altMgrVenturiAccelScaler);
+	float velocityAlpha = dt / (ALT_MGR_VENTURI_VELOCITY_EST_TAU + dt);
+	sensorAltitudeData.velocityEstimate -= velocityAlpha * sensorAltitudeData.velocityEstimate;
+	sensorAltitudeData.velocityEstimate = constrainToRangeF(sensorAltitudeData.velocityEstimate, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
+	sensorAltitudeData.venturiGain = (pitch < 0.0f) ? ALT_MGR_VENTURI_BIAS_GAIN_BWD : ALT_MGR_VENTURI_BIAS_GAIN_FWD;
+	float v = sensorAltitudeData.velocityEstimate;
+	sensorAltitudeData.venturiEstimatedBias = -(v * v) * sensorAltitudeData.venturiGain;
+	if (sensorAltitudeData.venturiEstimatedBias < sensorAltitudeData.altVenturiBias) {
+		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_RISE;
+	}
+	float alpha = dt / (sensorAltitudeData.venturiBiasTau + dt);
+	sensorAltitudeData.altVenturiBias += alpha * (sensorAltitudeData.venturiEstimatedBias - sensorAltitudeData.altVenturiBias);
+	sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, 0.0f);
 }
 
 __ATTR_ITCM_TEXT
@@ -279,7 +278,7 @@ void manageAltitude(float dt) {
 	}
 	manageAltControlSettings(dt);
 	if (fcStatusData.isFlying) {
-		//calculateTiltCompThrottle(dt);
+		calculateTiltCompThrottle(dt);
 		float clampedCurrentAltitude = getClampedCurrentAltitude();
 		calculateVenturiBias(dt);
 		clampedCurrentAltitude += sensorAltitudeData.altVenturiBias;

@@ -50,3 +50,28 @@ float generateSCurve(float input, float sharpness) {
     // Result = input + sharpness * (smooth - input)
     return input + sharpness * (smooth - input);
 }
+
+
+/**
+ * @brief Applies a quadratic (y^2/S) curve to an input with an integrated noise gate.
+ * Use this to smooth out "jittery" sensors or create non-linear responses.
+ * * @param input     The raw value to be shaped (y).
+ * @param divisor   The stability factor (S). Higher values "flatten" the curve.
+ * @param deadzone  The threshold below which the output is forced to 0.0f.
+ * @return float    The shaped value (d2). Always returns positive or zero.
+ */
+float applyQuadraticShaper(float input, float divisor, float deadzone) {
+    float absInput = fabsf(input);
+
+    // 1. Noise Gate (The "Anti-Rumble" check)
+    if (absInput < deadzone) {
+        return 0.0f;
+    }
+
+    // 2. The requested d2 logic: (y * y) / S
+    // We use a safety check to prevent division by zero
+    float sSafe = fmaxf(divisor, 0.0001f);
+    float d2 = (input * input) / sSafe;
+
+    return d2;
+}

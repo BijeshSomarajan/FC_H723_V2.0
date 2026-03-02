@@ -27,25 +27,20 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_TH_MAX_ANGLE 30.0f
 
 //Tilt compensation common settings
-#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT 60
-// --- Tilt Control ---
-#define ALT_MGR_TILT_COMP_TH_ADJUST_GAIN 1000.0f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU 0.1f
-#define ALT_MGR_TILT_COMP_EXIT_TAU_MULTIPLIER 2.0f
 
-// How fast the "speed" builds up
-#define DRONE_MASS_KG          0.75f
-#define G_ACCEL                9.81f
-#define HOVER_THROTTLE_PCT     0.40f  // 40%
-#define THRUST_PER_PCT         (DRONE_MASS_KG * G_ACCEL / HOVER_THROTTLE_PCT)
-#define ALT_MGR_VENTURI_ACCEL_SCALER THRUST_PER_PCT
-#define ALT_MGR_VENTURI_GAIN_BWD     450 //0.03f
-#define ALT_MGR_VENTURI_GAIN_FWD     350 //0.01f
-#define ALT_MGR_VENTURI_TAU_RISE     0.1f
-#define ALT_MGR_VENTURI_TAU_FADE     1.25f
-#define ALT_MGR_VENTURI_VELOCITY_TAU 0.25f
-#define ALT_MGR_VENTURI_BIAS_MAX    100.0f //in Cms
-#define ALT_MGR_MAX_SPEED           10.0f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_GAIN 500.0f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.1f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.5f
+#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT 60.0f
+
+#define ALT_MGR_DRONE_MASS_KG          0.75f
+#define ALT_MGR_VENTURI_BIAS_GAIN_BWD     400.0f //0.03f
+#define ALT_MGR_VENTURI_BIAS_GAIN_FWD     300.0f //0.01f
+#define ALT_MGR_VENTURI_BIAS_TAU_RISE     0.1f
+#define ALT_MGR_VENTURI_BIAS_TAU_FADE     0.5f
+#define ALT_MGR_VENTURI_VELOCITY_EST_TAU  0.5f
+#define ALT_MGR_VENTURI_BIAS_MAX     60.0f //in Cms
+#define ALT_MGR_MAX_SPEED            20.0f
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.

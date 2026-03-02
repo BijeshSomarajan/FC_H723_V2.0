@@ -72,11 +72,12 @@ void debugPosition(float dt) {
 		curAlt = positionData.zPosition;
 	}
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch;
-	DEBUG_DATA_BUFFER[1] = (positionData.zPosition - curAlt);
-	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altVenturiBias * 10;
-	DEBUG_DATA_BUFFER[3] = (positionData.zPosition - curAlt + sensorAltitudeData.altVenturiBias);
-	DEBUG_DATA_BUFFER[4] = rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX] * 10;
-	sendConfigData(DEBUG_DATA_BUFFER,5, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.velocityEstimate;
+	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altVenturiBias;
+	DEBUG_DATA_BUFFER[3] = (positionData.zPosition - curAlt);
+	DEBUG_DATA_BUFFER[4] = (positionData.zPosition - curAlt + sensorAltitudeData.altVenturiBias);
+	DEBUG_DATA_BUFFER[5] = rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX] * 10;
+	sendConfigData(DEBUG_DATA_BUFFER,6, CMD_FC_DATA);
 }
 
 void currentDebug() {

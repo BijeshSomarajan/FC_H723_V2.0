@@ -8,4 +8,5 @@
 float generateSCurve(float input, float sharpness) ;
 void bubbleSortF(float* arr, int n);
 void bubbleSortDecF(float* arr, int n);
-#endif /* FC_FCUTIL_INCLUDE_COMMONUTIL_H_ */
+float applyQuadraticShaper(float input, float divisor, float deadzone);
+#endif

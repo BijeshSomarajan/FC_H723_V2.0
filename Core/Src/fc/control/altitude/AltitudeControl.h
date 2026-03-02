@@ -9,6 +9,7 @@ struct _ALTITUDE_CONTROL_GAINS {
 	float masterPGain;
 	float ratePGain;
 	float rateIGain;
+	float rateIBleed;
 	float rateDGain;
 	float accPGain;
 	float accDGain;
