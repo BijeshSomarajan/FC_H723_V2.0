@@ -9,6 +9,7 @@
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "estimator/PositionEstimator.h"
+#include "estimator/VenturiBiasEstimator.h"
 #include "../../status/FCStatus.h"
 
 POSITION_EKF positionEkf;
@@ -19,7 +20,7 @@ void managePositionTask(void);
 
 uint8_t initPositionManager(void) {
 	logString("[Position Manager] Init > Start\n");
-	uint8_t status = positionEKFInit(&positionEkf);
+	uint8_t status = positionEKFInit(&positionEkf) && initVenturiBiasEstimator();
 	if (status) {
 		logString("[Position Manager] EKF Init > Success\n");
 
@@ -111,12 +112,13 @@ void resetPositionManager(void) {
 	lowPassFilterReset(&positionMgrAccYLPF);
 	lowPassFilterReset(&positionMgrAccZLPF);
 	positionEKFReset(&positionEkf, 0, 0, 0);
+	resetVentriBiasEstimator();
 }
 
 __ATTR_ITCM_TEXT
 void updatePositionManagerZPosition(float zPos, float dt) {
 	positionData.positionZUpdateDt = dt;
-	positionEKFUpdateZMeasure(&positionEkf, zPos);
+ 	positionEKFUpdateZMeasure(&positionEkf, zPos - updateVenturiBiasEstimate(dt) );
 	dampPositionManagerXYVelocity(dt);
 }
 

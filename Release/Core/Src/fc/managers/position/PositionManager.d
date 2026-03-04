@@ -45,6 +45,7 @@ Core/Src/fc/managers/position/PositionManager.o: \
  ../Core/Src/fc/managers/position/../../timers/Scheduler.h \
  ../Core/Src/fc/managers/position/../../util/MathUtil.h \
  ../Core/Src/fc/managers/position/estimator/PositionEstimator.h \
+ ../Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.h \
  ../Core/Src/fc/managers/position/../../status/FCStatus.h
 ../Core/Src/fc/managers/position/PositionManager.h:
 ../Core/Src/fc/managers/position/../../dsp/LowPassFilter.h:
@@ -91,4 +92,5 @@ Core/Src/fc/managers/position/PositionManager.o: \
 ../Core/Src/fc/managers/position/../../timers/Scheduler.h:
 ../Core/Src/fc/managers/position/../../util/MathUtil.h:
 ../Core/Src/fc/managers/position/estimator/PositionEstimator.h:
+../Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.h:
 ../Core/Src/fc/managers/position/../../status/FCStatus.h:

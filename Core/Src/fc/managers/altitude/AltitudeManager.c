@@ -41,10 +41,6 @@ float altMgrPreviousCurrentThrottle = 0;
 float altMgrCurrentThrottleDelta = 0;
 float altMgrCurrentThrottleRate = 0;
 float altMgrCurrentThrottleRateGain = 1.0f;
-float altMgrLateralMovementDt = 0;
-uint8_t altMgrLateralFlightControlApplied = 0;
-
-float altMgrVenturiAccelScaler = 0;
 
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
@@ -58,21 +54,20 @@ uint8_t initAltitudeManager(void) {
 		schedulerAddTask(manageAltitudeTask, ALTITUDE_MANAGEMENT_TASK_FREQUENCY, ALT_MANAGEMENT_TASK_PRIORITY);
 		logString("[Altitude Manager] All tasks   > Started\n");
 
-		fcStatusData.liftOffThrottlePercent = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR) / (float) ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA;
+		fcStatusData.liftOffThrottlePercent = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR) / (float) MAX_PERMISSIBLE_THROTTLE_DELTA;
 
 		altMgrMaxSLAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_ASL_HEIGHT_ADDR);
 		altMgrMaxGndAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_TERRAIN_HEIGHT_ADDR);
 		altMgrMaxLiftComponent = cosf(convertDegToRad(ALT_MGR_TILT_TH_MAX_ANGLE));
 
-		altMgrVenturiAccelScaler = ALT_MGR_DRONE_MASS_KG * 9.81f / fcStatusData.liftOffThrottlePercent;
-
 		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
+
 		altControlGains.masterPGain = 1.0f;
-		altControlGains.ratePGain = 1.0f;
-		altControlGains.rateIGain = 1.0f;
-		altControlGains.rateDGain = 1.0f;
-		altControlGains.accPGain = 1.0f;
-		altControlGains.accDGain = 1.0f;
+		altControlGains.ratePGain   = 1.0f;
+		altControlGains.rateIGain   = 1.0f;
+		altControlGains.rateDGain   = 1.0f;
+		altControlGains.accPGain    = 1.0f;
+		altControlGains.accDGain    = 1.0f;
 
 		initAltitudeControl();
 	} else {
@@ -104,7 +99,7 @@ void manageAltControlSettings(float dt) {
 			}
 		}
 		float currentStickDeflection = fabsf(rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX]);
-		float deflectionRatio = constrainToRangeF(currentStickDeflection / (float) ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA, 0.0f, 1.0f);
+		float deflectionRatio = constrainToRangeF(currentStickDeflection / (float) MAX_PERMISSIBLE_THROTTLE_DELTA, 0.0f, 1.0f);
 		deflectionGain = 1.0f - (deflectionRatio * ALT_MGR_ALT_CONTROL_STICK_ATTENUATION_GAIN);
 		float totalAttenuation = altMgrCurrentThrottleRateGain * deflectionGain;
 		altControlGains.masterPGain = ALT_MGR_ALT_CONTROL_SETTING_MASTER_P_GAIN * totalAttenuation;
@@ -137,8 +132,8 @@ void handleThrottleChange(float dt) {
 		fcStatusData.currentThrottle = altMgrThrottleControlLPF.output;
 	}
 	fcStatusData.currentThrottle += gain;
-	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA);
-	fcStatusData.throttlePercent = fcStatusData.currentThrottle / ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA;
+	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
+	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
 	if (fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
 		fcStatusData.isFlying = 1;
 	} else {
@@ -186,83 +181,6 @@ float getClampedCurrentAltitude() {
 }
 
 __ATTR_ITCM_TEXT
-void calculateVenturiBias(float dt) {
-	float pitch = sensorAttitudeData.pitch;
-	float pitchAbs = fabs(pitch);
-	float pitchRad = convertDegToRad(pitchAbs);
-	sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
-	if (pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE) {
-		float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
-		float horizontalThrust = netThrottlePct * sinApprox(pitchRad);
-		sensorAltitudeData.velocityEstimate += (horizontalThrust * dt * altMgrVenturiAccelScaler);
-		sensorAltitudeData.velocityEstimate = constrainToRangeF(sensorAltitudeData.velocityEstimate, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
-		float velocityAlpha = dt / (ALT_MGR_VENTURI_VELOCITY_EST_TAU + dt);
-		sensorAltitudeData.velocityEstimate -= velocityAlpha * sensorAltitudeData.velocityEstimate;
-		sensorAltitudeData.venturiGain = (pitch < 0.0f) ? ALT_MGR_VENTURI_BIAS_GAIN_BWD : ALT_MGR_VENTURI_BIAS_GAIN_FWD;
-		sensorAltitudeData.venturiEstimatedBias = -(sensorAltitudeData.velocityEstimate * sensorAltitudeData.velocityEstimate) * sensorAltitudeData.venturiGain;
-		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_RISE;
-	} else {
-		sensorAltitudeData.venturiEstimatedBias = 0;
-		sensorAltitudeData.velocityEstimate = 0;
-		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
-	}
-	float alpha = dt / (sensorAltitudeData.venturiBiasTau + dt);
-	sensorAltitudeData.altVenturiBias += alpha * (sensorAltitudeData.venturiEstimatedBias - sensorAltitudeData.altVenturiBias);
-	sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE ? ALT_MGR_VENTURI_BIAS_MAX / 4 : 0);
-}
-
-__ATTR_ITCM_TEXT
-void calculateVenturiBiasBackup(float dt) {
-	float pitch = sensorAttitudeData.pitch;
-	float pitchAbs = fabs(pitch);
-	float pitchRad = convertDegToRad(pitchAbs);
-	sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
-	if (pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE) {
-		float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
-		float horizontalThrust = netThrottlePct * sinApprox(pitchRad);
-		sensorAltitudeData.velocityEstimate += (horizontalThrust * dt * altMgrVenturiAccelScaler);
-		sensorAltitudeData.velocityEstimate = constrainToRangeF(sensorAltitudeData.velocityEstimate, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
-		float velocityAlpha = dt / (ALT_MGR_VENTURI_VELOCITY_EST_TAU + dt);
-		sensorAltitudeData.velocityEstimate -= velocityAlpha * sensorAltitudeData.velocityEstimate;
-		sensorAltitudeData.venturiGain = (pitch < 0.0f) ? ALT_MGR_VENTURI_BIAS_GAIN_BWD : ALT_MGR_VENTURI_BIAS_GAIN_FWD;
-		sensorAltitudeData.venturiEstimatedBias = -(sensorAltitudeData.velocityEstimate * sensorAltitudeData.velocityEstimate) * sensorAltitudeData.venturiGain;
-		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_RISE;
-	} else {
-		sensorAltitudeData.venturiEstimatedBias = 0;
-		sensorAltitudeData.velocityEstimate = 0;
-		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
-	}
-	float alpha = dt / (sensorAltitudeData.venturiBiasTau + dt);
-	sensorAltitudeData.altVenturiBias += alpha * (sensorAltitudeData.venturiEstimatedBias - sensorAltitudeData.altVenturiBias);
-	sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE ? ALT_MGR_VENTURI_BIAS_MAX / 4 : 0);
-}
-
-void calculateVenturiBiasAI(float dt) {
-	float pitch = sensorAttitudeData.pitch;
-	float pitchAbs = fabsf(pitch);
-	float pitchRad = convertDegToRad(pitchAbs);
-	sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_FADE;
-	float horizontalThrust = 0.0f;
-	if (pitchAbs >= ALT_MGR_TILT_TH_MIN_ANGLE) {
-		float netThrottlePct = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
-		horizontalThrust = netThrottlePct * sinApprox(pitchRad);
-	}
-	sensorAltitudeData.velocityEstimate += (horizontalThrust * dt * altMgrVenturiAccelScaler);
-	float velocityAlpha = dt / (ALT_MGR_VENTURI_VELOCITY_EST_TAU + dt);
-	sensorAltitudeData.velocityEstimate -= velocityAlpha * sensorAltitudeData.velocityEstimate;
-	sensorAltitudeData.velocityEstimate = constrainToRangeF(sensorAltitudeData.velocityEstimate, -ALT_MGR_MAX_SPEED, ALT_MGR_MAX_SPEED);
-	sensorAltitudeData.venturiGain = (pitch < 0.0f) ? ALT_MGR_VENTURI_BIAS_GAIN_BWD : ALT_MGR_VENTURI_BIAS_GAIN_FWD;
-	float v = sensorAltitudeData.velocityEstimate;
-	sensorAltitudeData.venturiEstimatedBias = -(v * v) * sensorAltitudeData.venturiGain;
-	if (sensorAltitudeData.venturiEstimatedBias < sensorAltitudeData.altVenturiBias) {
-		sensorAltitudeData.venturiBiasTau = ALT_MGR_VENTURI_BIAS_TAU_RISE;
-	}
-	float alpha = dt / (sensorAltitudeData.venturiBiasTau + dt);
-	sensorAltitudeData.altVenturiBias += alpha * (sensorAltitudeData.venturiEstimatedBias - sensorAltitudeData.altVenturiBias);
-	sensorAltitudeData.altVenturiBias = constrainToRangeF(sensorAltitudeData.altVenturiBias, -ALT_MGR_VENTURI_BIAS_MAX, 0.0f);
-}
-
-__ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
 	if (!rcData.throttleCentered) {
 		handleThrottleChange(dt);
@@ -278,18 +196,15 @@ void manageAltitude(float dt) {
 	}
 	manageAltControlSettings(dt);
 	if (fcStatusData.isFlying) {
-		calculateTiltCompThrottle(dt);
-		float clampedCurrentAltitude = getClampedCurrentAltitude();
-		calculateVenturiBias(dt);
-		clampedCurrentAltitude += sensorAltitudeData.altVenturiBias;
-		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, clampedCurrentAltitude, altControlGains);
+		//calculateTiltCompThrottle(dt);
+		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, getClampedCurrentAltitude(), altControlGains);
 	} else {
 		updateAltitudeRefernces();
 		resetAltitudeControl(1);
 		controlData.tiltCompThDelta = 0;
 	}
 	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta;
-	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA);
+	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	altMgrPreviousCurrentThrottle = fcStatusData.currentThrottle;
 	lowPassFilterUpdate(&altMgrThrottleControlLPF, controlData.throttleControl, dt);
 }
@@ -314,10 +229,6 @@ void resetAltMgrStates() {
 	altMgrCurrentThrottleRate = 0;
 	altMgrCurrentThrottleDelta = 0;
 	altMgrCurrentThrottleRateGain = 1.0f;
-
-	altMgrLateralMovementDt = 0;
-	altMgrLateralFlightControlApplied = 0;
-	sensorAltitudeData.altVenturiBias = 0;
 
 	lowPassFilterReset(&altMgrThrottleControlLPF);
 }

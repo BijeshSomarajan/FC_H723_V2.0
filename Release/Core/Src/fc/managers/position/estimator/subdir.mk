@@ -5,13 +5,16 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c 
+../Core/Src/fc/managers/position/estimator/PositionEstimator.c \
+../Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.c 
 
 OBJS += \
-./Core/Src/fc/managers/position/estimator/PositionEstimator.o 
+./Core/Src/fc/managers/position/estimator/PositionEstimator.o \
+./Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.o 
 
 C_DEPS += \
-./Core/Src/fc/managers/position/estimator/PositionEstimator.d 
+./Core/Src/fc/managers/position/estimator/PositionEstimator.d \
+./Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
@@ -21,7 +24,7 @@ Core/Src/fc/managers/position/estimator/%.o Core/Src/fc/managers/position/estima
 clean: clean-Core-2f-Src-2f-fc-2f-managers-2f-position-2f-estimator
 
 clean-Core-2f-Src-2f-fc-2f-managers-2f-position-2f-estimator:
-	-$(RM) ./Core/Src/fc/managers/position/estimator/PositionEstimator.cyclo ./Core/Src/fc/managers/position/estimator/PositionEstimator.d ./Core/Src/fc/managers/position/estimator/PositionEstimator.o ./Core/Src/fc/managers/position/estimator/PositionEstimator.su
+	-$(RM) ./Core/Src/fc/managers/position/estimator/PositionEstimator.cyclo ./Core/Src/fc/managers/position/estimator/PositionEstimator.d ./Core/Src/fc/managers/position/estimator/PositionEstimator.o ./Core/Src/fc/managers/position/estimator/PositionEstimator.su ./Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.cyclo ./Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.d ./Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.o ./Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.su
 
 .PHONY: clean-Core-2f-Src-2f-fc-2f-managers-2f-position-2f-estimator
 

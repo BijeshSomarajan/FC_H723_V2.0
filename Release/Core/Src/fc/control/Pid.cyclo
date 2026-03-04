@@ -9,5 +9,6 @@
 ../Core/Src/fc/control/Pid.c:87:6:pidReset	2
 ../Core/Src/fc/control/Pid.c:99:6:pidResetI	1
 ../Core/Src/fc/control/Pid.c:106:6:pidResetD	2
-../Core/Src/fc/control/Pid.c:115:6:pidUpdateWithGains	6
-../Core/Src/fc/control/Pid.c:159:6:pidUpdate	6
+../Core/Src/fc/control/Pid.c:113:6:pidUpdateWithGainAndIBleed	7
+../Core/Src/fc/control/Pid.c:160:6:pidUpdateWithGains	6
+../Core/Src/fc/control/Pid.c:203:6:pidUpdate	6

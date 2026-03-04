@@ -34,6 +34,7 @@
 "./Core/Src/fc/managers/output/OutputManager.o"
 "./Core/Src/fc/managers/position/PositionManager.o"
 "./Core/Src/fc/managers/position/estimator/PositionEstimator.o"
+"./Core/Src/fc/managers/position/estimator/VenturiBiasEstimator.o"
 "./Core/Src/fc/managers/rc/RCManager.o"
 "./Core/Src/fc/memory/Memory.o"
 "./Core/Src/fc/sensors/altitude/AltitudeSensor.o"

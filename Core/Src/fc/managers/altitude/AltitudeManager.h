@@ -15,7 +15,6 @@ void resetAltitudeManager(void);
 #define ALT_MGR_DEFAULT_LIFTOFF_THROTTLE 300
 
 //Max permissible throttle
-#define ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA 900
 #define ALT_MGR_MAX_PERMISSIBLE_THROTTLE   RC_CHANNEL_MIN_VALUE + ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA
 #define ALT_MGR_ALT_AGGREGATION_GAIN  0.5f //meter per second
 
@@ -24,23 +23,13 @@ void resetAltitudeManager(void);
 
 //Altitude estimate Complementary filter alpha
 #define ALT_MGR_TILT_TH_MIN_ANGLE 1.0f
-#define ALT_MGR_TILT_TH_MAX_ANGLE 30.0f
+#define ALT_MGR_TILT_TH_MAX_ANGLE 45.0f
 
 //Tilt compensation common settings
-
 #define ALT_MGR_TILT_COMP_TH_ADJUST_GAIN 500.0f
 #define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.1f
 #define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.5f
 #define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT 60.0f
-
-#define ALT_MGR_DRONE_MASS_KG          0.75f
-#define ALT_MGR_VENTURI_BIAS_GAIN_BWD     400.0f //0.03f
-#define ALT_MGR_VENTURI_BIAS_GAIN_FWD     300.0f //0.01f
-#define ALT_MGR_VENTURI_BIAS_TAU_RISE     0.1f
-#define ALT_MGR_VENTURI_BIAS_TAU_FADE     0.5f
-#define ALT_MGR_VENTURI_VELOCITY_EST_TAU  0.5f
-#define ALT_MGR_VENTURI_BIAS_MAX     60.0f //in Cms
-#define ALT_MGR_MAX_SPEED            20.0f
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.
@@ -53,7 +42,6 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_CONTROL_STICK_ATTENUATION_GAIN 1.0f
 // Higher = more aggressive PID ducking on fast moves
 #define ALT_MGR_THROTTLE_RATE_ATTENUATION_GAIN 0.80f
-
 
 /*
  * If the drone feels "mushy" for too long after centering: Reduce MP_TAU to 0.3s. This will make the drone "snap" into hover faster.

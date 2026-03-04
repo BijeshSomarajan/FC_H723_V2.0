@@ -17,12 +17,6 @@ struct _SENSOR_ALTITUDE_DATA {
 	float altitudeSLMaxFiltered;
 	float altUpdateDt;
 	float altProcessDt;
-	float altVenturiBias;
-
-	float velocityEstimate;
-    float venturiGain;
-    float venturiBiasTau;
-    float venturiEstimatedBias;
 };
 extern SENSOR_ALTITUDE_DATA sensorAltitudeData;
 
