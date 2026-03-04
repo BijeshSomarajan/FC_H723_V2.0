@@ -4,7 +4,7 @@
 
 typedef struct _VENTURI_ESTIMATE_DATA VENTURI_ESTIMATE_DATA;
 struct _VENTURI_ESTIMATE_DATA {
-	float ventiriAbsPitchAngleFiltered;
+	float venturiAbsPitchAngleFiltered;
 	float ventiriAbsPitchRCFiltered;
 
 
@@ -20,7 +20,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
 
 uint8_t initVenturiBiasEstimator(void);
 float updateVenturiBiasEstimate(float dt);
-void resetVentriBiasEstimator(void);
+void resetVenturiBiasEstimator(void);
 
 //New ones
 #define VENTURI_EST_PITCH_ANGLE_LPF_FREQ  0.25f
@@ -32,7 +32,7 @@ void resetVentriBiasEstimator(void);
 #define VENTURI_EST_PITCH_RC_MIN       0.0f
 #define VENTURI_EST_PITCH_RC_MAX      45.0f
 #define VENTURI_EST_SPEED_MAX         10.0f
-#define VENTURI_EST_BIAS_GAIN         50.0f
+#define VENTURI_EST_BIAS_GAIN         55.0f
 #define VENTURI_EST_BIAS_VALUE_MAX    75.0f
 
 #endif

@@ -27,26 +27,26 @@ uint8_t initVenturiBiasEstimator(void) {
 
 float updateVenturiBiasEstimate(float dt) {
 	if (fcStatusData.throttlePercent <= fcStatusData.liftOffThrottlePercent) {
-		resetVentriBiasEstimator();
+		resetVenturiBiasEstimator();
 		return 0;
 	};
 	float pitch  = constrainToRangeF(fabs(applyDeadBandFloat(0,sensorAttitudeData.pitch,VENTURI_EST_PITCH_ANGLE_MIN)), 0, VENTURI_EST_PITCH_ANGLE_MAX);
-	venturiEstimateData.ventiriAbsPitchAngleFiltered = lowPassFilterUpdate(&venturiPitchAngleLPF, pitch, dt);
+	venturiEstimateData.venturiAbsPitchAngleFiltered = lowPassFilterUpdate(&venturiPitchAngleLPF, pitch, dt);
 	venturiEstimateData.ventiriAbsPitchRCFiltered = lowPassFilterUpdate(&venturiPitchRCLPF, constrainToRangeF(fabs(rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]), 0, VENTURI_EST_PITCH_RC_MAX), dt);
 	venturiEstimateData.currentThrottle = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
-	float estSpeed = fastSqrtf(venturiEstimateData.currentThrottle) * sinApprox(convertDegToRad(venturiEstimateData.ventiriAbsPitchAngleFiltered)) * venturiEstimateData.venturiAccelGain;
+	float estSpeed = fastSqrtf(venturiEstimateData.currentThrottle) * sinApprox(convertDegToRad(venturiEstimateData.venturiAbsPitchAngleFiltered)) * venturiEstimateData.venturiAccelGain;
 	venturiEstimateData.lateralVelocity = constrainToRangeF(estSpeed , 0, VENTURI_EST_SPEED_MAX);
 	float bias = constrainToRangeF(venturiEstimateData.lateralVelocity  * VENTURI_EST_BIAS_GAIN,0,VENTURI_EST_BIAS_VALUE_MAX);
 	venturiEstimateData.venturiBias =  lowPassFilterUpdate(&venturiBiasLPF, bias, dt);
 	return venturiEstimateData.venturiBias;
 }
 
-void resetVentriBiasEstimator(void) {
+void resetVenturiBiasEstimator(void) {
 	venturiEstimateData.venturiBias = 0.0f;
 	venturiEstimateData.venturiVelocity = 0.0f;
 	venturiEstimateData.venturiBiasGain = 0.0f;
 	venturiEstimateData.venturiThrustFactor = 0.0f;
-	venturiEstimateData.ventiriAbsPitchAngleFiltered = 0.0f;
+	venturiEstimateData.venturiAbsPitchAngleFiltered = 0.0f;
 	venturiEstimateData.ventiriAbsPitchRCFiltered = 0.0f;
 	lowPassFilterReset(&venturiPitchAngleLPF);
 }

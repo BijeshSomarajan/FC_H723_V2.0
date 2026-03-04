@@ -112,7 +112,7 @@ void resetPositionManager(void) {
 	lowPassFilterReset(&positionMgrAccYLPF);
 	lowPassFilterReset(&positionMgrAccZLPF);
 	positionEKFReset(&positionEkf, 0, 0, 0);
-	resetVentriBiasEstimator();
+	resetVenturiBiasEstimator();
 }
 
 __ATTR_ITCM_TEXT
