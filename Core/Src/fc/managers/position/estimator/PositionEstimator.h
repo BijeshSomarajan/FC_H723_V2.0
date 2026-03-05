@@ -117,6 +117,10 @@ void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float d
  * @param z_meas Measured altitude (m).
  */
 void positionEKFUpdateZMeasure(POSITION_EKF *ekf, float z_meas);
+/**
+ *
+ */
+void positionEKFUpdateZMeasureWithBias(POSITION_EKF *ekf, float z_meas,float bias);
 
 /**
  * @brief Horizontal Measurement Update.

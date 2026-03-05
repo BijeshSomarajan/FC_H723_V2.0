@@ -80,7 +80,7 @@ void debugPosition(float dt) {
 	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.pitch * 10;
 	DEBUG_DATA_BUFFER[5] = venturiEstimateData.venturiAbsPitchAngleFiltered * 10;
 	DEBUG_DATA_BUFFER[6] = rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX];
-	DEBUG_DATA_BUFFER[7] = positionData.zVelocity * 10;
+	DEBUG_DATA_BUFFER[7] = venturiEstimateData.ventiriAbsPitchRCFiltered * 10;
 	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
 }
 

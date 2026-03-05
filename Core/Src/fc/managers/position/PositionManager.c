@@ -118,7 +118,8 @@ void resetPositionManager(void) {
 __ATTR_ITCM_TEXT
 void updatePositionManagerZPosition(float zPos, float dt) {
 	positionData.positionZUpdateDt = dt;
- 	positionEKFUpdateZMeasure(&positionEkf, zPos - updateVenturiBiasEstimate(dt) );
+	float venturiBias = updateVenturiBiasEstimate(dt);
+ 	positionEKFUpdateZMeasureWithBias(&positionEkf, zPos , venturiBias);
 	dampPositionManagerXYVelocity(dt);
 }
 

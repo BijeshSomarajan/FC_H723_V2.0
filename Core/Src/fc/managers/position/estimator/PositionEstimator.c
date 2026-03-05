@@ -169,6 +169,61 @@ static void _axisPositionUpdate(POSITION_EKF *ekf, int axis, float meas) {
 	}
 }
 
+static void _axisPositionUpdateWithBias(POSITION_EKF *ekf, int axis, float meas, float bias) {
+	const int i = axis * POS_EKF_AXIS_DIM;
+
+	// Initial vertical alignment
+	if (!ekf->initialized && axis == POS_EKF_Z_AXIS) {
+		ekf->x[i + POS_EKF_STATE_P] = meas;
+		ekf->P[i + POS_EKF_STATE_P][i + POS_EKF_STATE_P] = 2.0f;
+		return;
+	}
+
+	// Calculate innovation (y) including the bias term
+	// For Z-axis, this accounts for the Venturi effect
+	float y = meas - (ekf->x[i + POS_EKF_STATE_P] + bias);
+
+	float S = ekf->P[i + POS_EKF_STATE_P][i + POS_EKF_STATE_P] + ekf->R[axis];
+	float d2 = (y * y) / S;
+
+	// Gating logic
+	if (d2 > ekf->gateSize[axis]) {
+		if (ekf->rejectCount[axis] < ekf->panicLimit[axis]) {
+			ekf->rejectCount[axis]++;
+			return;
+		}
+	}
+	ekf->rejectCount[axis] = 0;
+
+	// Kalman Gain
+	float K[3] = { ekf->P[i + 0][i + 0] / S, ekf->P[i + 1][i + 0] / S, ekf->P[i + 2][i + 0] / S };
+
+	// State update
+	ekf->x[i + 0] += K[0] * y;
+	ekf->x[i + 1] += K[1] * y;
+	ekf->x[i + 2] += K[2] * y;
+
+	// Covariance update
+	float p0[3] = { ekf->P[i + 0][i + 0], ekf->P[i + 0][i + 1], ekf->P[i + 0][i + 2] };
+	for (int r = 0; r < 3; r++)
+		for (int c = 0; c < 3; c++)
+			ekf->P[i + r][i + c] -= K[r] * p0[c];
+
+	// Stabilize block
+	for (int r = 0; r < 3; r++) {
+		for (int c = r; c < 3; c++) {
+			int row = i + r;
+			int col = i + c;
+			if (row == col) {
+				if (ekf->P[row][col] < POS_EKF_P_MIN) ekf->P[row][col] = POS_EKF_P_MIN;
+			} else {
+				float avg = 0.5f * (ekf->P[row][col] + ekf->P[col][row]);
+				ekf->P[row][col] = ekf->P[col][row] = avg;
+			}
+		}
+	}
+}
+
 /**
  * @brief Performs a Kalman update using a velocity measurement (Inertial Damping).
  * @param ekf   Pointer to the EKF structure.
@@ -228,6 +283,11 @@ static void _axisVelocityUpdate(POSITION_EKF *ekf, int axis, float meas_v, float
 /* --- External Update Functions --- */
 void positionEKFUpdateZMeasure(POSITION_EKF *ekf, float z_meas) {
 	_axisPositionUpdate(ekf, POS_EKF_Z_AXIS, z_meas);
+	ekf->initialized = 1;
+}
+
+void positionEKFUpdateZMeasureWithBias(POSITION_EKF *ekf, float z_meas, float bias) {
+	_axisPositionUpdateWithBias(ekf, POS_EKF_Z_AXIS, z_meas, bias);
 	ekf->initialized = 1;
 }
 
