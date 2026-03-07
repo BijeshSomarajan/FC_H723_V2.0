@@ -74,13 +74,12 @@ void debugPosition(float dt) {
 		curAlt = positionData.zPosition;
 	}
 	DEBUG_DATA_BUFFER[0] = venturiEstimateData.venturiBias;
-	DEBUG_DATA_BUFFER[1] = (positionData.zPosition - curAlt) ;
-	DEBUG_DATA_BUFFER[2] = (fcStatusData.altitudeSLRef - curAlt) ;
-	DEBUG_DATA_BUFFER[3] = (controlData.altitudeControl) ;
-	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.pitch * 10;
-	DEBUG_DATA_BUFFER[5] = venturiEstimateData.venturiAbsPitchAngleFiltered * 10;
-	DEBUG_DATA_BUFFER[6] = rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX];
-	DEBUG_DATA_BUFFER[7] = venturiEstimateData.ventiriAbsPitchRCFiltered * 10;
+	DEBUG_DATA_BUFFER[1] = (positionData.zPosition - curAlt);
+	DEBUG_DATA_BUFFER[2] = (sensorAltitudeData.altitudeSLMaxFiltered - curAlt);
+	DEBUG_DATA_BUFFER[3] = (fcStatusData.altitudeSLRef - curAlt);
+	DEBUG_DATA_BUFFER[4] = venturiEstimateData.pitchAngleAbsFiltered;
+	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.pitch;
+	DEBUG_DATA_BUFFER[6] = (controlData.altitudeControl);
 	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
 }
 

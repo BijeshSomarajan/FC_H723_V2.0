@@ -14,103 +14,108 @@
 #include "VenturiBiasEstimator.h"
 
 VENTURI_ESTIMATE_DATA venturiEstimateData;
-LOWPASSFILTER venturiPitchAngleLPF, venturiPitchRCLPF, venturiBiasLPF;
+LOWPASSFILTER venturiPitchAngleLPF, venturiBiasGainLPF, venturiBiasLPF;
 
 uint8_t initVenturiBiasEstimator(void) {
 	float liftOffThrottlePercent = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR) / (float) MAX_PERMISSIBLE_THROTTLE_DELTA;
-	venturiEstimateData.venturiAccelGain = DRONE_MASS_KG * 9.81 / liftOffThrottlePercent;
+	venturiEstimateData.thrustGain = DRONE_MASS_KG * 9.81 / liftOffThrottlePercent;
+	venturiEstimateData.thrustGain*= VENTURI_EST_THRUST_GAIN_FACTOR;
+
 	lowPassFilterInit(&venturiPitchAngleLPF, VENTURI_EST_PITCH_ANGLE_LPF_FREQ);
-	lowPassFilterInit(&venturiPitchRCLPF, VENTURI_EST_PITCH_RC_LPF_FREQ);
-	lowPassFilterInit(&venturiBiasLPF, VENTURI_EST_BIAS_LPF_FREQ);
+	lowPassFilterInit(&venturiBiasGainLPF, VENTURI_EST_BIAS_GAIN_LPF_FREQ);
+	lowPassFilterInit(&venturiBiasLPF, VENTURI_EST_BIAS_LPF_RISE_FREQ);
+	resetVenturiBiasEstimator();
 	return 1;
 }
 
-float updateVenturiBiasAerodynamic(float dt) {
+float updateVenturiBiasEstimatePhysical(float dt) {
 	if (fcStatusData.throttlePercent <= fcStatusData.liftOffThrottlePercent) {
 		resetVenturiBiasEstimator();
 		return 0;
 	};
 
-	float pitch = constrainToRangeF(fabsf(sensorAttitudeData.pitch), 0, VENTURI_EST_PITCH_ANGLE_MAX);
-	venturiEstimateData.venturiAbsPitchAngleFiltered = lowPassFilterUpdate(&venturiPitchAngleLPF, pitch, dt);
+	float imuPitch = constrainToRangeF(applyDeadBandFloat(0, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN), -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);
+	float imuPitchAbs = fabsf(imuPitch);
+	venturiEstimateData.pitchAngleAbsFiltered = lowPassFilterUpdate(&venturiPitchAngleLPF, imuPitchAbs, dt);
+	float imuPitchAbsRadians = convertDegToRad(venturiEstimateData.pitchAngleAbsFiltered);
+	venturiEstimateData.effectiveThrottle = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
 
-	float rcPitchAbs = constrainToRangeF(fabsf(rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]), 0, VENTURI_EST_PITCH_RC_MAX);
-	venturiEstimateData.ventiriAbsPitchRCFiltered = rcPitchAbs;
+	float thrust = fastSqrtf(venturiEstimateData.effectiveThrottle) * sinApprox(imuPitchAbsRadians) *  venturiEstimateData.thrustGain * VENTURI_EST_THRUST_GAIN_FACTOR;
+	float drag = venturiEstimateData.lateralSpeed * VENTURI_EST_DRAG_FEEDBACK_GAIN;
+	float acceleration = thrust - drag;
+	venturiEstimateData.lateralSpeed += (acceleration * dt);
 
-	float effectiveAngle = venturiEstimateData.venturiAbsPitchAngleFiltered;
-	if (rcPitchAbs > 2.0f && venturiEstimateData.venturiAbsPitchAngleFiltered <= VENTURI_SMALL_ANGLE_TSH) {
-		effectiveAngle = VENTURI_SMALL_ANGLE_DEFAULT;
+	venturiEstimateData.lateralSpeed = constrainToRangeF(venturiEstimateData.lateralSpeed, 0, VENTURI_EST_SPEED_MAX);
+
+	float biasGain = (imuPitch < 0) ? VENTURI_EST_BIAS_GAIN_BWD : VENTURI_EST_BIAS_GAIN_FWD;
+	biasGain = lowPassFilterUpdate(&venturiBiasGainLPF, biasGain, dt);
+	float bias = constrainToRangeF(venturiEstimateData.lateralSpeed * biasGain, 0, VENTURI_EST_BIAS_VALUE_MAX);
+
+	if (venturiEstimateData.pitchAngleAbsFiltered < VENTURI_EST_PITCH_ANGLE_FADING_TSH && !venturiEstimateData.wasBiasFadingApplied) {
+		lowPassFilterSetCutOff(&venturiBiasLPF, VENTURI_EST_BIAS_LPF_FADE_FREQ);
+		venturiEstimateData.wasBiasFadingApplied = 1;
+	} else if (venturiEstimateData.pitchAngleAbsFiltered > VENTURI_EST_PITCH_ANGLE_FADING_TSH && venturiEstimateData.wasBiasFadingApplied) {
+		lowPassFilterSetCutOff(&venturiBiasLPF, VENTURI_EST_BIAS_LPF_RISE_FREQ);
+		venturiEstimateData.wasBiasFadingApplied = 0;
 	}
-
-	float estSpeed = fastSqrtf(tanApprox(convertDegToRad(effectiveAngle))) * VENTURI_K_AERO_DRAG_SCALAR;
-	venturiEstimateData.lateralVelocity = constrainToRangeF(estSpeed, 0, VENTURI_EST_SPEED_MAX);
-
-	float directionScalar = (sensorAttitudeData.pitch < 0) ? 0.85f : 1.25f;
-	float bias = constrainToRangeF(venturiEstimateData.lateralVelocity * VENTURI_EST_BIAS_GAIN * directionScalar, 0, VENTURI_EST_BIAS_VALUE_MAX);
 	venturiEstimateData.venturiBias = lowPassFilterUpdate(&venturiBiasLPF, bias, dt);
 
 	return venturiEstimateData.venturiBias;
 }
 
-float updateVenturiBiasAerodynamicOld(float dt) {
+float updateVenturiBiasEstimateAlgebraic(float dt) {
 	if (fcStatusData.throttlePercent <= fcStatusData.liftOffThrottlePercent) {
 		resetVenturiBiasEstimator();
 		return 0;
 	};
-	float pitch = constrainToRangeF(fabs(applyDeadBandFloat(0, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN)), 0, VENTURI_EST_PITCH_ANGLE_MAX);
-	venturiEstimateData.venturiAbsPitchAngleFiltered = lowPassFilterUpdate(&venturiPitchAngleLPF, pitch, dt);
 
-	venturiEstimateData.ventiriAbsPitchRCFiltered = lowPassFilterUpdate(&venturiPitchRCLPF, constrainToRangeF(fabs(rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]), 0, VENTURI_EST_PITCH_RC_MAX), dt);
+	float imuPitch = constrainToRangeF(applyDeadBandFloat(0, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN), -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);
+	float imuPitchAbs = fabsf(imuPitch);
+	venturiEstimateData.pitchAngleAbsFiltered = lowPassFilterUpdate(&venturiPitchAngleLPF, imuPitchAbs, dt);
+	float imuPitchAbsRadians = convertDegToRad(venturiEstimateData.pitchAngleAbsFiltered);
+	venturiEstimateData.effectiveThrottle = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
 
-	float effectiveAngle = venturiEstimateData.venturiAbsPitchAngleFiltered;
-	if (venturiEstimateData.ventiriAbsPitchRCFiltered > 0.1f && venturiEstimateData.venturiAbsPitchAngleFiltered <= VENTURI_SMALL_ANGLE_TSH) {
-		effectiveAngle = VENTURI_SMALL_ANGLE_DEFAULT;
+	float pitchDrag = fastSqrtf(tanApprox(imuPitchAbsRadians)) * VENTURI_EST_PITCH_DRAG_GAIN;
+	float aeroDrag = venturiEstimateData.lateralSpeed * VENTURI_EST_AERO_DRAG_FEEDBACK_GAIN;
+	float dragSpeed = pitchDrag + aeroDrag;
+	float thrustSpeed = venturiEstimateData.effectiveThrottle * sinApprox(imuPitchAbsRadians) * venturiEstimateData.thrustGain * VENTURI_EST_THRUST_GAIN_FACTOR;
+	venturiEstimateData.lateralSpeed = dragSpeed + thrustSpeed;
+
+	venturiEstimateData.lateralSpeed = constrainToRangeF(venturiEstimateData.lateralSpeed, 0, VENTURI_EST_SPEED_MAX);
+
+	float biasGain = (imuPitch < 0) ? VENTURI_EST_BIAS_GAIN_BWD : VENTURI_EST_BIAS_GAIN_FWD;
+	biasGain = lowPassFilterUpdate(&venturiBiasGainLPF, biasGain, dt);
+	float bias = constrainToRangeF(venturiEstimateData.lateralSpeed * biasGain, 0, VENTURI_EST_BIAS_VALUE_MAX);
+
+	if (venturiEstimateData.pitchAngleAbsFiltered < VENTURI_EST_PITCH_ANGLE_FADING_TSH && !venturiEstimateData.wasBiasFadingApplied) {
+		lowPassFilterSetCutOff(&venturiBiasLPF, VENTURI_EST_BIAS_LPF_FADE_FREQ);
+		venturiEstimateData.wasBiasFadingApplied = 1;
+	} else if (venturiEstimateData.pitchAngleAbsFiltered > VENTURI_EST_PITCH_ANGLE_FADING_TSH && venturiEstimateData.wasBiasFadingApplied) {
+		lowPassFilterSetCutOff(&venturiBiasLPF, VENTURI_EST_BIAS_LPF_RISE_FREQ);
+		venturiEstimateData.wasBiasFadingApplied = 0;
 	}
-
-	float estSpeed = fastSqrtf(tanApprox(convertDegToRad(effectiveAngle))) * VENTURI_K_AERO_DRAG_SCALAR;
-	venturiEstimateData.lateralVelocity = constrainToRangeF(estSpeed, 0, VENTURI_EST_SPEED_MAX);
-
-	float bias = constrainToRangeF(venturiEstimateData.lateralVelocity * VENTURI_EST_BIAS_GAIN, 0, VENTURI_EST_BIAS_VALUE_MAX);
 	venturiEstimateData.venturiBias = lowPassFilterUpdate(&venturiBiasLPF, bias, dt);
 
 	return venturiEstimateData.venturiBias;
 }
 
-float updateVenturiBiasHeuristic(float dt) {
-	if (fcStatusData.throttlePercent <= fcStatusData.liftOffThrottlePercent) {
-		resetVenturiBiasEstimator();
-		return 0;
-	};
-	float pitch = constrainToRangeF(fabs(applyDeadBandFloat(0, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN)), 0, VENTURI_EST_PITCH_ANGLE_MAX);
-	venturiEstimateData.venturiAbsPitchAngleFiltered = lowPassFilterUpdate(&venturiPitchAngleLPF, pitch, dt);
-
-	venturiEstimateData.ventiriAbsPitchRCFiltered = lowPassFilterUpdate(&venturiPitchRCLPF, constrainToRangeF(fabs(rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]), 0, VENTURI_EST_PITCH_RC_MAX), dt);
-	venturiEstimateData.currentThrottle = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
-	float effectiveAngle = venturiEstimateData.venturiAbsPitchAngleFiltered;
-
-	if (venturiEstimateData.ventiriAbsPitchRCFiltered > 0.1f && venturiEstimateData.venturiAbsPitchAngleFiltered <= VENTURI_SMALL_ANGLE_TSH) {
-		effectiveAngle = VENTURI_SMALL_ANGLE_DEFAULT;
-	}
-	float estSpeed = fastSqrtf(venturiEstimateData.currentThrottle) * sinApprox(convertDegToRad(effectiveAngle)) * venturiEstimateData.venturiAccelGain;
-
-	venturiEstimateData.lateralVelocity = constrainToRangeF(estSpeed, 0, VENTURI_EST_SPEED_MAX);
-	float bias = constrainToRangeF(venturiEstimateData.lateralVelocity * VENTURI_EST_BIAS_GAIN, 0, VENTURI_EST_BIAS_VALUE_MAX);
-	venturiEstimateData.venturiBias = lowPassFilterUpdate(&venturiBiasLPF, bias, dt);
-	return venturiEstimateData.venturiBias;
+float updateVenturiBiasEstimate(float dt){
+#if VENTURI_EST_USE_PHYSICAL_MODEL == 1
+  return updateVenturiBiasEstimatePhysical(dt);
+#else
+  return updateVenturiBiasEstimateAlgebraic(dt);
+#endif
 }
 
-float updateVenturiBiasEstimate(float dt) {
-	//return updateVenturiBiasHeuristic(dt);
-	return updateVenturiBiasAerodynamic(dt);
-}
 void resetVenturiBiasEstimator(void) {
 	venturiEstimateData.venturiBias = 0.0f;
-	venturiEstimateData.venturiVelocity = 0.0f;
-	venturiEstimateData.venturiBiasGain = 0.0f;
-	venturiEstimateData.venturiThrustFactor = 0.0f;
-	venturiEstimateData.venturiAbsPitchAngleFiltered = 0.0f;
-	venturiEstimateData.ventiriAbsPitchRCFiltered = 0.0f;
+	venturiEstimateData.lateralSpeed = 0.0f;
+	venturiEstimateData.pitchAngleAbsFiltered = 0.0f;
+	venturiEstimateData.wasBiasFadingApplied = 0;
 	lowPassFilterReset(&venturiPitchAngleLPF);
+	lowPassFilterReset(&venturiBiasLPF);
+	lowPassFilterReset(&venturiBiasGainLPF);
+	lowPassFilterSetCutOff(&venturiBiasLPF, VENTURI_EST_BIAS_LPF_RISE_FREQ);
 }
 
 #endif
