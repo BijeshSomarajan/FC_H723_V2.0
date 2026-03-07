@@ -38,16 +38,45 @@ void imuUpdateRate() {
 	imuData.yawRate = sensorAttitudeData.gzDSFiltered;
 }
 
+/*
+ __ATTR_ITCM_TEXT
+ void updateLinearMovements(float dt) {
+ // Rotate body accelerations → earth frame
+ float axGEarth = imuData.rMatrix[0][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[0][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[0][2] * sensorAttitudeData.azGFiltered;
+ float ayGEarth = imuData.rMatrix[1][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[1][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[1][2] * sensorAttitudeData.azGFiltered;
+ float azGEarth = imuData.rMatrix[2][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[2][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[2][2] * sensorAttitudeData.azGFiltered;
+ azGEarth -= 1.0f;
+ imuData.axEarthLinear = axGEarth * GRAVITY_MSS;
+ imuData.ayEarthLinear = ayGEarth * GRAVITY_MSS;
+ imuData.azEarthLinear = azGEarth * GRAVITY_MSS;
+ }
+ */
+
 __ATTR_ITCM_TEXT
 void updateLinearMovements(float dt) {
-	// Rotate body accelerations → earth frame
+	// 1. Existing Earth Frame Calculation
 	float axGEarth = imuData.rMatrix[0][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[0][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[0][2] * sensorAttitudeData.azGFiltered;
 	float ayGEarth = imuData.rMatrix[1][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[1][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[1][2] * sensorAttitudeData.azGFiltered;
 	float azGEarth = imuData.rMatrix[2][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[2][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[2][2] * sensorAttitudeData.azGFiltered;
+	// Remove gravity (1.0G) in Earth frame
 	azGEarth -= 1.0f;
-	imuData.axEarth = axGEarth * GRAVITY_MSS;
-	imuData.ayEarth = ayGEarth * GRAVITY_MSS;
-	imuData.azEarth = azGEarth * GRAVITY_MSS;
+
+	imuData.axEarthLinear = axGEarth * GRAVITY_MSS;
+	imuData.ayEarthLinear = ayGEarth * GRAVITY_MSS;
+	imuData.azEarthLinear = azGEarth * GRAVITY_MSS;
+
+	// 2. Body Frame Linear Acceleration (Gravity Compensation)
+	// We project the Earth gravity vector [0, 0, 1] into the Body frame.
+	// In a standard Rotation Matrix, the third row represents the Earth-Z
+	// components as seen by the Body axes.
+	float gxBody = imuData.rMatrix[2][0]; // Gravity component on Body X
+	float gyBody = imuData.rMatrix[2][1]; // Gravity component on Body Y
+	float gzBody = imuData.rMatrix[2][2]; // Gravity component on Body Z
+
+	// Subtract gravity components from raw filtered sensors to get pure linear motion
+	imuData.axBodyLinear = (sensorAttitudeData.axGFiltered - gxBody) * GRAVITY_MSS;
+	imuData.ayBodyLinear = (sensorAttitudeData.ayGFiltered - gyBody) * GRAVITY_MSS;
+	imuData.azBodyLinear = (sensorAttitudeData.azGFiltered - gzBody) * GRAVITY_MSS;
 }
 
 /*************************************************************************/
@@ -101,8 +130,12 @@ void imuReset(uint8_t hard) {
 		imuFilterReset();
 	}
 
-	imuData.axEarth = 0;
-	imuData.ayEarth = 0;
-	imuData.azEarth = 0;
+	imuData.axEarthLinear = 0;
+	imuData.ayEarthLinear = 0;
+	imuData.azEarthLinear = 0;
+
+	imuData.axBodyLinear = 0;
+	imuData.ayBodyLinear = 0;
+	imuData.azBodyLinear = 0;
 
 }

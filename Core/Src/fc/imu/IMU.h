@@ -31,7 +31,9 @@ struct _IMU_DATA {
 	//Motion rates
 	float pitchRate, rollRate, yawRate;
 	//Earth frame accelerations
-	float axEarth, ayEarth, azEarth;
+	float axEarthLinear, ayEarthLinear, azEarthLinear;
+	//Body frame accelerations
+	float axBodyLinear, ayBodyLinear, azBodyLinear;
 	float arhsDt;
 };
 

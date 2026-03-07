@@ -64,7 +64,7 @@ void doAttitudeControl(float dt) {
 	if (!rcData.yawCentered) {
 		fcStatusData.headingRef = sensorAttitudeData.heading;
 	}
-	if (fcStatusData.canFly && fcStatusData.throttlePercentage > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
+	if (fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
 		float expectedPitch = (float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX];
 		float expectedRoll = -(float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX];
 		float expectedYaw = +(float) rcData.RC_EFFECTIVE_DATA[RC_YAW_CHANNEL_INDEX];

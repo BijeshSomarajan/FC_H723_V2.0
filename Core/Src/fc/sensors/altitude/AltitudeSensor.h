@@ -3,7 +3,6 @@
 
 #include <sys/_stdint.h>
 
-
 #define SENSOR_ALT_BARO_LPF_FREQUENCY  5.0f
 #define SENSOR_ALT_BARO_LPF_SMOOTHEST_FREQUENCY  0.25f
 

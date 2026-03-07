@@ -29,10 +29,13 @@ struct _PID {
 	float limitDMax;
 	float limitIMin;
 	float limitIMax;
-	//Suspension/pause Flags
-	uint8_t suspendITerm;
 	//D term low pass filter
 	LOWPASSFILTER dLPF;
+
+	//Auxiliary controls
+	uint8_t suspendITerm; //Suspension/pause Flags
+	float bleedIFactor; //I bleed factor
+
 };
 
 void pidInit(PID *self, float p_kp, float p_ki, float p_kd, float dLPFk);
@@ -48,6 +51,7 @@ void pidResetD(PID *self);
 void pidUpdate(PID *self, float angle, float sp, float dt);
 
 void pidUpdateWithGains(PID *self, float input, float sp, float dt, float kpGain, float kiGain, float kdGain);
+void pidUpdateWithGainAndIBleed(PID *self, float input, float sp, float dt, float kpGain, float kiGain, float kdGain,float iBleedFactor);
 
 void pidSetKP(PID *self, float p_kp);
 void pidSetKI(PID *self, float p_ki);

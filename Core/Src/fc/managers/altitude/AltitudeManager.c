@@ -26,8 +26,6 @@ float altitudeUpdateDt = 0;
 float altMgrAltHoldActivationDt = 0;
 float altStabilizationDt = 0;
 
-float altMgrLiftOffThrottle = 0;
-float altMgrLiftOffThrottlePercent = 0;
 float altMgrMaxSLAlt = 0;
 float altMgrMaxGndAlt = 0;
 
@@ -56,21 +54,20 @@ uint8_t initAltitudeManager(void) {
 		schedulerAddTask(manageAltitudeTask, ALTITUDE_MANAGEMENT_TASK_FREQUENCY, ALT_MANAGEMENT_TASK_PRIORITY);
 		logString("[Altitude Manager] All tasks   > Started\n");
 
-		altMgrLiftOffThrottle = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR);
-		altMgrLiftOffThrottlePercent = altMgrLiftOffThrottle / (float) ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA;
-		fcStatusData.liftOffThrottlePercent = altMgrLiftOffThrottlePercent;
+		fcStatusData.liftOffThrottlePercent = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR) / (float) MAX_PERMISSIBLE_THROTTLE_DELTA;
 
 		altMgrMaxSLAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_ASL_HEIGHT_ADDR);
 		altMgrMaxGndAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_TERRAIN_HEIGHT_ADDR);
 		altMgrMaxLiftComponent = cosf(convertDegToRad(ALT_MGR_TILT_TH_MAX_ANGLE));
 
 		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
+
 		altControlGains.masterPGain = 1.0f;
-		altControlGains.ratePGain = 1.0f;
-		altControlGains.rateIGain = 1.0f;
-		altControlGains.rateDGain = 1.0f;
-		altControlGains.accPGain = 1.0f;
-		altControlGains.accDGain = 1.0f;
+		altControlGains.ratePGain   = 1.0f;
+		altControlGains.rateIGain   = 1.0f;
+		altControlGains.rateDGain   = 1.0f;
+		altControlGains.accPGain    = 1.0f;
+		altControlGains.accDGain    = 1.0f;
 
 		initAltitudeControl();
 	} else {
@@ -102,14 +99,14 @@ void manageAltControlSettings(float dt) {
 			}
 		}
 		float currentStickDeflection = fabsf(rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX]);
-		float deflectionRatio = constrainToRangeF(currentStickDeflection / (float) ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA, 0.0f, 1.0f);
+		float deflectionRatio = constrainToRangeF(currentStickDeflection / (float) MAX_PERMISSIBLE_THROTTLE_DELTA, 0.0f, 1.0f);
 		deflectionGain = 1.0f - (deflectionRatio * ALT_MGR_ALT_CONTROL_STICK_ATTENUATION_GAIN);
 		float totalAttenuation = altMgrCurrentThrottleRateGain * deflectionGain;
 		altControlGains.masterPGain = ALT_MGR_ALT_CONTROL_SETTING_MASTER_P_GAIN * totalAttenuation;
 		altControlGains.ratePGain = ALT_MGR_ALT_CONTROL_SETTING_RATE_P_GAIN * totalAttenuation;
 		altControlGains.rateIGain = ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN * totalAttenuation;
 		altControlGains.accPGain = ALT_MGR_ALT_CONTROL_SETTING_ACC_P_GAIN * totalAttenuation;
-		resetAltitudeRateIControl();
+		resetAltitudeRIControl();
 	} else {
 		altMgrCurrentThrottleDelta = 0;
 		altMgrCurrentThrottleRate = 0;
@@ -135,84 +132,36 @@ void handleThrottleChange(float dt) {
 		fcStatusData.currentThrottle = altMgrThrottleControlLPF.output;
 	}
 	fcStatusData.currentThrottle += gain;
-	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA);
-	fcStatusData.throttlePercentage = fcStatusData.currentThrottle / ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA;
-	if (fcStatusData.throttlePercentage >= altMgrLiftOffThrottlePercent) {
+	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
+	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
+	if (fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
 		fcStatusData.isFlying = 1;
 	} else {
 		fcStatusData.isFlying = 0;
 	}
 }
 
-
-/**
- * @brief Updates Tilt Compensation Throttle Delta with asymmetric response.
- * Sharp increase to prevent sinking on tilt; slow decrease to prevent
- * "bobbing" when leveling out.
- * * @param dt Loop delta time (e.g., 0.001f for 1kHz).
- */
 __ATTR_ITCM_TEXT
-void updateTiltCompThDelta(float dt) {
+void calculateTiltCompThrottle(float dt) {
 	static float currentTiltCompThDelta = 0.0f;
 	float target = 0.0f;
-	// 1. Extract Attitude
 	float pitch = sensorAttitudeData.pitch;
 	float roll = sensorAttitudeData.roll;
-	float tiltP = fabsf(pitch);
-	float tiltR = fabsf(roll);
-	// Determine the dominant tilt angle
-	float maxTilt = (tiltP > tiltR) ? tiltP : tiltR;
-	// 2. Only calculate if tilt exceeds a minimum threshold to save cycles
-	if (maxTilt > ALT_MGR_TILT_TH_MIN_ANGLE) {
-		float pRad = convertDegToRad(pitch);
-		float rRad = convertDegToRad(roll);
-		// Fast approximations for 1kHz loop
-		float cosP = cosApprox(pRad);
-		float cosR = cosApprox(rRad);
-		/* --- BASE LIFT LOSS CALCULATION --- */
-		// Calculate the vertical component of the thrust vector
-		float baseLiftComponent = cosP * cosR;
-		// Apply a floor to prevent extreme throttle spikes at high angles
-		if (baseLiftComponent < altMgrMaxLiftComponent) {
-			baseLiftComponent = altMgrMaxLiftComponent;
-		}
-		// Calculate loss and normalize to 0.0 - 1.0 range
-		float baseLiftLoss = 1.0f - baseLiftComponent;
-		float maxPossibleLoss = 1.0f - altMgrMaxLiftComponent;
-		float normalizedLoss = baseLiftLoss / (maxPossibleLoss > 0.0f ? maxPossibleLoss : 1.0f);
-		// Shape the response using an S-Curve for smoother mid-angle feel
-		float shapedLoss = generateSCurve(normalizedLoss, ALT_MGR_TILT_COMP_S_CURVE_SHARPNESS);
-		// Calculate non-linear components to compensate for translational drag/loss
-		float nonlinearPitchLoss = fabsf(tanApprox(pRad)) * ALT_MGR_TILT_COMP_PITCH_NONLINEAR_FACTOR;
-		float nonlinearRollLoss = fabsf(tanApprox(rRad)) * ALT_MGR_TILT_COMP_ROLL_NONLINEAR_FACTOR;
-		// Apply base gain
-		target = shapedLoss * ALT_MGR_TILT_COMP_TH_ADJUST_GAIN;
-		// Apply Asymmetric directional gains (e.g., nose-down vs nose-up compensation)
-		if (ALT_MGR_TILT_COMP_TH_PITCH_DIR != 0 && ((ALT_MGR_TILT_COMP_TH_PITCH_DIR < 0 && pitch < 0) || (ALT_MGR_TILT_COMP_TH_PITCH_DIR > 0 && pitch > 0))) {
-			target += nonlinearPitchLoss * ALT_MGR_TILT_COMP_TH_ADJUST_ASSYMETRIC_GAIN;
-		}
-		if (ALT_MGR_TILT_COMP_TH_ROLL_DIR != 0 && ((ALT_MGR_TILT_COMP_TH_ROLL_DIR < 0 && roll < 0) || (ALT_MGR_TILT_COMP_TH_ROLL_DIR > 0 && roll > 0))) {
-			target += nonlinearRollLoss * ALT_MGR_TILT_COMP_TH_ADJUST_ASSYMETRIC_GAIN;
-		}
-		// Hard limit on how much throttle delta can be injected
-		target = constrainToRangeF(target, 0, ALT_MGR_TILT_TH_ADJUST_LIMIT);
+	float totalTilt = fastSqrtf(pitch * pitch + roll * roll);
+	if (totalTilt > ALT_MGR_TILT_TH_MIN_ANGLE) {
+		// Geometric Lift Loss: 1.0 - (CosP * CosR)
+		float liftComponent = cosApprox(convertDegToRad(pitch)) * cosApprox(convertDegToRad(roll));
+		// Clamp to the 45-degree limit defined in header
+		float minComponent = cosApprox(convertDegToRad(ALT_MGR_TILT_TH_MAX_ANGLE));
+		liftComponent = fmaxf(liftComponent, minComponent);
+		// Apply linear gain to the loss
+		target = (1.0f - liftComponent) * ALT_MGR_TILT_COMP_TH_ADJUST_GAIN;
+		target = fminf(target, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
 	}
-
-	/* --- ASYMMETRIC FILTERING (THE ATTACK/DECAY LOGIC) --- */
-	float activeTau;
-	if (target > currentTiltCompThDelta) {
-		// Target is higher than current: Apply "Sharp Increase" (Attack)
-		activeTau = ALT_MGR_TILT_COMP_TH_ADJUST_TAU;
-	} else {
-		// Target is lower than current: Apply "Slow Decrease" (Decay)
-		// Multiplier should be high (e.g., 5.0 - 10.0) to smooth the exit transition
-		activeTau = ALT_MGR_TILT_COMP_TH_ADJUST_TAU * ALT_MGR_TILT_COMP_EXIT_TAU_MULTIPLIER;
-	}
-	// Exponential Smoothing Filter: current = current + alpha * (target - current)
-	// Alpha = dt / (Tau + dt) is mathematically stable at all dt
+	// Smooth filtering
+	float activeTau = (target > currentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
 	float alpha = dt / (activeTau + dt);
 	currentTiltCompThDelta += alpha * (target - currentTiltCompThDelta);
-	// Export to global control structure
 	controlData.tiltCompThDelta = currentTiltCompThDelta;
 }
 
@@ -247,22 +196,21 @@ void manageAltitude(float dt) {
 	}
 	manageAltControlSettings(dt);
 	if (fcStatusData.isFlying) {
-		updateTiltCompThDelta(dt);
-		float clampedCurrentAltitude = getClampedCurrentAltitude();
-		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, clampedCurrentAltitude, altControlGains);
+		//calculateTiltCompThrottle(dt);
+		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, getClampedCurrentAltitude(), altControlGains);
 	} else {
 		updateAltitudeRefernces();
 		resetAltitudeControl(1);
 		controlData.tiltCompThDelta = 0;
 	}
 	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta;
-	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA);
+	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	altMgrPreviousCurrentThrottle = fcStatusData.currentThrottle;
 	lowPassFilterUpdate(&altMgrThrottleControlLPF, controlData.throttleControl, dt);
 }
 
 void resetAltMgrStates() {
-	fcStatusData.throttlePercentage = 0;
+	fcStatusData.throttlePercent = 0;
 	fcStatusData.currentThrottle = 0;
 	controlData.throttleControl = 0;
 	controlData.tiltCompThDelta = 0;
@@ -310,7 +258,7 @@ void doAltitudeManagement(void) {
 			float dt = getDeltaTime(SENSOR_BARO_READ_TIMER_CHANNEL);
 			sensorAltitudeData.altUpdateDt = dt;
 			updateAltitudeSensorData(dt);
-			updatePositionManagerZMeasure(sensorAltitudeData.altitudeSLScaled, dt);
+			updatePositionManagerZPosition(sensorAltitudeData.altitudeSLScaled, dt);
 		}
 	}
 }

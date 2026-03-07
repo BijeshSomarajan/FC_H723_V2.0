@@ -18,51 +18,57 @@
 #define POS_EKF_STATE_V         1  // Velocity index offset
 #define POS_EKF_STATE_B         2  // Accelerometer Bias index offset
 
-/* --- Default Process Noise Q (Model Uncertainty) --- */
+/*
+ Q_POS: Uncertainty in the position state integration.
+ High: Allows position to "jump" or teleport regardless of velocity.
+ Low: Forces position to be a smooth, mathematical integral of velocity.
+ */
+/*
+ Q_VEL: Uncertainty in the velocity state integration.
+ High: Makes velocity reactive to every IMU vibration (causes "staircase" effect).
+ Low: Acts as an internal low-pass filter for velocity, making movement smooth.
+ */
+/*
+ Q_BIAS: How fast the filter tracks changes in Accelerometer Offset.
+ High: Rapidly learns gravity misalignments or sensor tilt (clears static drift).
+ Low: Assumes the accelerometer bias is constant. If too low, offsets never disappear.
+ */
+/*
+ R_BARO: Trust level of the Barometer signal.
+ High: Filter relies almost entirely on the IMU; results in vertical "drifting."
+ Low: Filter "snaps" to barometer readings; makes the drone twitchy during wind gusts.
+ */
+/*
+ GATE: The "Sanity Check" for sensor data.
+ If (Baro_Measure - Estimated_Pos)^2 / Innovation_Covariance > GATE, data is ignored.
+ Tuning: Tighten this to reject "wind blasts" from blowing on the sensor.
+ */
+/*
+ PANIC: The threshold to force-reset the filter state.
+ Number of consecutive rejected measurements before the filter "gives up" and snaps to sensor.
+ */
 
-// Q_POS: Uncertainty in the position state integration.
-// High: Allows position to "jump" or teleport regardless of velocity.
-// Low: Forces position to be a smooth, mathematical integral of velocity.
+/* --- X-Axis Tuning (Lateral / Roll) @ 1kHz --- */
+#define POS_EKF_X_Q_POS         0.00013f       // Increased for high-speed tracking
+#define POS_EKF_X_Q_VEL         0.0128f       // HIGH: Forces velocity to integrate at 1kHz
+#define POS_EKF_X_Q_BIAS        0.001f // ULTRA-LOW: Prevents "Bias Walking" from eating speed
+#define POS_EKF_X_R_MEAS        5000.0f       // TRUST: Pulls Red line toward Orange slope quickly
+#define POS_EKF_X_GATE          15.0f       // WIDE: No rejection during high-speed 1kHz updates
+#define POS_EKF_X_PANIC         100         // Higher panic for 1kHz (100ms window)
 
-// Q_VEL: Uncertainty in the velocity state integration.
-// High: Makes velocity reactive to every IMU vibration (causes "staircase" effect).
-// Low: Acts as an internal low-pass filter for velocity, making movement smooth.
-
-// Q_BIAS: How fast the filter tracks changes in Accelerometer Offset.
-// High: Rapidly learns gravity misalignments or sensor tilt (clears static drift).
-// Low: Assumes the accelerometer bias is constant. If too low, offsets never disappear.
-
-// R_BARO: Trust level of the Barometer signal.
-// High: Filter relies almost entirely on the IMU; results in vertical "drifting."
-// Low: Filter "snaps" to barometer readings; makes the drone twitchy during wind gusts.
-
-// GATE: The "Sanity Check" for sensor data.
-// If (Baro_Measure - Estimated_Pos)^2 / Innovation_Covariance > GATE, data is ignored.
-// Tuning: Tighten this to reject "wind blasts" from blowing on the sensor.
-
-// PANIC: The threshold to force-reset the filter state.
-// Number of consecutive rejected measurements before the filter "gives up" and snaps to sensor.
-
-
-#define POS_EKF_X_Q_POS         0.01f
-#define POS_EKF_X_Q_VEL         0.1f
-#define POS_EKF_X_Q_BIAS        0.001f
-#define POS_EKF_X_R_GPS         1.5f
-#define POS_EKF_X_GATE          30.0f
-#define POS_EKF_X_PANIC         20
-
-#define POS_EKF_Y_Q_POS         0.01f
-#define POS_EKF_Y_Q_VEL         0.1f
-#define POS_EKF_Y_Q_BIAS        0.001f
-#define POS_EKF_Y_R_GPS         1.5f
-#define POS_EKF_Y_GATE          30.0f
-#define POS_EKF_Y_PANIC         20
+/* --- Y-Axis Tuning (Longitudinal / Pitch) @ 1kHz --- */
+#define POS_EKF_Y_Q_POS         0.00013f
+#define POS_EKF_Y_Q_VEL         0.0128f        // HIGH: Velocity will now climb as long as you are pitched
+#define POS_EKF_Y_Q_BIAS        0.001f // "Freeze" the bias during the flight
+#define POS_EKF_Y_R_MEAS        5000.0f       // Lower R = Red line follows the slope of Orange line
+#define POS_EKF_Y_GATE          15.0f
+#define POS_EKF_Y_PANIC         100
 
 #define POS_EKF_Z_Q_POS         0.00013f
-#define POS_EKF_Z_Q_VEL         0.00128f
+#define POS_EKF_Z_Q_VEL         0.0128f
 #define POS_EKF_Z_Q_BIAS        0.001f
-#define POS_EKF_Z_R_BARO        5000.0f
-#define POS_EKF_Z_GATE          6.0f
+#define POS_EKF_Z_R_MEAS        5000.0f
+#define POS_EKF_Z_GATE          2.0f //Was 4
 #define POS_EKF_Z_PANIC         100
 
 /* --- Numerical Stability Limits --- */
@@ -111,6 +117,10 @@ void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float d
  * @param z_meas Measured altitude (m).
  */
 void positionEKFUpdateZMeasure(POSITION_EKF *ekf, float z_meas);
+/**
+ *
+ */
+void positionEKFUpdateZMeasureWithBias(POSITION_EKF *ekf, float z_meas,float bias);
 
 /**
  * @brief Horizontal Measurement Update.
@@ -145,6 +155,6 @@ void positionEKFApplyZDamping(POSITION_EKF *ekf, float dampingStrength);
  * @param y_new New Y position (usually 0.0f).
  * @param z_new New Z position (usually current baro height).
  */
-void positionEKFReset(POSITION_EKF *ekf, float x_new, float y_new, float z_new) ;
+void positionEKFReset(POSITION_EKF *ekf, float x_new, float y_new, float z_new);
 
 #endif /* SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_ */

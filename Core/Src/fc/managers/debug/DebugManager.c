@@ -20,6 +20,7 @@
 #include "../../dsp/FFT.h"
 #include "../../sensors/attitude/noisefilter/AdaptiveNotchFilter.h"
 #include "../../managers/position/PositionManager.h"
+#include "../../managers/position/estimator/VenturiBiasEstimator.h"
 #include "../../control/Pid.h"
 
 int32_t DEBUG_DATA_BUFFER[8];
@@ -65,18 +66,21 @@ extern float altControlMasterPGain;
 extern LOWPASSFILTER altMgrThrottleControlLPF;
 extern ALTITUDE_CONTROL_GAINS altControlGains;
 extern PID altRatePID;
+extern VENTURI_ESTIMATE_DATA venturiEstimateData;
 float curAlt = 0;
 
 void debugPosition(float dt) {
 	if (curAlt == 0) {
-		curAlt = sensorAltitudeData.altitudeSLFiltered;
+		curAlt = positionData.zPosition;
 	}
-	DEBUG_DATA_BUFFER[0] = positionData.zAcceleration;
-	DEBUG_DATA_BUFFER[1] = positionData.zVelocity;
-	DEBUG_DATA_BUFFER[2] = (sensorAltitudeData.altitudeSLFiltered - curAlt) * 10;
-	DEBUG_DATA_BUFFER[3] = (positionData.zPosition - curAlt) * 10;
-	DEBUG_DATA_BUFFER[4] = 1.0f / (positionData.positionProcessDt == 0 ? 1 : positionData.positionProcessDt);
-	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = venturiEstimateData.venturiBias;
+	DEBUG_DATA_BUFFER[1] = (positionData.zPosition - curAlt);
+	DEBUG_DATA_BUFFER[2] = (sensorAltitudeData.altitudeSLMaxFiltered - curAlt);
+	DEBUG_DATA_BUFFER[3] = (fcStatusData.altitudeSLRef - curAlt);
+	DEBUG_DATA_BUFFER[4] = venturiEstimateData.pitchAngleAbsFiltered;
+	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.pitch;
+	DEBUG_DATA_BUFFER[6] = (controlData.altitudeControl);
+	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
 }
 
 void currentDebug() {

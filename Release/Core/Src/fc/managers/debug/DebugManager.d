@@ -65,6 +65,7 @@ Core/Src/fc/managers/debug/DebugManager.o: \
  ../Core/Src/fc/managers/debug/../../sensors/attitude/noisefilter/AdaptiveNotchFilter.h \
  ../Core/Src/fc/managers/debug/../../sensors/attitude/noisefilter/../../../dsp/BiQuadFilter.h \
  ../Core/Src/fc/managers/debug/../../managers/position/PositionManager.h \
+ ../Core/Src/fc/managers/debug/../../managers/position/estimator/VenturiBiasEstimator.h \
  ../Core/Src/fc/managers/debug/../../control/Pid.h \
  ../Core/Src/fc/managers/debug/../../control/../dsp/LowPassFilter.h
 ../Core/Src/fc/managers/debug/DebugManager.h:
@@ -132,5 +133,6 @@ Core/Src/fc/managers/debug/DebugManager.o: \
 ../Core/Src/fc/managers/debug/../../sensors/attitude/noisefilter/AdaptiveNotchFilter.h:
 ../Core/Src/fc/managers/debug/../../sensors/attitude/noisefilter/../../../dsp/BiQuadFilter.h:
 ../Core/Src/fc/managers/debug/../../managers/position/PositionManager.h:
+../Core/Src/fc/managers/debug/../../managers/position/estimator/VenturiBiasEstimator.h:
 ../Core/Src/fc/managers/debug/../../control/Pid.h:
 ../Core/Src/fc/managers/debug/../../control/../dsp/LowPassFilter.h:

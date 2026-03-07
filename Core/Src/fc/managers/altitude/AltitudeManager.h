@@ -15,46 +15,25 @@ void resetAltitudeManager(void);
 #define ALT_MGR_DEFAULT_LIFTOFF_THROTTLE 300
 
 //Max permissible throttle
-#define ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA 900
 #define ALT_MGR_MAX_PERMISSIBLE_THROTTLE   RC_CHANNEL_MIN_VALUE + ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA
 #define ALT_MGR_ALT_AGGREGATION_GAIN  0.5f //meter per second
 
-#define ALT_MGR_MAX_ALT_DELTA 100 //Cms
-#define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 10.0f//5.0f
+#define ALT_MGR_MAX_ALT_DELTA 500 //Cms
+#define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 20.0f//5.0f
 
 //Altitude estimate Complementary filter alpha
-#define ALT_MGR_TILT_TH_MIN_ANGLE 2.0f
-#define ALT_MGR_TILT_TH_MAX_ANGLE 30.0f
+#define ALT_MGR_TILT_TH_MIN_ANGLE 1.0f
+#define ALT_MGR_TILT_TH_MAX_ANGLE 45.0f
 
 //Tilt compensation common settings
-#define ALT_MGR_TILT_TH_ADJUST_LIMIT 100
-
-// --- Tilt Control ---
-#define ALT_MGR_TILT_COMP_TH_ADJUST_GAIN 100.0f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_ASSYMETRIC_GAIN 200.0f
-
-#define ALT_MGR_TILT_COMP_S_CURVE_SHARPNESS 0.8f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU 0.1f//0.02f
-/*
- * If the drone sinks after leveling: Increase the multiplier (e.g., move from 5.0 to 7.0).
- * If the drone climbs (balloons) after leveling: Decrease the multiplier (e.g., move from 5.0 to 3.0).
- */
-#define ALT_MGR_TILT_COMP_EXIT_TAU_MULTIPLIER 50.0f
-/* * PITCH_NONLINEAR_FACTOR: Adjusts throttle boost specifically for the Pitch axis.
- * On Wide-X racing frames, this is typically LOWER than Roll (e.g., 0.45) because
- * the shorter longitudinal stance has less rotational inertia to overcome during
- * high-speed forward flight compared to the wider roll axis.
- * - Increase if drone sinks during forward/backward flight.
- * - Decrease if drone climbs during forward/backward flight.
- */
-#define ALT_MGR_TILT_COMP_PITCH_NONLINEAR_FACTOR 0.45f
-#define ALT_MGR_TILT_COMP_ROLL_NONLINEAR_FACTOR 0.55f
-
-// Asymmetric Boost Directions: Set to 0 for no boost, -1 for negative angles, +1 for positive angles
-#define ALT_MGR_TILT_COMP_TH_PITCH_DIR -1
-#define ALT_MGR_TILT_COMP_TH_ROLL_DIR 0
+#define ALT_MGR_TILT_COMP_TH_ADJUST_GAIN 500.0f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.1f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.5f
+#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT 60.0f
 
 // --- Alt Control Settings ---
+// This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.
+#define ALT_MGR_ALT_CONTROL_SETTING_LATERAL_DT_THRESHOLD 0.4f
 // In terms of throttle delta per second. This is used to calculate the rate of stick movement.
 #define ALT_MGR_ALT_CONTROL_SETTING_THROTTLE_RATE_MAX 10.0f
 // This scaler converts the raw throttle rate into a 0.0 to 1.0 range for gain attenuation. Adjust as needed based on testing.
@@ -63,6 +42,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_CONTROL_STICK_ATTENUATION_GAIN 1.0f
 // Higher = more aggressive PID ducking on fast moves
 #define ALT_MGR_THROTTLE_RATE_ATTENUATION_GAIN 0.80f
+
 /*
  * If the drone feels "mushy" for too long after centering: Reduce MP_TAU to 0.3s. This will make the drone "snap" into hover faster.
  * If the drone "bobs" up and down when you stop a climb: Increase RI_TAU to 1.2s.
