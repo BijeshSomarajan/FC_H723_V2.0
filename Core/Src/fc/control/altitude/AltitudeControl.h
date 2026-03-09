@@ -43,7 +43,7 @@ void controlAltitudeWithGains(float dt, float expectedAltitude, float currentAlt
 #define ALT_CONTROL_RATE_PID_D_LPF_FREQ 32.0f
 #define ALT_CONTROL_ACC_PID_D_LPF_FREQ  32.0f
 
-#define ALT_CONTROL_RATE_PID_I_LIMIT_RATIO 0.8f
+#define ALT_CONTROL_RATE_PID_I_LIMIT_RATIO 1.0f
 #define ALT_CONTROL_RATE_PID_D_LIMIT_RATIO 1.0f
 #define ALT_CONTROL_ACC_PID_D_LIMIT_RATIO 1.0f
 
