@@ -73,14 +73,19 @@ void debugPosition(float dt) {
 	if (curAlt == 0) {
 		curAlt = positionData.zPosition;
 	}
-	DEBUG_DATA_BUFFER[0] = venturiEstimateData.venturiBias;
-	DEBUG_DATA_BUFFER[1] = (positionData.zPosition - curAlt);
-	DEBUG_DATA_BUFFER[2] = (sensorAltitudeData.altitudeSLMaxFiltered - curAlt);
-	DEBUG_DATA_BUFFER[3] = (fcStatusData.altitudeSLRef - curAlt);
-	DEBUG_DATA_BUFFER[4] = venturiEstimateData.pitchAngleAbsFiltered;
-	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.pitch;
-	DEBUG_DATA_BUFFER[6] = (controlData.altitudeControl);
-	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
+
+	DEBUG_DATA_BUFFER[0] = (positionData.zPosition - curAlt);
+	DEBUG_DATA_BUFFER[1] = (sensorAltitudeData.altitudeSLMaxFiltered - curAlt);
+	DEBUG_DATA_BUFFER[2] = (fcStatusData.altitudeSLRef - curAlt);
+	DEBUG_DATA_BUFFER[3] = (positionData.zVelocity)*10;
+	DEBUG_DATA_BUFFER[4] = (controlData.altitudeControl);
+
+
+	//DEBUG_DATA_BUFFER[4] = venturiEstimateData.venturiBias;
+	//DEBUG_DATA_BUFFER[5] = venturiEstimateData.pitchAngleAbsFiltered;
+	//DEBUG_DATA_BUFFER[6] = sensorAttitudeData.pitch;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
 
 void currentDebug() {
@@ -103,7 +108,7 @@ void debugTask() {
 		return;
 	}
 	float dt = 0.001f;	//getDeltaTime(DEBUG_TIMER_CHANNEL);
-	debugPosition(dt);
-	//debugTime(dt);
+	//debugPosition(dt);
+	debugTime(dt);
 	//currentDebug();
 }
