@@ -55,7 +55,7 @@ uint8_t baroCheckDataReady(void) {
 void deviceBaroReadIntStatus() {
 	deviceAltitudeData.buffer[0] = BMP581_SOFT_RESET_CMD;
 	spi4ReadRegister(BMP581_REG_INT_STATUS, deviceAltitudeData.buffer, 1, BMP581_DEVICE);
-	delayMs(10);
+	delayMs(5);
 }
 
 /* ------------------------------------------------------------------
@@ -64,7 +64,7 @@ void deviceBaroReadIntStatus() {
 uint8_t deviceBaroReset(void) {
 	deviceAltitudeData.buffer[0] = BMP581_SOFT_RESET_CMD;
 	if (spi4WriteRegister(BMP581_REG_CMD, deviceAltitudeData.buffer, 1, BMP581_DEVICE)) {
-		delayMs(300);
+		delayMs(5);
 		deviceBaroReadIntStatus();
 		return 1;
 	}
@@ -80,14 +80,13 @@ uint8_t deviceBaroInit(void) {
 		return 0;
 	}
 	logString("[bmp581,IO : SPI] > Success\n");
-	delayMs(10);
 
 	if (!deviceBaroReset()) {
 		logString("[bmp581,Baro:Reset] > Failed\n");
 		return 0;
 	}
 	logString("[bmp581,Baro:Reset] > Success\n");
-	delayMs(10);
+	delayMs(5);
 
 	if (!baroCheckConnection()) {
 		logString("[bmp581,Baro:CON] > Failed\n");
@@ -135,18 +134,17 @@ uint8_t bmp581Configure(void) {
 	 | 0b110 (0x6)  | oversampling rate = 64x |
 	 | 0b111 (0x7)  | oversampling rate = 128x|
 	 +--------------+-----------------------+
-	*/
+	 */
 
 	//OSR_P 16X , OSR_T 1X
 	//deviceAltitudeData.buffer[0] = 0b01100000;
-
 	//OSR_P 8x , OSR_T 1X
-	deviceAltitudeData.buffer[0]  = 0b01011000;
+	deviceAltitudeData.buffer[0] = 0b01011000;
 	if (!spi4WriteRegister(BMP581_REG_OSR_CONFIG, deviceAltitudeData.buffer, 1, BMP581_DEVICE)) {
 		logString("[bmp581] OSR_CONFIG write failed\n");
 		return 0;
 	}
-	delayMs(10);
+	delayMs(5);
 
 	/* ODR_CONFIG (0x37)
 	 +-----+-------+-------+-------+-------+-------+-------+-------+-------------+
@@ -194,7 +192,7 @@ uint8_t bmp581Configure(void) {
 		logString("[bmp581] ODR_CONFIG write failed\n");
 		return 0;
 	}
-	delayMs(10);
+	delayMs(5);
 
 	/* DSP_IIR Config
 	 +-----+-------+-------+-------+-------+-------+-------+-------+-----------+
@@ -216,9 +214,8 @@ uint8_t bmp581Configure(void) {
 	 | 0b111  | Filter Coefficient127|
 	 +--------+----------------------+
 	 */
-    //Coefficient 1
+	//Coefficient 1
 	//deviceAltitudeData.buffer[0] = 0b00001001;
-
 	//Coefficient 3
 	deviceAltitudeData.buffer[0] = 0b00010010;
 
@@ -226,50 +223,7 @@ uint8_t bmp581Configure(void) {
 		logString("[bmp581] DSP_IIR write failed\n");
 		return 0;
 	}
-	delayMs(10);
-
-	return 1;
-}
-
-uint8_t bmp581ConfigureOld() {
-	uint8_t data;
-	/* ---------------------------------------------------------------
-	 * OSR_CONFIG (0x36)
-	 * Bit 7   : reserved = 0
-	 * Bit 6   : press_en = 1 → enable pressure measurement
-	 * Bits 5:3: osr_p = 0b010 (×4 oversampling)
-	 * Bits 2:0: osr_t = 0b000 (×1 oversampling)
-	 * => 0b0101_0000 = 0x50
-	 */
-	data = 0x50;
-	spi4WriteRegister(BMP581_REG_OSR_CONFIG, &data, 1, BMP581_DEVICE);
-
-	/* ---------------------------------------------------------------
-	 * ODR_CONFIG (0x37)
-	 * Bit 7   : deep_dis = 0 (normal deep standby)
-	 * Bits 6:3: odr = 0b1001 (200 Hz)
-	 * Bits 2:0: pwr_mode = 0b011 (NORMAL continuous mode)
-	 * => 0b0100_1011 = 0x4B
-	 */
-	data = 0x4B;
-	spi4WriteRegister(BMP581_REG_ODR_CONFIG, &data, 1, BMP581_DEVICE);
-
-	data = 0x0;
-	//	spi4WriteRegister(BMP581_REG_DSP_CONFIG, &data, 1, BMP581_DEVICE);
-
-	/* ---------------------------------------------------------------
-	 * DSP_IIR (0x31)
-	 * Bits 7:6: reserved = 0
-	 * Bits 5:3: set_iir_p = 0b010 (Filter coefficient 4)
-	 * Bits 2:0: set_iir_t = 0b010 (Filter coefficient 3)
-	 * => 0b0001_0010 = 0x12
-	 */
-	data = 0x12;
-	//spi4WriteRegister(BMP581_REG_DSP_IIR, &data, 1, BMP581_DEVICE);
-	/* ---------------------------------------------------------------
-	 * Wait for configuration to apply
-	 * --------------------------------------------------------------- */
-	delayMs(200);
+	delayMs(5);
 
 	return 1;
 }
@@ -298,7 +252,7 @@ void deviceBaroDataProcess() {
 	deviceAltitudeData.rawPressure = (uint32_t) ((uint32_t) (deviceAltitudeData.buffer[5] << 16) | (uint16_t) (deviceAltitudeData.buffer[4] << 8) | deviceAltitudeData.buffer[3]);
 
 	deviceAltitudeData.temperature = (float) deviceAltitudeData.rawTemperature / 65536.0f;
-	deviceAltitudeData.pressure = (float) deviceAltitudeData.rawPressure / 64.0f;
+	deviceAltitudeData.pressure = ((float) deviceAltitudeData.rawPressure / 64.0f) * BMP581_PRESSURE_OUTPUT_SCALE;
 
 	if (deviceAltitudeData.pressure > 0.0f) {
 		bmp581CalculateAltitude();
@@ -352,5 +306,4 @@ uint8_t deviceBaroRead(void) {
 }
 
 #endif
-
 
