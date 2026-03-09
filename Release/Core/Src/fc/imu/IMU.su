@@ -1,7 +1,0 @@
-../Core/Src/fc/imu/IMU.c:15:10:getImuStabilizationCount	0	static
-../Core/Src/fc/imu/IMU.c:22:9:imuInit	24	static
-../Core/Src/fc/imu/IMU.c:29:6:imuSetMode	0	static
-../Core/Src/fc/imu/IMU.c:34:6:imuUpdateRate	0	static
-../Core/Src/fc/imu/IMU.c:56:6:updateLinearMovements	0	static
-../Core/Src/fc/imu/IMU.c:86:6:imuAHRSUpdate	16	static
-../Core/Src/fc/imu/IMU.c:97:6:imuReset	8	static
