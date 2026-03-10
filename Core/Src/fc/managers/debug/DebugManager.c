@@ -71,7 +71,7 @@ float curAlt = 0;
 
 void debugPosition(float dt) {
 	if (curAlt == 0) {
-		curAlt = positionData.zPosition;
+		curAlt = 1;//positionData.zPosition;
 	}
 	DEBUG_DATA_BUFFER[0] = (positionData.zPosition - curAlt);
 	DEBUG_DATA_BUFFER[1] = (sensorAltitudeData.altitudeSLMaxFiltered - curAlt) ;

@@ -47,6 +47,7 @@ extern POSITION_DATA positionData;
 #define POSITION_MGR_XY_VEL_DAMP_STRENGTH   0.75f
 
 uint8_t initPositionManager(void);
+void doPositionManagement(void);
 void updatePositionManagerZPosition(float zPos, float dt);
 void updatePositionManagerXYPosition(float xPos, float yPos, float dt);
 void dampPositionManagerXYVelocity(float dt);

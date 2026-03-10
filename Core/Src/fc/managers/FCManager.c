@@ -23,6 +23,7 @@ void dispatchManagers() {
 	if (fcStatusData.hasInitialized) {
 		doAttitudeManagement();
 		doAltitudeManagement();
+		doPositionManagement();
 		doConfigManagement();
 		doRCManagement();
 	}

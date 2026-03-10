@@ -32,6 +32,18 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 	return 1;
 }
 
+void positionEKFSetMode(POSITION_EKF *ekf, uint8_t stabilize) {
+	if (stabilize) {
+		for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
+			ekf->R[axis] = ekf->R[axis] / 1000.0f;
+		}
+	} else {
+		for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
+			ekf->R[axis] = ekf->R[axis] * 1000.0f;
+		}
+	}
+}
+
 /* --- Prediction Step --- */
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt) {
 	float acc[3] = { ax, ay, az };

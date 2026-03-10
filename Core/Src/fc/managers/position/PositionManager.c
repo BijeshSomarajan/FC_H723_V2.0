@@ -15,6 +15,7 @@
 POSITION_EKF positionEkf;
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
 POSITION_DATA positionData;
+uint8_t positionManagerWasInStabMode;
 
 void managePositionTask(void);
 
@@ -77,6 +78,7 @@ void upadatePositionAcceleration(float ax, float ay, float az, float dt) {
 
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
+
 	float dt = getDeltaTime(POSITION_MANAGER_TIMER_CHANNEL);
 
 	if (dt <= 0.0f || dt > 0.1f) dt = 0.001f; // Safety guard for dt
@@ -107,19 +109,31 @@ void managePositionTask(void) {
 
 }
 
+__ATTR_ITCM_TEXT
+void doPositionManagement() {
+	if (fcStatusData.canStabilize && positionManagerWasInStabMode == 0) {
+		positionManagerWasInStabMode = 1;
+		positionEKFSetMode(&positionEkf, 1);
+	} else if (positionManagerWasInStabMode && fcStatusData.isStabilized) {
+		positionManagerWasInStabMode = 0;
+		positionEKFSetMode(&positionEkf, 0);
+	}
+}
+
 void resetPositionManager(void) {
 	lowPassFilterReset(&positionMgrAccXLPF);
 	lowPassFilterReset(&positionMgrAccYLPF);
 	lowPassFilterReset(&positionMgrAccZLPF);
 	positionEKFReset(&positionEkf, 0, 0, 0);
 	resetVenturiBiasEstimator();
+	positionManagerWasInStabMode = 0;
 }
 
 __ATTR_ITCM_TEXT
 void updatePositionManagerZPosition(float zPos, float dt) {
 	positionData.positionZUpdateDt = dt;
 	float venturiBias = updateVenturiBiasEstimate(dt);
- 	positionEKFUpdateZMeasureWithBias(&positionEkf, zPos , venturiBias);
+	positionEKFUpdateZMeasureWithBias(&positionEkf, zPos, venturiBias);
 	dampPositionManagerXYVelocity(dt);
 }
 
