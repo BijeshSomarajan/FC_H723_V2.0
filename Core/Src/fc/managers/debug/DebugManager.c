@@ -73,7 +73,6 @@ void debugPosition(float dt) {
 	if (curAlt == 0) {
 		curAlt = positionData.zPosition;
 	}
-
 	DEBUG_DATA_BUFFER[0] = (positionData.zPosition - curAlt);
 	DEBUG_DATA_BUFFER[1] = (sensorAltitudeData.altitudeSLMaxFiltered - curAlt) ;
 	DEBUG_DATA_BUFFER[2] = (sensorAltitudeData.altitudeSLScaled- curAlt) ;
@@ -81,11 +80,9 @@ void debugPosition(float dt) {
 	DEBUG_DATA_BUFFER[4] = (positionData.zVelocity);
 	DEBUG_DATA_BUFFER[5] = (controlData.altitudeControl);
 
-
 	//DEBUG_DATA_BUFFER[4] = venturiEstimateData.venturiBias;
 	//DEBUG_DATA_BUFFER[5] = venturiEstimateData.pitchAngleAbsFiltered;
 	//DEBUG_DATA_BUFFER[6] = sensorAttitudeData.pitch;
-
 	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
 }
 
@@ -100,7 +97,6 @@ void currentDebug() {
 	 DEBUG_DATA_BUFFER[6] = 1.0f / (positionData.positionZUpdateDt == 0 ? 1 : positionData.positionZUpdateDt);
 	 DEBUG_DATA_BUFFER[7] = 1.0f / (pwmData.updateDt == 0 ? 1 : pwmData.updateDt);
 	 */
-
 	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
 }
 

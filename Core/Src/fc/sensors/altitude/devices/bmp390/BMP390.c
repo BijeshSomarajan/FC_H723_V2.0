@@ -273,7 +273,7 @@ void bmp390CalculatePressure() {
 
 	double partial_data4 = partial_data3 + uP3 * bmp390.dp11;
 
-	deviceAltitudeData.pressure = (partial_out1 + partial_out2 + partial_data4) * BMP390_PRESSURE_OUTPUT_SCALE;
+	deviceAltitudeData.pressure = (partial_out1 + partial_out2 + partial_data4);
 
 }
 

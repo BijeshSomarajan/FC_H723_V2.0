@@ -64,10 +64,11 @@
 #define POS_EKF_Y_GATE          15.0f
 #define POS_EKF_Y_PANIC         100
 
-#define POS_EKF_Z_Q_POS         0.00013f
+#define POS_EKF_Z_Q_POS         0.00013//0.00013f
 #define POS_EKF_Z_Q_VEL         0.0128f
 #define POS_EKF_Z_Q_BIAS        0.001f
-#define POS_EKF_Z_R_MEAS        5000.0f
+#define POS_EKF_Z_R_MEAS        75000.0f
+
 #define POS_EKF_Z_GATE          2.0f //Was 4
 #define POS_EKF_Z_PANIC         100
 

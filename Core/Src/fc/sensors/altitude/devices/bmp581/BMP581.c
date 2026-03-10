@@ -252,7 +252,7 @@ void deviceBaroDataProcess() {
 	deviceAltitudeData.rawPressure = (uint32_t) ((uint32_t) (deviceAltitudeData.buffer[5] << 16) | (uint16_t) (deviceAltitudeData.buffer[4] << 8) | deviceAltitudeData.buffer[3]);
 
 	deviceAltitudeData.temperature = (float) deviceAltitudeData.rawTemperature / 65536.0f;
-	deviceAltitudeData.pressure = ((float) deviceAltitudeData.rawPressure / 64.0f) * BMP581_PRESSURE_OUTPUT_SCALE;
+	deviceAltitudeData.pressure = ((float) deviceAltitudeData.rawPressure / 64.0f);
 
 	if (deviceAltitudeData.pressure > 0.0f) {
 		bmp581CalculateAltitude();
