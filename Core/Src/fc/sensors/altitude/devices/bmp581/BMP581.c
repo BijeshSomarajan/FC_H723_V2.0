@@ -105,8 +105,8 @@ uint8_t deviceBaroInit(void) {
 		return 0;
 	}
 	logString("[bmp581,Baro : Ready Status] > Success\n");
-
-	delayMs(200);
+	bmp581IsBaroCalibrated = 0;
+	delayMs(10);
 	return 1;
 }
 
