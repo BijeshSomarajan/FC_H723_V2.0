@@ -130,9 +130,9 @@ void applyAltitudeControlRIMaxLimit(float maxLimit, uint8_t copyOutput);
 __ATTR_ITCM_TEXT
 void controlAltitude(float dt, float expectedAltitude, float currentAltitude) {
 	pidUpdate(&altPID, currentAltitude, expectedAltitude, dt);
-	pidUpdate(&altRatePID, positionData.zVelocity, altPID.pid, dt);
+	pidUpdate(&altRatePID, positionCordinateData.zVelocity, altPID.pid, dt);
 	if (altControlAccEnabled == 1) {
-		pidUpdate(&altAccPID, positionData.zAcceleration, altRatePID.pid, dt);
+		pidUpdate(&altAccPID, positionCordinateData.zAcceleration, altRatePID.pid, dt);
 		controlData.altitudeControl = altAccPID.pid;
 	} else {
 		controlData.altitudeControl = altRatePID.pid;
@@ -144,9 +144,9 @@ void controlAltitude(float dt, float expectedAltitude, float currentAltitude) {
 __ATTR_ITCM_TEXT
 void controlAltitudeWithGains(float dt, float expectedAltitude, float currentAltitude, ALTITUDE_CONTROL_GAINS altControlGains) {
 	pidUpdateWithGains(&altPID, currentAltitude, expectedAltitude, dt, altControlGains.masterPGain, 0.0f, 0.0f);
-	pidUpdateWithGains(&altRatePID, positionData.zVelocity, altPID.pid, dt, altControlGains.ratePGain, altControlGains.rateIGain, altControlGains.rateDGain);
+	pidUpdateWithGains(&altRatePID, positionCordinateData.zVelocity, altPID.pid, dt, altControlGains.ratePGain, altControlGains.rateIGain, altControlGains.rateDGain);
 	if (altControlAccEnabled == 1) {
-		pidUpdateWithGains(&altAccPID, positionData.zAcceleration, altRatePID.pid, dt, altControlGains.accPGain, 0.0f, altControlGains.accDGain);
+		pidUpdateWithGains(&altAccPID, positionCordinateData.zAcceleration, altRatePID.pid, dt, altControlGains.accPGain, 0.0f, altControlGains.accDGain);
 		controlData.altitudeControl = altAccPID.pid;
 	} else {
 		controlData.altitudeControl = altRatePID.pid;

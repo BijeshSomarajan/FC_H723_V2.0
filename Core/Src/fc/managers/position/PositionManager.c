@@ -11,11 +11,16 @@
 #include "estimator/PositionEstimator.h"
 #include "estimator/VenturiBiasEstimator.h"
 #include "../../status/FCStatus.h"
+#include "../../sensors/rc/RCSensor.h"
 
 POSITION_EKF positionEkf;
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
-POSITION_DATA positionData;
 uint8_t positionManagerWasInStabMode;
+POSITION_CORDINATE_DATA positionCordinateData;
+POSITION_COMMAND_DATA positionCommandData;
+
+float positionMgrPitchStickCenteredTimer, positionMgrRollStickCenteredTimer;
+float positionMgrPitchPeakStick, positionMgrRollPeakStick;
 
 void managePositionTask(void);
 
@@ -43,17 +48,17 @@ void upadatePositionVelocity(float vx, float vy, float vz, float dt) {
 	// X Axis
 	vel = applyDeadBandFloat(0.0f, vx, POSITION_MGR_X_VEL_DEADBAND);
 	vel = constrainToRangeF(vel, -POSITION_MGR_X_VEL_MAX, POSITION_MGR_X_VEL_MAX);
-	positionData.xVelocity = vel;
+	positionCordinateData.xVelocity = vel;
 
 	// Y Axis
 	vel = applyDeadBandFloat(0.0f, vy, POSITION_MGR_Y_VEL_DEADBAND);
 	vel = constrainToRangeF(vel, -POSITION_MGR_Y_VEL_MAX, POSITION_MGR_Y_VEL_MAX);
-	positionData.yVelocity = vel;
+	positionCordinateData.yVelocity = vel;
 
 	// Z Axis
 	vel = applyDeadBandFloat(0.0f, vz, POSITION_MGR_Z_VEL_DEADBAND);
 	vel = constrainToRangeF(vel, -POSITION_MGR_Z_VEL_MAX, POSITION_MGR_Z_VEL_MAX);
-	positionData.zVelocity = vel;
+	positionCordinateData.zVelocity = vel;
 }
 
 __ATTR_ITCM_TEXT
@@ -63,25 +68,102 @@ void upadatePositionAcceleration(float ax, float ay, float az, float dt) {
 	// X Axis
 	acc = applyDeadBandFloat(0.0f, ax, POSITION_MGR_X_ACC_DEADBAND);
 	acc = constrainToRangeF(acc, -POSITION_MGR_X_ACC_MAX, POSITION_MGR_X_ACC_MAX);
-	positionData.xAcceleration = lowPassFilterUpdate(&positionMgrAccXLPF, acc, dt);
+	positionCordinateData.xAcceleration = lowPassFilterUpdate(&positionMgrAccXLPF, acc, dt);
 
 	// Y Axis
-	acc = applyDeadBandFloat(0.0f, ay - positionData.yAccelerationBias, POSITION_MGR_Y_ACC_DEADBAND);
+	acc = applyDeadBandFloat(0.0f, ay - positionCordinateData.yAccelerationBias, POSITION_MGR_Y_ACC_DEADBAND);
 	acc = constrainToRangeF(acc, -POSITION_MGR_Y_ACC_MAX, POSITION_MGR_Y_ACC_MAX);
-	positionData.yAcceleration = lowPassFilterUpdate(&positionMgrAccYLPF, acc, dt);
+	positionCordinateData.yAcceleration = lowPassFilterUpdate(&positionMgrAccYLPF, acc, dt);
 
 	// Z Axis
-	acc = applyDeadBandFloat(0.0f, az - positionData.zAccelerationBias, POSITION_MGR_Z_ACC_DEADBAND);
+	acc = applyDeadBandFloat(0.0f, az - positionCordinateData.zAccelerationBias, POSITION_MGR_Z_ACC_DEADBAND);
 	acc = constrainToRangeF(acc, -POSITION_MGR_Z_ACC_MAX, POSITION_MGR_Z_ACC_MAX);
-	positionData.zAcceleration = lowPassFilterUpdate(&positionMgrAccZLPF, acc, dt);
+	positionCordinateData.zAcceleration = lowPassFilterUpdate(&positionMgrAccZLPF, acc, dt);
 }
 
+void manageBraking(float dt) {
+	float currentPitch = (float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX];
+	float currentRoll = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX];
+	if (!rcData.pitchCentered) {
+		positionMgrPitchStickCenteredTimer = 0.0f;
+		positionCommandData.pitchCommand = 0.0f;
+		if ((currentPitch > 0 && positionMgrPitchPeakStick < 0) || (currentPitch < 0 && positionMgrPitchPeakStick > 0)) {
+			positionMgrPitchPeakStick = currentPitch;
+		}
+		if (fabsf(currentPitch) > fabsf(positionMgrPitchPeakStick)) {
+			positionMgrPitchPeakStick = currentPitch;
+		}
+	} else {
+		positionMgrPitchStickCenteredTimer += dt;
+		if (positionMgrPitchStickCenteredTimer >= POSITION_MGR_PITCH_BRAKE_DELAY && positionMgrPitchStickCenteredTimer < (POSITION_MGR_PITCH_BRAKE_DELAY + POSITION_MGR_PITCH_BRAKE_WIDTH)) {
+			float fadeTime = positionMgrPitchStickCenteredTimer - POSITION_MGR_PITCH_BRAKE_DELAY;
+			float fadeWeight = fadeTime / POSITION_MGR_PITCH_BRAKE_FADE_IN;
+			if (fadeWeight > 1.0f) {
+				fadeWeight = 1.0f;
+			}
+			float pitchOut = -positionMgrPitchPeakStick * POSITION_MGR_PITCH_BRAKE_GAIN * fadeWeight;
+			positionCommandData.pitchCommand = constrainToRangeF(pitchOut, -POSITION_MGR_PITCH_BRAKE_LIMIT, POSITION_MGR_PITCH_BRAKE_LIMIT);
+		} else {
+			positionCommandData.pitchCommand = 0.0f;
+			if (positionMgrPitchStickCenteredTimer >= (POSITION_MGR_PITCH_BRAKE_DELAY + POSITION_MGR_PITCH_BRAKE_WIDTH)) {
+				positionMgrPitchPeakStick = 0.0f;
+			}
+		}
+	}
+
+	if (!rcData.rollCentered) {
+		positionMgrRollStickCenteredTimer = 0.0f;
+		positionCommandData.rollCommand = 0.0f;
+		if ((currentRoll > 0 && positionMgrRollPeakStick < 0) || (currentRoll < 0 && positionMgrRollPeakStick > 0)) {
+			positionMgrRollPeakStick = currentRoll;
+		}
+		if (fabsf(currentRoll) > fabsf(positionMgrRollPeakStick)) {
+			positionMgrRollPeakStick = currentRoll;
+		}
+	} else {
+		positionMgrRollStickCenteredTimer += dt;
+		if (positionMgrRollStickCenteredTimer >= POSITION_MGR_ROLL_BRAKE_DELAY && positionMgrRollStickCenteredTimer < (POSITION_MGR_ROLL_BRAKE_DELAY + POSITION_MGR_ROLL_BRAKE_WIDTH)) {
+			float fadeTime = positionMgrRollStickCenteredTimer - POSITION_MGR_ROLL_BRAKE_DELAY;
+			float fadeWeight = fadeTime / POSITION_MGR_ROLL_BRAKE_FADE_IN;
+			if (fadeWeight > 1.0f) {
+				fadeWeight = 1.0f;
+			}
+			float rollOut = -positionMgrRollPeakStick * POSITION_MGR_ROLL_BRAKE_GAIN * fadeWeight;
+			positionCommandData.rollCommand = constrainToRangeF(rollOut, -POSITION_MGR_ROLL_BRAKE_LIMIT, POSITION_MGR_ROLL_BRAKE_LIMIT);
+		} else {
+			positionCommandData.rollCommand = 0.0f;
+			if (positionMgrRollStickCenteredTimer >= (POSITION_MGR_ROLL_BRAKE_DELAY + POSITION_MGR_ROLL_BRAKE_WIDTH)) {
+				positionMgrRollPeakStick = 0.0f;
+			}
+		}
+	}
+}
+
+void managePositionHold(float dt) {
+
+}
+
+void updatePositionCommand(float dt) {
+	if (fcStatusData.liftOffThrottlePercent >= fcStatusData.throttlePercent) {
+		positionMgrPitchStickCenteredTimer = 0.0f;
+		positionMgrRollStickCenteredTimer = 0.0f;
+		positionMgrPitchPeakStick = 0.0f;
+		positionMgrRollPeakStick = 0.0f;
+		positionCommandData.pitchCommand = 0.0f;
+		positionCommandData.rollCommand = 0.0f;
+	} else if (!fcStatusData.isGlobalPosHoldModeActive) {
+		//manageBraking(dt);
+	} else {
+		//managePositionHold(dt);
+	}
+}
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
-
 	float dt = getDeltaTime(POSITION_MANAGER_TIMER_CHANNEL);
 
-	if (dt <= 0.0f || dt > 0.1f) dt = 0.001f; // Safety guard for dt
+	if (dt <= 0.0f || dt > 0.1f) {
+		dt = 0.001f; // Safety guard for dt
+	}
 	float axEarth = imuData.axEarthLinear * POSITION_MGR_ACC_OUTPUT_GAIN;
 	float ayEarth = imuData.ayEarthLinear * POSITION_MGR_ACC_OUTPUT_GAIN;
 	float azEarth = imuData.azEarthLinear * POSITION_MGR_ACC_OUTPUT_GAIN;
@@ -90,23 +172,21 @@ void managePositionTask(void) {
 	positionEKFPredict(&positionEkf, axEarth, ayEarth, azEarth, dt);
 
 	float *x = positionEkf.x;
-	positionData.xPosition = x[0]; // X Pos
-	positionData.xAccelerationBias = x[2]; // X Bias
+	positionCordinateData.xPosition = x[0]; // X Pos
+	positionCordinateData.xAccelerationBias = x[2]; // X Bias
 
-	positionData.yPosition = x[3]; // Y Pos
-	positionData.yAccelerationBias = x[5]; // Y Bias
+	positionCordinateData.yPosition = x[3]; // Y Pos
+	positionCordinateData.yAccelerationBias = x[5]; // Y Bias
 
-	positionData.zPosition = x[6]; // Z Pos
-	positionData.zAccelerationBias = x[8]; // Z Bias
+	positionCordinateData.zPosition = x[6]; // Z Pos
+	positionCordinateData.zAccelerationBias = x[8]; // Z Bias
 
 	// 2. Filtered Acceleration
-	upadatePositionAcceleration(axEarth - positionData.xAccelerationBias, ayEarth - positionData.yAccelerationBias, azEarth - positionData.zAccelerationBias, dt);
-
+	upadatePositionAcceleration(axEarth - positionCordinateData.xAccelerationBias, ayEarth - positionCordinateData.yAccelerationBias, azEarth - positionCordinateData.zAccelerationBias, dt);
 	// 3. Filtered Velocity
 	upadatePositionVelocity(x[1], x[4], x[7], dt);
 
-	positionData.positionProcessDt = dt;
-
+	positionCordinateData.positionProcessDt = dt;
 }
 
 __ATTR_ITCM_TEXT
@@ -127,11 +207,13 @@ void resetPositionManager(void) {
 	positionEKFReset(&positionEkf, 0, 0, 0);
 	resetVenturiBiasEstimator();
 	positionManagerWasInStabMode = 0;
+	positionMgrPitchStickCenteredTimer = 0;
+	positionMgrRollStickCenteredTimer = 0;
 }
 
 __ATTR_ITCM_TEXT
 void updatePositionManagerZPosition(float zPos, float dt) {
-	positionData.positionZUpdateDt = dt;
+	positionCordinateData.positionZUpdateDt = dt;
 	float venturiBias = updateVenturiBiasEstimate(dt);
 	positionEKFUpdateZMeasureWithBias(&positionEkf, zPos, venturiBias);
 	dampPositionManagerXYVelocity(dt);
@@ -139,7 +221,7 @@ void updatePositionManagerZPosition(float zPos, float dt) {
 
 __ATTR_ITCM_TEXT
 void updatePositionManagerXYPosition(float xPos, float yPos, float dt) {
-	positionData.positionXYUpdateDt = dt;
+	positionCordinateData.positionXYUpdateDt = dt;
 	positionEKFUpdateXYMeasure(&positionEkf, xPos, yPos);
 }
 

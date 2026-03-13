@@ -175,7 +175,7 @@ void updateAltitudeRefernces() {
 
 __ATTR_ITCM_TEXT
 float getClampedCurrentAltitude() {
-	float altitudeDelta = positionData.zPosition - fcStatusData.altitudeSLRef;
+	float altitudeDelta = positionCordinateData.zPosition - fcStatusData.altitudeSLRef;
 	altitudeDelta = constrainToRangeF(altitudeDelta, -ALT_MGR_MAX_ALT_DELTA, ALT_MGR_MAX_ALT_DELTA);
 	return fcStatusData.altitudeSLRef + altitudeDelta;
 }
@@ -187,7 +187,7 @@ void manageAltitude(float dt) {
 		altMgrWasThrottleCentered = 0;
 	} else {
 		if (altMgrWasThrottleCentered == 0) {
-			fcStatusData.altitudeSLRef = positionData.zPosition;
+			fcStatusData.altitudeSLRef = positionCordinateData.zPosition;
 			altMgrWasThrottleCentered = 1;
 		} else {
 			altMgrWasThrottleCentered = 2;

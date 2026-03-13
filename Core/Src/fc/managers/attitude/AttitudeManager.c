@@ -14,6 +14,9 @@
 #include "../../timers/GPTimer.h"
 #include "../../util/MathUtil.h"
 #include "../../FCConfig.h"
+#include "../../managers/position/PositionManager.h"
+
+extern POSITION_COMMAND_DATA positionCommandData;
 
 uint8_t attitudeManagerWasInStabMode = 0;
 void readAGTSensorTimerCallback(void);
@@ -65,18 +68,21 @@ void doAttitudeControl(float dt) {
 		fcStatusData.headingRef = sensorAttitudeData.heading;
 	}
 	if (fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
-		float expectedPitch = (float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX];
-		float expectedRoll = -(float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX];
+		float expectedPitch = (float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX] + positionCommandData.pitchCommand;
+		float expectedRoll = -(float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] - positionCommandData.rollCommand;
 		float expectedYaw = +(float) rcData.RC_EFFECTIVE_DATA[RC_YAW_CHANNEL_INDEX];
 		expectedPitch = constrainToRangeF(expectedPitch, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
 		expectedRoll = constrainToRangeF(expectedRoll, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
+
 		float rateIGain = 1.0;
 		float rateDGain = 1.0f;
+
 		//Reset the I and D gains
 		if (!fcStatusData.isFlying) {
 			rateIGain = 0;
 			rateDGain = 0;
 		}
+
 		controlAttitudeWithGains(dt, expectedPitch, expectedRoll, expectedYaw, rateIGain, rateDGain);
 	} else {
 		resetAttitudeControl(1);
@@ -116,36 +122,30 @@ void handleAttitudeSensorUpdates() {
 			imuSetMode(0);
 			attitudeManagerWasInStabMode = 0;
 		}
-
 		if (loadMagSensorData()) {
 			float dt = getDeltaTime(SENSOR_MAG_READ_TIMER_CHANNEL);
 			updateMagSensorData(dt);
 			filterMagNoise(dt);
 		}
-
 		if (loadAccGyroTempSensorData()) {
 			float dt = getDeltaTime(SENSOR_AGT_READ_TIMER_CHANNEL);
 			updateAGTSensorData(dt);
 			updateNoiseFilterData(dt);
-
 			checkForCrash();
-
 			filterAGTNoise(dt);
 			imuUpdateRate();
 			imuAHRSUpdate(dt);
 			alignImuAnglesToBoard();
 			alignImuRateToBoard();
-
 			//Handling crash land as soon as possible
 			if (!fcStatusData.hasCrashed) {
+				updatePositionCommand(dt);
 				doAttitudeControl(dt);
 			} else {
 				resetAttitudeManager();
 			}
 		}
-
 		updateNoiseFilterCoefficients();
-
 		if (fcStatusData.hasCrashed) {
 			resetAttitudeManager();
 		}

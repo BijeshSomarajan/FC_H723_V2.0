@@ -75,3 +75,8 @@ float applyQuadraticShaper(float input, float divisor, float deadzone) {
 
     return d2;
 }
+
+
+float convertPascalToHectoPascal(float pascal){
+	return pascal * 0.01f;
+}

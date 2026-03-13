@@ -7,6 +7,7 @@
 #include "../../../../io/spi/SPI.h"
 #include "../../../../logger/Logger.h"
 #include "../../../../timers/DelayTimer.h"
+#include "../../../../util/CommonUtil.h"
 #include "BMP581.h"
 #include "BMP581Registers.h"
 
@@ -241,7 +242,7 @@ void bmp581CalculateAltitude() {
 	float currentPressure = deviceAltitudeData.pressure;
 	if (!bmp581IsBaroCalibrated) {
 		bmp581Caliberate();
-		deviceAltitudeData.altitudeGround = (1.0f - powf(bmp581GroundPressure / BMP581_SEALEVEL_PRESSURE, BMP581_PRESSURE_PWR_CONST)) * BMP581_PRESSURE_GAS_CONST;
+		deviceAltitudeData.altitudeGround = (1.0f - powf(bmp581GroundPressure / convertPascalToHectoPascal(BMP581_SEALEVEL_PRESSURE), BMP581_PRESSURE_PWR_CONST)) * BMP581_PRESSURE_GAS_CONST;
 	}
 	float pressureDiff = bmp581GroundPressure - currentPressure;
 	deviceAltitudeData.altitude = (pressureDiff * bmp581PressureToMeterFactor);
@@ -252,7 +253,7 @@ void deviceBaroDataProcess() {
 	deviceAltitudeData.rawPressure = (uint32_t) ((uint32_t) (deviceAltitudeData.buffer[5] << 16) | (uint16_t) (deviceAltitudeData.buffer[4] << 8) | deviceAltitudeData.buffer[3]);
 
 	deviceAltitudeData.temperature = (float) deviceAltitudeData.rawTemperature / 65536.0f;
-	deviceAltitudeData.pressure = ((float) deviceAltitudeData.rawPressure / 64.0f);
+	deviceAltitudeData.pressure = convertPascalToHectoPascal(((float) deviceAltitudeData.rawPressure / 64.0f));
 
 	if (deviceAltitudeData.pressure > 0.0f) {
 		bmp581CalculateAltitude();
