@@ -197,7 +197,7 @@ void manageAltitude(float dt) {
 	manageAltControlSettings(dt);
 	if (fcStatusData.isFlying) {
 		//calculateTiltCompThrottle(dt);
-		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, getClampedCurrentAltitude(), altControlGains);
+		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, getClampedCurrentAltitude() , altControlGains);
 	} else {
 		updateAltitudeRefernces();
 		resetAltitudeControl(1);
