@@ -110,13 +110,23 @@ void currentDebug() {
 	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
 }
 
+void debugAltThrottle(float dt) {
+	DEBUG_DATA_BUFFER[0] = controlData.throttleControl;
+	DEBUG_DATA_BUFFER[1] = altMgrThrottleControlLPF.output;
+	DEBUG_DATA_BUFFER[2] = controlData.altitudeControl;
+	DEBUG_DATA_BUFFER[3] = fcStatusData.currentThrottle ;
+	DEBUG_DATA_BUFFER[4] = (positionCordinateData.zPosition);
+	sendConfigData(DEBUG_DATA_BUFFER,5, CMD_FC_DATA);
+}
+
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
 		return;
 	}
 	float dt = 0.001f;	//getDeltaTime(DEBUG_TIMER_CHANNEL);
 	//debugPosition(dt);
-	 debugBrake(dt);
+	debugAltThrottle(dt) ;
+	// debugBrake(dt);
 	//debugTime(dt);
 	//currentDebug();
 }
