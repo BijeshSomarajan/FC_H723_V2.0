@@ -1,9 +1,10 @@
 #include "LeakyIntegrationFlilter.h"
 
-void leakyIntegrationFilterInit(LEAKYINTEGRATIONFILTER *self, float tau) {
+void leakyIntegrationFilterInit(LEAKYINTEGRATIONFILTER *self, float tau, float limit) {
 	// A smaller alpha makes the filter "leak" more slowly, leading to a smoother output.
 	// A larger alpha causes the output to track the input more closely.
 	self->tau = tau;
+	self->limit = limit;
 }
 
 float leakyIntegrationFilterUpdate(LEAKYINTEGRATIONFILTER *self, float input, float dt) {
@@ -15,8 +16,8 @@ float leakyIntegrationFilterUpdate(LEAKYINTEGRATIONFILTER *self, float input, fl
 		leakFactor = 0.0f;
 	}
 	// 2. The unit-preserving update:
-	// Velocity = (Previous_Velocity * Leak) + (Acceleration * dt)
 	self->output = (self->output * leakFactor) + (input * dt);
+	self->output = constrainToRangeF(self->output, -self->limit, self->limit);
 	return self->output;
 }
 

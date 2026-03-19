@@ -1,9 +1,0 @@
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c:234:13:_axisVelocityUpdate.constprop	4
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c:6:9:positionEKFInit	1
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c:36:6:positionEKFPredict	10
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c:91:6:positionEKFReset	1
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c:284:6:positionEKFUpdateZMeasure	4
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c:289:6:positionEKFUpdateZMeasureWithBias	4
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c:294:6:positionEKFUpdateXYMeasure	5
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c:303:6:positionEKFApplyXYDamping	1
-../Core/Src/fc/managers/position/estimator/PositionEstimator.c:313:6:positionEKFApplyZDamping	1

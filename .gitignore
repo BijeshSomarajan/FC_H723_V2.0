@@ -1,1 +1,31 @@
-/Release/
+# --- Build Outputs ---
+Debug/
+Release/
+bin/
+obj/
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.o
+*.d
+*.su
+
+# --- CubeMX Generated ---
+# If you want to force users to generate code from the .ioc file, 
+# you can ignore the 'Drivers/' folder. However, most teams 
+# keep 'Drivers/' in git for stability.
+# Drivers/
+
+# --- Tools & Temporary Files ---
+*.bak
+*.log
+*.tmp
+*~
+.DS_Store
+Thumbs.db
+
+# --- CubeIDE Local User Files ---
+*.launch
+.last_placement

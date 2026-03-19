@@ -10,6 +10,7 @@
 #include "../../../../timers/DelayTimer.h"
 #include "BMP390.h"
 #include "BMP390Registers.h"
+#include "../../../../util/CommonUtil.h"
 
 #define BMP390_SPI4_DEVICE FC_SPI4_DEVICE1
 BMP390 bmp390;
@@ -273,7 +274,7 @@ void bmp390CalculatePressure() {
 
 	double partial_data4 = partial_data3 + uP3 * bmp390.dp11;
 
-	deviceAltitudeData.pressure = (partial_out1 + partial_out2 + partial_data4) * BMP390_PRESSURE_OUTPUT_SCALE;
+	deviceAltitudeData.pressure = convertPascalToHectoPascal((partial_out1 + partial_out2 + partial_data4));
 
 }
 
@@ -290,7 +291,7 @@ void bmp390CalculateAltitude() {
 	float currentPressure = deviceAltitudeData.pressure;
 	if (!bmp390IsBaroCalibrated) {
 		bmp390Caliberate();
-		deviceAltitudeData.altitudeGround = (1.0f - powf(bmp390GroundPressure / BMP390_SEALEVEL_PRESSURE, BMP390_PRESSURE_PWR_CONST)) * BMP390_PRESSURE_GAS_CONST;
+		deviceAltitudeData.altitudeGround = (1.0f - powf(bmp390GroundPressure / convertPascalToHectoPascal(BMP390_SEALEVEL_PRESSURE), BMP390_PRESSURE_PWR_CONST)) * BMP390_PRESSURE_GAS_CONST;
 	}
 	float pressureDiff = bmp390GroundPressure - currentPressure;
 	deviceAltitudeData.altitude = (pressureDiff * bmp390PressureToMeterFactor);
