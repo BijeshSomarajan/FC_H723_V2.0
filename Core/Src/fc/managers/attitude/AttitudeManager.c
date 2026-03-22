@@ -141,7 +141,6 @@ void handleAttitudeSensorUpdates() {
 			alignImuRateToBoard();
 			//Handling crash land as soon as possible
 			if (!fcStatusData.hasCrashed) {
-				updatePositionCommand(dt);
 				doAttitudeControl(dt);
 			} else {
 				resetAttitudeManager();

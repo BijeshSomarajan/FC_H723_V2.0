@@ -9,25 +9,21 @@
 
 static uint16_t posManagerGNSSStabCount = 0;
 
-void updateGNSSDataReliability(float dt) {
-	// 1. Check current packet against your strict hardware constraints
-	// Note: hAccMts should be LESS THAN the threshold for high accuracy
+void updatePositionDataReliability(float dt) {
 	uint8_t isCurrentPacketValid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
-
 	if (isCurrentPacketValid) {
-		// 2. Increment counter but cap it to avoid overflow
 		if (posManagerGNSSStabCount < POSITION_GNSS_MIN_STABILITY_COUNT) {
 			posManagerGNSSStabCount++;
 		}
 	} else {
-		// 3. INSTANT INVALIDATION: If one packet is bad, we stop trusting immediately
-		posManagerGNSSStabCount = 0;
+		if (posManagerGNSSStabCount > 0) {
+			posManagerGNSSStabCount--;
+		}
 	}
-	// 4. Assert reliability only after passing the NSeconds duration
-	if (posManagerGNSSStabCount >= POSITION_GNSS_MIN_STABILITY_COUNT) {
-		fcStatusData.isGNSSDataReliable = 1;
+	if (posManagerGNSSStabCount >= POSITION_GNSS_RELIABILITY_THRESHOLD) {
+		fcStatusData.isPositionDataReliable = 1;
 	} else {
-		fcStatusData.isGNSSDataReliable = 0;
+		fcStatusData.isPositionDataReliable = 0;
 	}
 }
 
@@ -39,8 +35,8 @@ void convertGNSSToSICordinates(double latDeg, double longDeg, double latRef, dou
 	*yCordinate = (float) (dLon * POSITION_GNSS_METERS_PER_DEG_LAT * cosApprox(curLatitudeRad)) * 100;
 }
 
-void convertEarthToBodyCordinates(float xEarth, float yEarth, float *xBody, float *yBody) {
-	float headingRad = convertDegToRad(sensorAttitudeData.heading);
+void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody) {
+	float headingRad = convertDegToRad(heading);
 
 	float headingCosValue = cosApprox(headingRad);
 	float headingSinValue = sinApprox(headingRad);

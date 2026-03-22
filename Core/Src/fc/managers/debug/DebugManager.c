@@ -143,7 +143,7 @@ void debugPositionXy(float dt) {
 	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition;
 	DEBUG_DATA_BUFFER[5] = positionCordinateData.yVelocity;
 
-	DEBUG_DATA_BUFFER[6] = fcStatusData.isGNSSDataReliable * 20;
+	DEBUG_DATA_BUFFER[6] = fcStatusData.isPositionDataReliable * 20;
 	DEBUG_DATA_BUFFER[7] = sensorAttitudeData.heading;
 
 	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);

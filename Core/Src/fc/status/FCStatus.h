@@ -10,7 +10,7 @@ struct _FC_STATUS_DATA {
 	//Enabled states
 	uint8_t enableAltitudeHold, enablePositionHold, enableRTH;
 	//FC Statues
-	uint8_t hasInitialized, isTxOn, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized , isFlying , isGNSSDataReliable;
+	uint8_t hasInitialized, isTxOn, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized , isFlying , isPositionDataReliable;
 	//FC Modes
 	uint8_t isPositionHoldModeActive, isRTHModeActive, isTerrainAltModeActive, isHeadLessModeActive;
 	//Flag to state if landing landing mode is active
@@ -19,7 +19,7 @@ struct _FC_STATUS_DATA {
 	uint8_t isDebugEnabled;
 
 	//The position references
-	double positionLatRef, positionLongRef;
+	double positionXRef, positionYRef;
 	//The home position
 	double positionLatHome, positionLongHome;
 	uint8_t isPositionHomeSet;

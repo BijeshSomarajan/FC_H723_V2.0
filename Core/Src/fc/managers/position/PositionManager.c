@@ -1,18 +1,24 @@
 #include "PositionManager.h"
 
+#include <math.h>
+#include <sys/_stdint.h>
+
+#include "../../control/ControlData.h"
+#include "../../control/position/PositionControl.h"
 #include "../../dsp/LowPassFilter.h"
 #include "../../FCConfig.h"
 #include "../../imu/IMU.h"
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
+#include "../../sensors/attitude/AttitudeSensor.h"
 #include "../../sensors/position/GNSS.h"
+#include "../../sensors/rc/RCSensor.h"
+#include "../../status/FCStatus.h"
 #include "../../timers/DeltaTimer.h"
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "estimator/PositionEstimator.h"
 #include "estimator/VenturiBiasEstimator.h"
-#include "../../status/FCStatus.h"
-#include "../../sensors/rc/RCSensor.h"
 #include "helpers/PositionManagerHelper.h"
 
 POSITION_EKF positionEkf;
@@ -46,6 +52,8 @@ uint8_t initPositionManager(void) {
 
 		schedulerAddTask(managePositionTask, POSITION_MANAGEMENT_TASK_FREQUENCY, POSITION_MANAGEMENT_TASK_PRIORITY);
 		logString("[Position Manager] All tasks   > Started\n");
+
+		initPositionControl();
 	} else {
 		logString("[Position Manager] EKF Init > Failed\n");
 	}
@@ -150,7 +158,16 @@ void manageBraking(float dt) {
 
 __ATTR_ITCM_TEXT
 void managePositionHold(float dt) {
-
+	//Enabled if the Pitch and Roll Sticks are centered
+	if (fcStatusData.enablePositionHold) {
+		controlPositionWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f, 1.0f, 1.0f, 1.0f);
+		convertEarthToBodyCordinates(controlData.positionXControl, controlData.positionYControl, sensorAttitudeData.heading, &positionCommandData.pitchCommand, &positionCommandData.rollCommand);
+	} else {
+		fcStatusData.positionXRef = positionCordinateData.xPosition;
+		fcStatusData.positionYRef = positionCordinateData.yPosition;
+		positionCommandData.pitchCommand = 0.0f;
+		positionCommandData.rollCommand = 0.0f;
+	}
 }
 
 /**
@@ -165,10 +182,11 @@ void updatePositionCommand(float dt) {
 		positionMgrRollPeakStick = 0.0f;
 		positionCommandData.pitchCommand = 0.0f;
 		positionCommandData.rollCommand = 0.0f;
-	} else if (!fcStatusData.isPositionHoldModeActive) {
-		//manageBraking(dt);
+	} else if (fcStatusData.isPositionHoldModeActive && fcStatusData.isPositionHomeSet && fcStatusData.isPositionDataReliable) {
+		managePositionHold(dt);
 	} else {
-		//managePositionHold(dt);
+		positionCommandData.pitchCommand = 0.0f;
+		positionCommandData.rollCommand = 0.0f;
 	}
 }
 
@@ -201,18 +219,19 @@ void managePositionTask(void) {
 	// 3. Filtered Velocity
 	upadatePositionVelocity(x[1], x[4], x[7], dt);
 
+	//Update the position command
+	updatePositionCommand(dt);
+
 	positionCordinateData.positionProcessDt = dt;
 }
 
 void handlePositionDataUpdate(float dt) {
 	if (fcStatusData.isPositionHoldModeActive) {
-		updateGNSSDataReliability(dt);
-		if (fcStatusData.isGNSSDataReliable) {
+		updatePositionDataReliability(dt);
+		if (fcStatusData.isPositionDataReliable) {
 			if (!fcStatusData.isPositionHomeSet) {
 				fcStatusData.positionLongHome = gnssData.longitude;
 				fcStatusData.positionLatHome = gnssData.latitude;
-				fcStatusData.positionLongRef = fcStatusData.positionLongHome;
-				fcStatusData.positionLatRef = fcStatusData.positionLatHome;
 				fcStatusData.isPositionHomeSet = 1;
 			}
 			convertGNSSToSICordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
@@ -221,10 +240,10 @@ void handlePositionDataUpdate(float dt) {
 	} else {
 		fcStatusData.positionLongHome = 0;
 		fcStatusData.positionLatHome = 0;
-		fcStatusData.positionLongRef = 0;
-		fcStatusData.positionLatRef = 0;
+		fcStatusData.positionYRef = 0;
+		fcStatusData.positionXRef = 0;
 		fcStatusData.isPositionHomeSet = 0;
-		fcStatusData.isGNSSDataReliable = 0;
+		fcStatusData.isPositionDataReliable = 0;
 		updatePositionManagerXYPosition(0, 0, dt);
 		positionEKFApplyXYDamping(&positionEkf, POSITION_MGR_XY_VEL_DAMP_STRENGTH);
 	}
@@ -252,6 +271,7 @@ void resetPositionManager(void) {
 	lowPassFilterReset(&positionMgrAccZLPF);
 	positionEKFReset(&positionEkf, 0, 0, 0);
 	resetVenturiBiasEstimator();
+	resetPositionControl(1);
 	positionManagerWasInStabMode = 0;
 	positionMgrPitchStickCenteredTimer = 0;
 	positionMgrRollStickCenteredTimer = 0;
