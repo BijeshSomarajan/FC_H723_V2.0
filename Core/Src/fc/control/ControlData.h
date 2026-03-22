@@ -10,8 +10,8 @@ struct _CONTROL_DATA {
 	float rollControl;
 	float yawControl;
 	float altitudeControl;
-	float positionPitchControl;
-	float positionRollControl;
+	float positionXControl;
+	float positionYControl;
 	float attitudeControlDt;
 	float altitudeControlDt;
 	float tiltCompThDelta;

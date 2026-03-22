@@ -48,27 +48,25 @@
  Number of consecutive rejected measurements before the filter "gives up" and snaps to sensor.
  */
 
-/* --- X-Axis Tuning (Lateral / Roll) @ 1kHz --- */
-#define POS_EKF_X_Q_POS         0.00013f       // Increased for high-speed tracking
-#define POS_EKF_X_Q_VEL         0.0128f       // HIGH: Forces velocity to integrate at 1kHz
-#define POS_EKF_X_Q_BIAS        0.001f // ULTRA-LOW: Prevents "Bias Walking" from eating speed
-#define POS_EKF_X_R_MEAS        5000.0f       // TRUST: Pulls Red line toward Orange slope quickly
-#define POS_EKF_X_GATE          15.0f       // WIDE: No rejection during high-speed 1kHz updates
-#define POS_EKF_X_PANIC         100         // Higher panic for 1kHz (100ms window)
+#define POS_EKF_X_Q_POS         0.1f
+#define POS_EKF_X_Q_VEL         0.15f
+#define POS_EKF_X_Q_BIAS        0.001f
+#define POS_EKF_X_R_MEAS        5000.0f
+#define POS_EKF_X_GATE          10.0f
+#define POS_EKF_X_PANIC         100
 
-/* --- Y-Axis Tuning (Longitudinal / Pitch) @ 1kHz --- */
-#define POS_EKF_Y_Q_POS         0.00013f
-#define POS_EKF_Y_Q_VEL         0.0128f        // HIGH: Velocity will now climb as long as you are pitched
-#define POS_EKF_Y_Q_BIAS        0.001f // "Freeze" the bias during the flight
-#define POS_EKF_Y_R_MEAS        5000.0f       // Lower R = Red line follows the slope of Orange line
-#define POS_EKF_Y_GATE          15.0f
+#define POS_EKF_Y_Q_POS         0.1f
+#define POS_EKF_Y_Q_VEL         0.15f
+#define POS_EKF_Y_Q_BIAS        0.001f
+#define POS_EKF_Y_R_MEAS        5000.0f
+#define POS_EKF_Y_GATE          10.0f
 #define POS_EKF_Y_PANIC         100
 
+//--------------------------------- Finalized ------------------------------------*/
 #define POS_EKF_Z_Q_POS         0.00015//0.00013f
 #define POS_EKF_Z_Q_VEL         0.015f
 #define POS_EKF_Z_Q_BIAS        0.001f
 #define POS_EKF_Z_R_MEAS        800000.0f
-
 #define POS_EKF_Z_GATE          3.0f //Was 4
 #define POS_EKF_Z_PANIC         100
 
@@ -123,7 +121,7 @@ void positionEKFUpdateZMeasure(POSITION_EKF *ekf, float z_meas);
 /**
  *
  */
-void positionEKFUpdateZMeasureWithBias(POSITION_EKF *ekf, float z_meas,float bias);
+void positionEKFUpdateZMeasureWithBias(POSITION_EKF *ekf, float z_meas, float bias);
 
 /**
  * @brief Horizontal Measurement Update.

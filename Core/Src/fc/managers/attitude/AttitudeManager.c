@@ -14,7 +14,9 @@
 #include "../../timers/GPTimer.h"
 #include "../../util/MathUtil.h"
 #include "../../FCConfig.h"
+#include "../../managers/position/common/PositionCommon.h"
 #include "../../managers/position/PositionManager.h"
+
 
 extern POSITION_COMMAND_DATA positionCommandData;
 

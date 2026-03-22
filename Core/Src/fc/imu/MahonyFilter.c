@@ -38,7 +38,7 @@ void imuFilterUpdateAngles(void) {
  * Updates compass heading based on magnetic inclination and external error offsets
  */
 __ATTR_ITCM_TEXT
-void imuFilterUpdateHeading(float magIncl, float error) {
+void imuFilterUpdateHeading(float headingBias) {
 	imuData.heading = -imuData.yaw;
 	// Normalize to [0, 360]
 	if (imuData.heading < 0.0f) {
@@ -48,7 +48,7 @@ void imuFilterUpdateHeading(float magIncl, float error) {
 		imuData.heading -= 360.0f;
 	}
 
-	imuData.heading += (magIncl + error);
+	imuData.heading -= headingBias;
 
 	// Final Wrap-around
 	if (imuData.heading > 360.0f) {

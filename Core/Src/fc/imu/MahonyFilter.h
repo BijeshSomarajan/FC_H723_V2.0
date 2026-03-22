@@ -23,6 +23,6 @@ uint8_t imuFilterInit(uint8_t stabilize);
 void imuFilterReset(void);
 uint16_t imuFilterGetStabilizationCount(void);
 void imuFilterUpdateAngles(void);
-void imuFilterUpdateHeading(float magIncl, float error);
+void imuFilterUpdateHeading(float imuHeadingBias);
 
 #endif

@@ -105,7 +105,7 @@ void processRCData(float dt) {
 	fcStatusData.enableAltitudeHold = canEnableAltHold();
 	// Note order is important
 	fcStatusData.isRTHModeActive = isRTHModeActive();
-	fcStatusData.isGlobalPosHoldModeActive = isGlobalPosHoldModeActive();
+	fcStatusData.isPositionHoldModeActive = isGlobalPosHoldModeActive();
 	fcStatusData.enablePositionHold = canEnableGlobalPosHold();
 	fcStatusData.enableRTH = canEnableRTH();
 	fcStatusData.isTerrainAltModeActive = isTerrainAltModeActive();
@@ -304,7 +304,7 @@ uint8_t isGlobalPosHoldModeActive() {
 uint8_t canEnableGlobalPosHold() {
 	//&& rcData.throttleStable
 	// if (fcStatusData.isGlobalPosHoldModeActive && rcData.pitchCentered && rcData.rollCentered && rcData.yawCentered) {
-	if (fcStatusData.isGlobalPosHoldModeActive && rcData.pitchCentered && rcData.rollCentered) {
+	if (fcStatusData.isPositionHoldModeActive && rcData.pitchCentered && rcData.rollCentered) {
 		return 1;
 	} else {
 		return 0;

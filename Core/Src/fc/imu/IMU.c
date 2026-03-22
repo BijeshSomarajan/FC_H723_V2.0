@@ -1,16 +1,15 @@
-#include "../sensors/attitude/AttitudeSensor.h"
-#include "../util/MathUtil.h"
 #include "IMU.h"
 
-#include "../dsp/LeakyIntegrationFlilter.h"
-#include "../dsp/LowPassFilter.h"
-#include "MadgwickFilter.h"
+#include <sys/_stdint.h>
+
+#include "../sensors/attitude/AttitudeSensor.h"
+#include "../calibration/Calibration.h"
 #include "MahonyFilter.h"
 
 IMU_DATA imuData;
 extern SENSOR_ATTITUDE_DATA sensorAttitudeData;
 
-float imuMagInclination = 0;
+float imuHeadingCorrection = 0;
 
 uint16_t getImuStabilizationCount() {
 	return imuFilterGetStabilizationCount();
@@ -21,7 +20,7 @@ uint16_t getImuStabilizationCount() {
 /*****************************************************************************************************************/
 uint8_t imuInit(float pMagInclination) {
 	imuReset(1);
-	imuMagInclination = pMagInclination;
+	imuHeadingCorrection = getScaledCalibrationValue(CALIB_PROP_HEADING_BIAS_ADDR);
 	imuFilterInit(1);
 	return 1;
 }
@@ -54,9 +53,9 @@ void imuUpdateRate() {
 
 __ATTR_ITCM_TEXT
 void updateLinearMovements(float dt) {
-	// 1. Existing Earth Frame Calculation
-	float axGEarth = imuData.rMatrix[0][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[0][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[0][2] * sensorAttitudeData.azGFiltered;
-	float ayGEarth = imuData.rMatrix[1][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[1][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[1][2] * sensorAttitudeData.azGFiltered;
+	// 1. Existing Earth Frame Calculation , aligning to NED.
+	float axGEarth = -(imuData.rMatrix[1][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[1][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[1][2] * sensorAttitudeData.azGFiltered);
+	float ayGEarth = -(imuData.rMatrix[0][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[0][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[0][2] * sensorAttitudeData.azGFiltered);
 	float azGEarth = imuData.rMatrix[2][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[2][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[2][2] * sensorAttitudeData.azGFiltered;
 	// Remove gravity (1.0G) in Earth frame
 	azGEarth -= 1.0f;
@@ -86,7 +85,7 @@ __ATTR_ITCM_TEXT
 void imuAHRSUpdate(float dt) {
 	imuFilterUpdate(dt);
 	imuFilterUpdateAngles();
-	imuFilterUpdateHeading(imuMagInclination, MAG_ANGLE_CORRECTION);
+	imuFilterUpdateHeading(imuHeadingCorrection);
 	updateLinearMovements(dt);
 	imuData.arhsDt = dt;
 }

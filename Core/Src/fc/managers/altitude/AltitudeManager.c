@@ -179,30 +179,6 @@ void handleThrottleChange(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void calculateTiltCompThrottle(float dt) {
-	static float currentTiltCompThDelta = 0.0f;
-	float target = 0.0f;
-	float pitch = sensorAttitudeData.pitch;
-	float roll = sensorAttitudeData.roll;
-	float totalTilt = fastSqrtf(pitch * pitch + roll * roll);
-	if (totalTilt > ALT_MGR_TILT_TH_MIN_ANGLE) {
-		// Geometric Lift Loss: 1.0 - (CosP * CosR)
-		float liftComponent = cosApprox(convertDegToRad(pitch)) * cosApprox(convertDegToRad(roll));
-		// Clamp to the 45-degree limit defined in header
-		float minComponent = cosApprox(convertDegToRad(ALT_MGR_TILT_TH_MAX_ANGLE));
-		liftComponent = fmaxf(liftComponent, minComponent);
-		// Apply linear gain to the loss
-		target = (1.0f - liftComponent) * ALT_MGR_TILT_COMP_TH_ADJUST_GAIN;
-		target = fminf(target, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
-	}
-	// Smooth filtering
-	float activeTau = (target > currentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
-	float alpha = dt / (activeTau + dt);
-	currentTiltCompThDelta += alpha * (target - currentTiltCompThDelta);
-	controlData.tiltCompThDelta = currentTiltCompThDelta;
-}
-
-__ATTR_ITCM_TEXT
 void updateAltitudeRefernces() {
 	fcStatusData.altitudeSLHome = sensorAltitudeData.altitudeSLMaxFiltered;
 	fcStatusData.altitudeSLRef = sensorAltitudeData.altitudeSLMaxFiltered;
@@ -233,7 +209,6 @@ void manageAltitude(float dt) {
 	}
 	manageAltControlSettings(dt);
 	if (fcStatusData.isFlying) {
-		//calculateTiltCompThrottle(dt);
 		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, getClampedCurrentAltitude() , altControlGains);
 	} else {
 		updateAltitudeRefernces();

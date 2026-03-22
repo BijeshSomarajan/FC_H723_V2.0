@@ -1,27 +1,6 @@
 #ifndef SRC_FC_MANAGERS_POSITION_POSITIONMANAGER_H_
 #define SRC_FC_MANAGERS_POSITION_POSITIONMANAGER_H_
-#include <sys/_stdint.h>
-
-typedef struct _POSITION_CORDINATE_DATA POSITION_CORDINATE_DATA;
-struct _POSITION_CORDINATE_DATA {
-	float xPosition, yPosition, zPosition;
-	float xVelocity, yVelocity, zVelocity;
-	float xAcceleration, yAcceleration, zAcceleration;
-	float xAccelerationBias, yAccelerationBias, zAccelerationBias;
-
-	float positionProcessDt;
-	float positionXYUpdateDt;
-	float positionZUpdateDt;
-};
-extern POSITION_CORDINATE_DATA positionCordinateData;
-
-typedef struct _POSITION_COMMAND_DATA POSITION_COMMAND_DATA;
-struct _POSITION_COMMAND_DATA {
-	float pitchCommand, rollCommand;
-	float positionCommandDt;
-};
-extern POSITION_COMMAND_DATA positionCommandData;
-
+#include "common/PositionCommon.h"
 
 #define POSITION_MANAGEMENT_TASK_FREQUENCY 1000
 #define POSITION_MGR_ACC_OUTPUT_GAIN  100.0f  // cm/sec2
@@ -64,12 +43,10 @@ extern POSITION_COMMAND_DATA positionCommandData;
 #define POSITION_MGR_ROLL_BRAKE_GAIN      0.8f
 #define POSITION_MGR_ROLL_BRAKE_LIMIT     30.0f
 
-
 uint8_t initPositionManager(void);
 void doPositionManagement(void);
 void updatePositionManagerZPosition(float zPos, float dt);
 void updatePositionManagerXYPosition(float xPos, float yPos, float dt);
-void dampPositionManagerXYVelocity(float dt);
 void resetPositionManager(void);
 
 void updateLateralVel() ;

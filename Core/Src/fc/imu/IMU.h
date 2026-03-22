@@ -7,8 +7,8 @@
 #include "../memory/Memory.h"
 #include "../util/MathUtil.h"
 
-#define MAG_INCLINATION -1.1f 
-#define MAG_ANGLE_CORRECTION -10.0f 
+#define MAG_INCLINATION -1.1f
+#define MAG_ANGLE_CORRECTION -10.0f
 
 #define IMU_FILTER_MANHONY_BF 1
 #define IMU_FILTER_MADGWICK 2

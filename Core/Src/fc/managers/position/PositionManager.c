@@ -5,6 +5,7 @@
 #include "../../imu/IMU.h"
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
+#include "../../sensors/position/GNSS.h"
 #include "../../timers/DeltaTimer.h"
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
@@ -12,6 +13,7 @@
 #include "estimator/VenturiBiasEstimator.h"
 #include "../../status/FCStatus.h"
 #include "../../sensors/rc/RCSensor.h"
+#include "helpers/PositionManagerHelper.h"
 
 POSITION_EKF positionEkf;
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
@@ -26,7 +28,15 @@ void managePositionTask(void);
 
 uint8_t initPositionManager(void) {
 	logString("[Position Manager] Init > Start\n");
-	uint8_t status = positionEKFInit(&positionEkf) && initVenturiBiasEstimator();
+	uint8_t status = initGNSS();
+
+	if (status) {
+		logString("[Position Manager] GPS Init > Success\n");
+	} else {
+		logString("[Position Manager] GPS Init > Failed!\n");
+	}
+
+	status = positionEKFInit(&positionEkf) && initVenturiBiasEstimator();
 	if (status) {
 		logString("[Position Manager] EKF Init > Success\n");
 
@@ -64,7 +74,6 @@ void upadatePositionVelocity(float vx, float vy, float vz, float dt) {
 __ATTR_ITCM_TEXT
 void upadatePositionAcceleration(float ax, float ay, float az, float dt) {
 	float acc;
-
 	// X Axis
 	acc = applyDeadBandFloat(0.0f, ax, POSITION_MGR_X_ACC_DEADBAND);
 	acc = constrainToRangeF(acc, -POSITION_MGR_X_ACC_MAX, POSITION_MGR_X_ACC_MAX);
@@ -139,10 +148,15 @@ void manageBraking(float dt) {
 	}
 }
 
+__ATTR_ITCM_TEXT
 void managePositionHold(float dt) {
 
 }
 
+/**
+ * Provides the positionCommand , called by attitude manager
+ */
+__ATTR_ITCM_TEXT
 void updatePositionCommand(float dt) {
 	if (fcStatusData.liftOffThrottlePercent >= fcStatusData.throttlePercent) {
 		positionMgrPitchStickCenteredTimer = 0.0f;
@@ -151,15 +165,16 @@ void updatePositionCommand(float dt) {
 		positionMgrRollPeakStick = 0.0f;
 		positionCommandData.pitchCommand = 0.0f;
 		positionCommandData.rollCommand = 0.0f;
-	} else if (!fcStatusData.isGlobalPosHoldModeActive) {
+	} else if (!fcStatusData.isPositionHoldModeActive) {
 		//manageBraking(dt);
 	} else {
 		//managePositionHold(dt);
 	}
 }
+
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
-	float dt = getDeltaTime(POSITION_MANAGER_TIMER_CHANNEL);
+	float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
 
 	if (dt <= 0.0f || dt > 0.1f) {
 		dt = 0.001f; // Safety guard for dt
@@ -189,6 +204,32 @@ void managePositionTask(void) {
 	positionCordinateData.positionProcessDt = dt;
 }
 
+void handlePositionDataUpdate(float dt) {
+	if (fcStatusData.isPositionHoldModeActive) {
+		updateGNSSDataReliability(dt);
+		if (fcStatusData.isGNSSDataReliable) {
+			if (!fcStatusData.isPositionHomeSet) {
+				fcStatusData.positionLongHome = gnssData.longitude;
+				fcStatusData.positionLatHome = gnssData.latitude;
+				fcStatusData.positionLongRef = fcStatusData.positionLongHome;
+				fcStatusData.positionLatRef = fcStatusData.positionLatHome;
+				fcStatusData.isPositionHomeSet = 1;
+			}
+			convertGNSSToSICordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
+			updatePositionManagerXYPosition(positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
+		}
+	} else {
+		fcStatusData.positionLongHome = 0;
+		fcStatusData.positionLatHome = 0;
+		fcStatusData.positionLongRef = 0;
+		fcStatusData.positionLatRef = 0;
+		fcStatusData.isPositionHomeSet = 0;
+		fcStatusData.isGNSSDataReliable = 0;
+		updatePositionManagerXYPosition(0, 0, dt);
+		positionEKFApplyXYDamping(&positionEkf, POSITION_MGR_XY_VEL_DAMP_STRENGTH);
+	}
+}
+
 __ATTR_ITCM_TEXT
 void doPositionManagement() {
 	if (fcStatusData.canStabilize && positionManagerWasInStabMode == 0) {
@@ -197,6 +238,11 @@ void doPositionManagement() {
 	} else if (positionManagerWasInStabMode && fcStatusData.isStabilized) {
 		positionManagerWasInStabMode = 0;
 		positionEKFSetMode(&positionEkf, 0);
+	}
+	if (readGNSSData()) {
+		float dt = getDeltaTime(POSITION_MANAGER_GPS_TIMER_CHANNEL);
+		gnssData.updateDt = dt;
+		handlePositionDataUpdate(dt);
 	}
 }
 
@@ -214,19 +260,14 @@ void resetPositionManager(void) {
 __ATTR_ITCM_TEXT
 void updatePositionManagerZPosition(float zPos, float dt) {
 	positionCordinateData.positionZUpdateDt = dt;
+	positionCordinateData.zPositionRaw = zPos;
 	float venturiBias = updateVenturiBiasEstimate(dt);
 	positionEKFUpdateZMeasureWithBias(&positionEkf, zPos, venturiBias);
-	dampPositionManagerXYVelocity(dt);
 }
 
 __ATTR_ITCM_TEXT
 void updatePositionManagerXYPosition(float xPos, float yPos, float dt) {
 	positionCordinateData.positionXYUpdateDt = dt;
 	positionEKFUpdateXYMeasure(&positionEkf, xPos, yPos);
-}
-
-__ATTR_ITCM_TEXT
-void dampPositionManagerXYVelocity(float dt) {
-	positionEKFApplyXYDamping(&positionEkf, POSITION_MGR_XY_VEL_DAMP_STRENGTH);
 }
 

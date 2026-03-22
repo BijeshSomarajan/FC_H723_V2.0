@@ -9,7 +9,6 @@
 #include "../ControlData.h"
 #include "../Pid.h"
 
-void configureAttitudeControl(float rollPitchRatio);
 //Attitude PID references
 PID attitudePitchPID, attitudeRollPID, attitudeYawPID, attitudePitchRatePID, attitudeRollRatePID, attitudeYawRatePID;
 
@@ -135,40 +134,4 @@ void controlAttitudeWithGains(float dt, float expectedPitch, float expectedRoll,
 	controlData.attitudeControlDt = dt;
 }
 
-__ATTR_ITCM_TEXT
-void controlAttitude(float dt, float expectedPitch, float expectedRoll, float expectedYaw) {
-	float headingDelta = updateHeadingDelta();
-	fcStatusData.headingDelta = headingDelta;
-	float pitch = sensorAttitudeData.pitch;
-	float roll = sensorAttitudeData.roll;
-	float pitchRate = sensorAttitudeData.pitchRate;
-	float rollRate = sensorAttitudeData.rollRate;
-	float yawRate = sensorAttitudeData.yawRate;
-	/*
-	 float headingDelta = 0;
-	 float pitch = 0;
-	 float roll = 0;
-	 float pitchRate = 0;
-	 float rollRate = 0;
-	 float yawRate = 0;
-	 */
-	pidUpdate(&attitudePitchPID, pitch, expectedPitch, dt);
-	pidUpdate(&attitudeRollPID, roll, expectedRoll, dt);
-	pidUpdate(&attitudeYawPID, headingDelta, expectedYaw, dt);
-
-	pidUpdate(&attitudePitchRatePID, pitchRate, attitudePitchPID.pid, dt);
-	pidUpdate(&attitudeRollRatePID, rollRate, attitudeRollPID.pid, dt);
-	pidUpdate(&attitudeYawRatePID, yawRate, attitudeYawPID.pid, dt);
-
-	controlData.pitchControl = attitudePitchRatePID.pid;
-	controlData.rollControl = attitudeRollRatePID.pid;
-	controlData.yawControl = attitudeYawRatePID.pid;
-
-	/*
-	 controlData.pitchControl = 0;
-	 controlData.rollControl = 0;
-	 controlData.yawControl = 0;
-	 */
-	controlData.attitudeControlDt = dt;
-}
 

@@ -19,9 +19,11 @@
 #include "../../dsp/BiQuadFilter.h"
 #include "../../dsp/FFT.h"
 #include "../../sensors/attitude/noisefilter/AdaptiveNotchFilter.h"
-#include "../../managers/position/PositionManager.h"
+#include "../../managers/position/common/PositionCommon.h"
 #include "../../managers/position/estimator/VenturiBiasEstimator.h"
 #include "../../control/Pid.h"
+#include "../../io/uart/UART.h"
+#include "../../sensors/position/GNSS.h"
 
 int32_t DEBUG_DATA_BUFFER[8];
 extern LOWPASSFILTER thControlRefLPF;
@@ -71,11 +73,11 @@ float curAlt = 0;
 
 void debugPosition(float dt) {
 	if (curAlt == 0) {
-		curAlt = 1;//positionData.zPosition;
+		curAlt = 1; //positionData.zPosition;
 	}
 	DEBUG_DATA_BUFFER[0] = (positionCordinateData.zPosition - curAlt);
-	DEBUG_DATA_BUFFER[1] = (sensorAltitudeData.altitudeSLMaxFiltered - curAlt) ;
-	DEBUG_DATA_BUFFER[2] = (sensorAltitudeData.altitudeSLScaled- curAlt) ;
+	DEBUG_DATA_BUFFER[1] = (sensorAltitudeData.altitudeSLMaxFiltered - curAlt);
+	DEBUG_DATA_BUFFER[2] = (sensorAltitudeData.altitudeSLScaled - curAlt);
 	DEBUG_DATA_BUFFER[3] = (fcStatusData.altitudeSLRef - curAlt);
 	DEBUG_DATA_BUFFER[4] = (positionCordinateData.zVelocity);
 	DEBUG_DATA_BUFFER[5] = (controlData.altitudeControl);
@@ -92,7 +94,7 @@ void debugBrake(float dt) {
 	DEBUG_DATA_BUFFER[1] = (positionCommandData.pitchCommand);
 
 	DEBUG_DATA_BUFFER[2] = rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX];
-	DEBUG_DATA_BUFFER[3] = (positionCommandData.rollCommand) ;
+	DEBUG_DATA_BUFFER[3] = (positionCommandData.rollCommand);
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
@@ -114,9 +116,48 @@ void debugAltThrottle(float dt) {
 	DEBUG_DATA_BUFFER[0] = controlData.throttleControl;
 	DEBUG_DATA_BUFFER[1] = altMgrThrottleControlLPF.output;
 	DEBUG_DATA_BUFFER[2] = controlData.altitudeControl;
-	DEBUG_DATA_BUFFER[3] = fcStatusData.currentThrottle ;
+	DEBUG_DATA_BUFFER[3] = fcStatusData.currentThrottle;
 	DEBUG_DATA_BUFFER[4] = (positionCordinateData.zPosition);
-	sendConfigData(DEBUG_DATA_BUFFER,5, CMD_FC_DATA);
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+}
+
+void debugGPS() {
+	/*
+	 char temp[200];
+	 sprintf(temp, "Hz:%.2f,MC:%d,NS:%d,FS:%d,Lt:%f,Ln:%f\n", 1.0f / gpsData.updateDt, gpsData.msgCount, gpsData.satCount, gpsData.fixStatus, gpsData.latDeg, gpsData.longDeg);
+	 uart5WriteDMA((uint8_t*) temp, strlen(temp));
+	 */
+	DEBUG_DATA_BUFFER[0] = gnssData.updateDt == 0 ? 1 : 1.0f / gnssData.updateDt;
+	DEBUG_DATA_BUFFER[1] = gnssData.satCount;
+	DEBUG_DATA_BUFFER[2] = gnssData.fixStatus;
+	sendConfigData(DEBUG_DATA_BUFFER, 3, CMD_FC_DATA);
+}
+
+void debugPositionXy(float dt) {
+
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.xPositionRaw;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.xPosition;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.xVelocity;
+
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.yPositionRaw;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.yVelocity;
+
+	DEBUG_DATA_BUFFER[6] = fcStatusData.isGNSSDataReliable * 20;
+	DEBUG_DATA_BUFFER[7] = sensorAttitudeData.heading;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
+}
+
+void debugPositionAlign(float dt) {
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.xVelocity * 100;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.xAcceleration * 10;
+
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.yVelocity * 100;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.yAcceleration * 10;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
 
 void debugTask() {
@@ -125,7 +166,10 @@ void debugTask() {
 	}
 	float dt = 0.001f;	//getDeltaTime(DEBUG_TIMER_CHANNEL);
 	//debugPosition(dt);
-	debugAltThrottle(dt) ;
+	//debugAltThrottle(dt);
+	//debugGPS();
+	debugPositionXy(dt);
+	//debugPositionAlign(dt);
 	// debugBrake(dt);
 	//debugTime(dt);
 	//currentDebug();

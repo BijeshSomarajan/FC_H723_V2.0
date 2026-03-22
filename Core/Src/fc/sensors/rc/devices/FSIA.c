@@ -24,9 +24,9 @@ uint8_t fsiaIOReadSize = FSIA_BUFFSIZE;
 
 //Circular queue configurations
 CircularQueue fsiaIOQueue;
-#define CIRCULAR_QUEUE_SIZE FSIA_BUFFSIZE * 2
-#define CIRCULAR_QUEUE_READ_SIZE CIRCULAR_QUEUE_SIZE/4
-uint8_t fsiaCircularQueueReadBuffer[CIRCULAR_QUEUE_READ_SIZE];
+#define FSIA_CIRCULAR_QUEUE_SIZE FSIA_BUFFSIZE * 2
+#define FSIA_CIRCULAR_QUEUE_READ_SIZE FSIA_CIRCULAR_QUEUE_SIZE/4
+uint8_t fsiaCircularQueueReadBuffer[FSIA_CIRCULAR_QUEUE_READ_SIZE];
 uint8_t updateFSIAData(uint8_t *dataBytes, uint16_t length);
 
 uint16_t getFSIAFrameRate(void) {
@@ -45,7 +45,7 @@ uint8_t initFSIA() {
 	if (uart4Init()) {
 		logString("[FSAI] : IO:UART > Success\n");
 		if (uart4ReadStart(fsiaIOReadBuffer, fsiaIOReadSize, _processFSAIData)) {
-			circularQueueInit(&fsiaIOQueue, CIRCULAR_QUEUE_SIZE);
+			circularQueueInit(&fsiaIOQueue, FSIA_CIRCULAR_QUEUE_SIZE);
 			logString("[FSAI] : IO , UART Read start > Success\n");
 			return 1;
 		} else {
@@ -59,7 +59,7 @@ uint8_t initFSIA() {
 
 uint8_t readFSIA(void) {
 	if (circularQueueAvailableData(&fsiaIOQueue) > 0) {
-		uint8_t queuReadLength = circularQueueRead(&fsiaIOQueue, fsiaCircularQueueReadBuffer, CIRCULAR_QUEUE_READ_SIZE);
+		uint8_t queuReadLength = circularQueueRead(&fsiaIOQueue, fsiaCircularQueueReadBuffer, FSIA_CIRCULAR_QUEUE_READ_SIZE);
 		return updateFSIAData(fsiaCircularQueueReadBuffer, queuReadLength);
 	}
 	return 0;
