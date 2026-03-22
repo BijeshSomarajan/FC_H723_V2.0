@@ -88,12 +88,12 @@ void upadatePositionAcceleration(float ax, float ay, float az, float dt) {
 	positionCordinateData.xAcceleration = lowPassFilterUpdate(&positionMgrAccXLPF, acc, dt);
 
 	// Y Axis
-	acc = applyDeadBandFloat(0.0f, ay - positionCordinateData.yAccelerationBias, POSITION_MGR_Y_ACC_DEADBAND);
+	acc = applyDeadBandFloat(0.0f, ay , POSITION_MGR_Y_ACC_DEADBAND);
 	acc = constrainToRangeF(acc, -POSITION_MGR_Y_ACC_MAX, POSITION_MGR_Y_ACC_MAX);
 	positionCordinateData.yAcceleration = lowPassFilterUpdate(&positionMgrAccYLPF, acc, dt);
 
 	// Z Axis
-	acc = applyDeadBandFloat(0.0f, az - positionCordinateData.zAccelerationBias, POSITION_MGR_Z_ACC_DEADBAND);
+	acc = applyDeadBandFloat(0.0f, az, POSITION_MGR_Z_ACC_DEADBAND);
 	acc = constrainToRangeF(acc, -POSITION_MGR_Z_ACC_MAX, POSITION_MGR_Z_ACC_MAX);
 	positionCordinateData.zAcceleration = lowPassFilterUpdate(&positionMgrAccZLPF, acc, dt);
 }

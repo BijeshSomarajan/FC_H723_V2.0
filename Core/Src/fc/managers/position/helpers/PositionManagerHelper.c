@@ -32,10 +32,6 @@ void convertGNSSToSICordinates(double latDeg, double longDeg, double latRef, dou
 	double dLon = longDeg - longRef;
 	float curLatitudeRad = (float) convertDegToRad(latDeg);
 	float cosLat = cosApprox(curLatitudeRad);
-	// Optional safety clamp (prevents extreme edge cases)
-	if (cosLat < 0.01f) {
-		cosLat = 0.01f;
-	}
 	*xCordinate = (float) (dLat * POSITION_GNSS_CMS_PER_DEG_LAT) ;
 	*yCordinate = (float) (dLon * POSITION_GNSS_CMS_PER_DEG_LAT * cosLat) ;
 }
