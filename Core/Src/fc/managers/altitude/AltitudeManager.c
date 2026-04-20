@@ -59,7 +59,7 @@ uint8_t initAltitudeManager(void) {
 
 		altMgrMaxSLAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_ASL_HEIGHT_ADDR);
 		altMgrMaxGndAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_TERRAIN_HEIGHT_ADDR);
-		altMgrMaxLiftComponent = cosf(convertDegToRad(ALT_MGR_TILT_TH_MAX_ANGLE));
+		altMgrMaxLiftComponent = cosf(convertDegToRadF(ALT_MGR_TILT_TH_MAX_ANGLE));
 
 		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
 
@@ -180,9 +180,9 @@ void handleThrottleChange(float dt) {
 
 __ATTR_ITCM_TEXT
 void updateAltitudeRefernces() {
-	fcStatusData.altitudeSLHome = sensorAltitudeData.altitudeSLMaxFiltered;
-	fcStatusData.altitudeSLRef = sensorAltitudeData.altitudeSLMaxFiltered;
-	fcStatusData.altitudeSLMax = fcStatusData.altitudeSLHome + altMgrMaxSLAlt;
+	fcStatusData.altitudeSLRef  = positionCordinateData.zPosition;//sensorAltitudeData.altitudeSLMaxFiltered;
+	fcStatusData.altitudeSLHome = fcStatusData.altitudeSLRef;
+	fcStatusData.altitudeSLMax  = fcStatusData.altitudeSLHome + altMgrMaxSLAlt;
 	fcStatusData.altitudeGndMax = altMgrMaxGndAlt;
 }
 

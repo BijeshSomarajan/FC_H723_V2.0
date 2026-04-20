@@ -24,6 +24,9 @@
 #include "../../control/Pid.h"
 #include "../../io/uart/UART.h"
 #include "../../sensors/position/GNSS.h"
+#include "../../util/MathUtil.h"
+#include "../../util/CommonUtil.h"
+
 
 int32_t DEBUG_DATA_BUFFER[8];
 extern LOWPASSFILTER thControlRefLPF;
@@ -73,7 +76,7 @@ float curAlt = 0;
 
 void debugPosition(float dt) {
 	if (curAlt == 0) {
-		curAlt = 1; //positionData.zPosition;
+		curAlt = positionCordinateData.zPosition;
 	}
 	DEBUG_DATA_BUFFER[0] = (positionCordinateData.zPosition - curAlt);
 	DEBUG_DATA_BUFFER[1] = (sensorAltitudeData.altitudeSLMaxFiltered - curAlt);
@@ -134,23 +137,42 @@ void debugGPS() {
 }
 
 void debugPositionXy(float dt) {
+//DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
+	/*
+	 DEBUG_DATA_BUFFER[0] = imuData.axEarthLinear * 1000;
+	 DEBUG_DATA_BUFFER[1] = imuData.axEarthLinear1 * 1000;
+	 DEBUG_DATA_BUFFER[2] = imuData.axEarthLinear2 * 1000;
+	 DEBUG_DATA_BUFFER[3] = imuData.ayEarthLinear * 1000;
+	 DEBUG_DATA_BUFFER[4] = imuData.ayEarthLinear1 * 1000;
+	 DEBUG_DATA_BUFFER[5] = imuData.ayEarthLinear2 * 1000;
+	 DEBUG_DATA_BUFFER[6] = imuData.azEarthLinear * 1000;
+	 DEBUG_DATA_BUFFER[7] = sensorAttitudeData.heading * 10;
+	 */
+	/*
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading * 10;
+	DEBUG_DATA_BUFFER[1] = controlData.positionXControl * 100;
+	DEBUG_DATA_BUFFER[2] = controlData.pitchControl * 100;
+	DEBUG_DATA_BUFFER[3] = controlData.positionYControl * 100;
+	DEBUG_DATA_BUFFER[4] = controlData.rollControl * 100;
+	*/
 
-	DEBUG_DATA_BUFFER[0] = positionCordinateData.xPositionRaw;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.xPosition;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.xVelocity;
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.mxFiltered * 100;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.myFiltered * 100;
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.mzFiltered * 100;
 
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.yPositionRaw;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition;
-	DEBUG_DATA_BUFFER[5] = positionCordinateData.yVelocity;
 
-	DEBUG_DATA_BUFFER[6] = fcStatusData.isPositionDataReliable * 20;
-	DEBUG_DATA_BUFFER[7] = sensorAttitudeData.heading;
+	/*
+	 DEBUG_DATA_BUFFER[6] = gnssData.latitude * 10000000;
+	 DEBUG_DATA_BUFFER[7] = gnssData.longitude * 10000000;
+	 */
 
-	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
 void debugPositionAlign(float dt) {
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
+	DEBUG_DATA_BUFFER[0] = (positionCordinateData.zPosition);
 	DEBUG_DATA_BUFFER[1] = positionCordinateData.xVelocity * 100;
 	DEBUG_DATA_BUFFER[2] = positionCordinateData.xAcceleration * 10;
 
@@ -168,7 +190,8 @@ void debugTask() {
 	//debugPosition(dt);
 	//debugAltThrottle(dt);
 	//debugGPS();
-	debugPositionXy(dt);
+	debugPosition(dt);
+	//debugPositionXy(dt);
 	//debugPositionAlign(dt);
 	// debugBrake(dt);
 	//debugTime(dt);

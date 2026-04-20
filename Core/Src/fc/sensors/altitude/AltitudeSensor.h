@@ -4,7 +4,7 @@
 #include <sys/_stdint.h>
 
 #define SENSOR_ALT_BARO_LPF_FREQUENCY  5.0f
-#define SENSOR_ALT_BARO_LPF_SMOOTHEST_FREQUENCY  0.25f
+#define SENSOR_ALT_BARO_LPF_SMOOTHEST_FREQUENCY  0.65f
 
 #define SENSOR_ALT_BARO_ALTITUDE_GAIN  100.0f  //In CMS // Output in meters
 

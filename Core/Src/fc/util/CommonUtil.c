@@ -2,6 +2,12 @@
 #include "../memory/Memory.h"
 #include "MathUtil.h"
 
+float wrapAngleTo360Scale(float angle) {
+    while (angle >= 360.0f) angle -= 360.0f;
+    while (angle < 0.0f) angle += 360.0f;
+    return angle;
+}
+
 void bubbleSortF(float *arr, int n) {
 	int i, j, temp;
 	for (i = 0; i < n - 1; i++) {

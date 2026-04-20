@@ -6,6 +6,7 @@
 
 #define ERROR_CRASH_THRESHOLD 4
 #define ERROR_TX_INACTIVE_THRESHOLD 16
+#define ERROR_POSITION_DATA_RELIABLE_THRESHOLD 20
 
 #define PROCESSING_CONFIG_THRESHOLD 2
 #define PROCESSING_STABILIZATION_THRESHOLD 4
@@ -65,6 +66,11 @@ void updateIndictors() {
 		if (needIndicatorStateChange(ERROR_TX_INACTIVE_THRESHOLD)) {
 			errorIndicatorBlink();
 		}
+	} else if (fcStatusData.isPositionDataReliable) {
+		if (needIndicatorStateChange(ERROR_POSITION_DATA_RELIABLE_THRESHOLD)) {
+			errorIndicatorBlink();
+		}
+		processingIndicatorOn();
 	} else if (fcStatusData.canFly) {
 		errorIndicatorOff();
 		processingIndicatorOn();

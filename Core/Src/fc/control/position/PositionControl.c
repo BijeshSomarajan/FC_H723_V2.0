@@ -55,11 +55,20 @@ void resetPositionControl(uint8_t hard) {
 	pidResetI(&positionYRatePID);
 }
 
+
 __ATTR_ITCM_TEXT
 void controlPositionWithGains(float dt, float expectedX, float expectedY, float masterPGain, float ratePGain, float rateIGain, float rateDGain) {
 
+	/*
+	positionCordinateData.xPosition = 100;
+	positionCordinateData.xVelocity = 0;
+
+	positionCordinateData.yPosition = 100;
+	positionCordinateData.yVelocity = 0;
+    */
+
 	pidUpdateWithGains(&positionXPID, positionCordinateData.xPosition, expectedX, dt, masterPGain, 0.0f, 0.0f);
-	pidUpdateWithGains(&positionXRatePID, positionCordinateData.xVelocity, positionXPID.pid, dt, ratePGain, rateIGain, rateDGain);
+   	pidUpdateWithGains(&positionXRatePID, positionCordinateData.xVelocity, positionXPID.pid, dt, ratePGain, rateIGain, rateDGain);
 
 	pidUpdateWithGains(&positionYPID, positionCordinateData.yPosition, expectedY, dt, masterPGain, 0.0f, 0.0f);
 	pidUpdateWithGains(&positionYRatePID, positionCordinateData.yVelocity, positionYPID.pid, dt, ratePGain, rateIGain, rateDGain);

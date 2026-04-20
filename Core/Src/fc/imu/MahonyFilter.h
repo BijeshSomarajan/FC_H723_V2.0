@@ -11,15 +11,18 @@
 
 
 // Lower values means more inclined to Gyroscope and less influence of accelerometer
-#define MAHONY_FILTER_KP  1.0f * 0.6f  //0.4 – 0.8 for 3.2Khz
-#define MAHONY_FILTER_KI  1.0f * 0.02f  //0.02 – 0.05 for 3.2Khz
+#define MAHONY_FILTER_KP  1.0f * 0.625f  //0.6f   //0.4 – 0.8 for 3.2Khz
+#define MAHONY_FILTER_KI  1.0f * 0.025   //0.02f  //0.02 – 0.05 for 3.2Khz
+
 #define MAHONY_FILTER_STABILIZE_KP  MAHONY_FILTER_KP * 10.0f
 #define MAHONY_FILTER_STABILIZE_KI  MAHONY_FILTER_KI * 10.0f
+
 #define MAHONY_FILTER_STAB_COUNT 5000
 
 void imuFilterUpdate(float dt);
 void imuFilterSetMode(uint8_t stablize);
 uint8_t imuFilterInit(uint8_t stabilize);
+
 void imuFilterReset(void);
 uint16_t imuFilterGetStabilizationCount(void);
 void imuFilterUpdateAngles(void);

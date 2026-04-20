@@ -7,41 +7,61 @@
 #include "../../../sensors/attitude/AttitudeSensor.h"
 #include "PositionManagerHelper.h"
 
-static uint16_t posManagerGNSSStabCount = 0;
+float posManagerGNSSStableTime = 0;
 
 void updatePositionDataReliability(float dt) {
-	uint8_t isCurrentPacketValid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
-	if (isCurrentPacketValid) {
-		if (posManagerGNSSStabCount < POSITION_GNSS_MIN_STABILITY_COUNT) {
-			posManagerGNSSStabCount++;
-		}
+	//fcStatusData.isPositionDataReliable = 1;
+	//return;
+
+	// 1. Basic threshold check
+	uint8_t valid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
+	if (valid) {
+		posManagerGNSSStableTime += dt;
 	} else {
-		if (posManagerGNSSStabCount > 0) {
-			posManagerGNSSStabCount--;
-		}
+		// Faster decay: 2 seconds of "lost" time for every 1 second of real time
+		posManagerGNSSStableTime -= POSITION_GNSS_STABILITY_INVALID_GAIN * dt;
 	}
-	if (posManagerGNSSStabCount >= POSITION_GNSS_RELIABILITY_THRESHOLD) {
-		fcStatusData.isPositionDataReliable = 1;
+	// Clamp to [0, 2.0]
+	posManagerGNSSStableTime = constrainToRangeF(posManagerGNSSStableTime, 0.0f, POSITION_GNSS_STABILITY_INVALID_GAIN);
+	// 2. Hysteresis Logic
+	if (fcStatusData.isPositionDataReliable) {
+		// If already reliable, requires more than 0.5s of bad data to drop
+		if (posManagerGNSSStableTime < POSITION_GNSS_STABILITY_MIN_INVALID_DT) {
+			fcStatusData.isPositionDataReliable = 0;
+		}
 	} else {
-		fcStatusData.isPositionDataReliable = 0;
+		// If unreliable, requires 1.0s of consistent good data to gain trust
+		if (posManagerGNSSStableTime > POSITION_GNSS_STABILITY_MIN_VALID_DT) {
+			fcStatusData.isPositionDataReliable = 1;
+		}
 	}
 }
 
-void convertGNSSToSICordinates(double latDeg, double longDeg, double latRef, double longRef, float *xCordinate, float *yCordinate) {
-	double dLat = latDeg - latRef;
-	double dLon = longDeg - longRef;
-	float curLatitudeRad = (float) convertDegToRad(latDeg);
-	float cosLat = cosApprox(curLatitudeRad);
-	*xCordinate = (float) (dLat * POSITION_GNSS_CMS_PER_DEG_LAT) ;
-	*yCordinate = (float) (dLon * POSITION_GNSS_CMS_PER_DEG_LAT * cosLat) ;
+// WGS84 Earth radius (meters)
+void convertGNSSToSICordinates(double latDeg, double lonDeg, double latRefDeg, double lonRefDeg, float *x, float *y) {
+	// Convert to radians
+	double latRad    = convertDegToRad(latDeg);
+	double lonRad    = convertDegToRad(lonDeg);
+	double latRefRad = convertDegToRad(latRefDeg);
+	double lonRefRad = convertDegToRad(lonRefDeg);
+	// Differences
+	double dLat = latRad - latRefRad;
+	double dLon = lonRad - lonRefRad;
+	// Mean latitude (better accuracy than using current lat)
+	double meanLat = 0.5 * (latRad + latRefRad);
+	// Earth frame (NED)
+	// X → North
+	// Y → East
+	*x = (float) (dLat * POSITION_GNSS_EARTH_RADIUS_METERS);
+	*y = (float) (dLon * POSITION_GNSS_EARTH_RADIUS_METERS * cos(meanLat));
 }
 
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody) {
-	float headingRad = convertDegToRad(heading);
+	//heading = 0;
+	float headingRad      = convertDegToRadF(heading);
+	float headingCosValue = cosApproxF(headingRad);
+	float headingSinValue = sinApproxF(headingRad);
 
-	float headingCosValue = cosApprox(headingRad);
-	float headingSinValue = sinApprox(headingRad);
-
-	*xBody = (xEarth * headingCosValue) + (yEarth * headingSinValue);
+	*xBody = ( xEarth * headingCosValue) + (yEarth * headingSinValue);
 	*yBody = (-xEarth * headingSinValue) + (yEarth * headingCosValue);
 }

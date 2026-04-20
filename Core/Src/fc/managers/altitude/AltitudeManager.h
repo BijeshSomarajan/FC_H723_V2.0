@@ -16,7 +16,7 @@ void resetAltitudeManager(void);
 
 //Max permissible throttle
 #define ALT_MGR_MAX_PERMISSIBLE_THROTTLE   RC_CHANNEL_MIN_VALUE + ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA
-#define ALT_MGR_ALT_AGGREGATION_GAIN  0.5f //meter per second
+#define ALT_MGR_ALT_AGGREGATION_GAIN  0.35f //meter per second
 
 #define ALT_MGR_MAX_ALT_DELTA 500 //Cms
 #define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 20.0f//5.0f

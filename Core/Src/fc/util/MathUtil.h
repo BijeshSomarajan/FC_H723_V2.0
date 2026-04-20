@@ -28,8 +28,8 @@
 #endif
 
 /* --- Trigonometry Approximations --- */
-float sinApprox(float x);
-float cosApprox(float x);
+float sinApproxF(float x);
+float cosApproxF(float x);
 float tanApprox(float x);
 float atanApprox(float x);
 float atan2Approx(float y, float x);
@@ -44,7 +44,8 @@ float invSqrtf(float x);
 
 /* --- Conversion & Mapping --- */
 float convertRadToDeg(float rads);
-float convertDegToRad(float deg);
+float convertDegToRadF(float deg);
+double convertDegToRad(double deg);
 float mapToRangeFloat(float inValue, float minInRange, float maxInRange, float minOutRange, float maxOutRange);
 
 /* --- Constraints & Deadbands --- */

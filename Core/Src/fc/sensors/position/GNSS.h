@@ -14,6 +14,7 @@ struct _GNSS_DATA {
 	float velD;
 	float altMts;
 	float hAccMts;
+	float sAcc;
 	uint8_t satCount;
 	uint8_t fixStatus;
 	uint16_t msgCount;

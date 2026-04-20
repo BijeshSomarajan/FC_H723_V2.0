@@ -13,8 +13,8 @@ void biQuadCalculateCoeffs(BIQUADFILTER *self) {
 	float omega = 2 * ONE_PI * self->center_freq / self->sample_rate;
 
 #if BIQUAD_USE_APPROX_TRIG == 1
-	float sn = sinApprox(omega);
-	float cs = cosApprox(omega);
+	float sn = sinApproxF(omega);
+	float cs = cosApproxF(omega);
 #else
 	float sn = sinf(omega);
 	float cs = cosf(omega);
