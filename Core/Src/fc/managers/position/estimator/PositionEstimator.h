@@ -62,27 +62,42 @@
 #define POS_EKF_Y_GATE          3.0f
 #define POS_EKF_Y_PANIC         20
 */
-//Chat GPT
 
+//Chat GPT
+/*
 #define POS_EKF_X_Q_POS         0.0005f
 #define POS_EKF_X_Q_VEL         0.02f
 #define POS_EKF_X_Q_BIAS        0.00005f
-#define POS_EKF_X_R_MEAS        4.0f
-#define POS_EKF_X_GATE          3.5f
-#define POS_EKF_X_PANIC         8
+#define POS_EKF_X_R_MEAS        2.0f// 4.0f
 
-#define POS_EKF_Y_Q_POS         0.0005f
-#define POS_EKF_Y_Q_VEL         0.02f
-#define POS_EKF_Y_Q_BIAS        0.00005f
-#define POS_EKF_Y_R_MEAS        4.0f
-#define POS_EKF_Y_GATE          3.5f
-#define POS_EKF_Y_PANIC         8
+#define POS_EKF_Y_Q_POS  0.0005f
+#define POS_EKF_Y_Q_VEL  0.02f
+#define POS_EKF_Y_Q_BIAS 0.00005f
+#define POS_EKF_Y_R_MEAS 2.0f//4.0f
+*/
+
+#define POS_EKF_X_Q_POS   0.006f // 0.003f   // was 0.0005
+#define POS_EKF_X_Q_VEL   0.15f  //0.06f    // was 0.02
+#define POS_EKF_X_Q_BIAS  0.001f
+#define POS_EKF_X_R_MEAS  1.0f     // was 2.0
+#define POS_EKF_X_GATE    4.0f
+#define POS_EKF_X_PANIC   8
+
+#define POS_EKF_Y_Q_POS   0.006f //0.003f   // was 0.0005
+#define POS_EKF_Y_Q_VEL   0.15f  //0.06f    // was 0.02
+#define POS_EKF_Y_Q_BIAS  0.001f
+#define POS_EKF_Y_R_MEAS  1.0f     // was 2.0
+#define POS_EKF_Y_GATE    4.0f
+#define POS_EKF_Y_PANIC   8
 
 //--------------------------------- Finalized ------------------------------------*/
-#define POS_EKF_Z_Q_POS         0.00015//0.00013f
-#define POS_EKF_Z_Q_VEL         0.015f
-#define POS_EKF_Z_Q_BIAS        0.001f
-#define POS_EKF_Z_R_MEAS        800000.0f
+// Increase >> Filter relies more on sensors (GPS/Baro) to correct position; responsive but higher noise.
+#define POS_EKF_Z_Q_POS         0.00013f //0.00013f
+// Increase >> Filter relies more on sensors (Baro/GPS) for velocity; decreased reliance on IMU integration.
+#define POS_EKF_Z_Q_VEL         0.015f //0.015f
+// Increase >> Allows the bias state to track sensor drift faster; good for thermal changes, bad if set too high.
+#define POS_EKF_Z_Q_BIAS        0.001f //0.001f
+#define POS_EKF_Z_R_MEAS        900000.0f//800000.0f
 #define POS_EKF_Z_GATE          4.0f //Was 4
 #define POS_EKF_Z_PANIC         100
 

@@ -39,10 +39,17 @@ void imuUpdateRate() {
 
 __ATTR_ITCM_TEXT
 void updateLinearMovements(float dt) {
-    // 1. Existing Earth Frame Calculation , aligning to NED.
-	float axGEarth = -(imuData.rMatrix[1][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[1][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[1][2] * sensorAttitudeData.azGFiltered);
-	float ayGEarth = -(imuData.rMatrix[0][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[0][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[0][2] * sensorAttitudeData.azGFiltered);
+	// 1. Existing Earth Frame Calculation , aligning to NED.
+	//float axGEarth = -(imuData.rMatrix[1][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[1][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[1][2] * sensorAttitudeData.azGFiltered);
+	//float ayGEarth = -(imuData.rMatrix[0][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[0][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[0][2] * sensorAttitudeData.azGFiltered);
+
+	float axGEarth = imuData.rMatrix[0][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[0][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[0][2] * sensorAttitudeData.azGFiltered;
+	float ayGEarth = imuData.rMatrix[1][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[1][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[1][2] * sensorAttitudeData.azGFiltered;
+
 	float azGEarth = imuData.rMatrix[2][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[2][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[2][2] * sensorAttitudeData.azGFiltered;
+
+	// Remove gravity
+	azGEarth -= 1.0f;
 
 	// Remove gravity (1.0G) in Earth frame
 	azGEarth -= 1.0f;
@@ -65,7 +72,6 @@ void updateLinearMovements(float dt) {
 	imuData.azBodyLinear = (sensorAttitudeData.azGFiltered - gzBody) * GRAVITY_MSS;
 }
 
-
 /*************************************************************************/
 // Does imuData fusion , returns 1 if done
 /*************************************************************************/
@@ -77,7 +83,6 @@ void imuAHRSUpdate(float dt) {
 	updateLinearMovements(dt);
 	imuData.arhsDt = dt;
 }
-
 
 /****************************************************************************************************************/
 // Resets Madgwick filter.

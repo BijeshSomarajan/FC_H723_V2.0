@@ -18,16 +18,16 @@
 #define POSITION_MGR_Y_ACC_LPF_FREQ 40.00f
 #define POSITION_MGR_Z_ACC_LPF_FREQ 40.00f
 
-#define POSITION_MGR_X_ACC_DEADBAND 0.01f    // Meter/Sec2
-#define POSITION_MGR_Y_ACC_DEADBAND 0.01f    // Meter/Sec2
+#define POSITION_MGR_X_ACC_DEADBAND 0.0f //0.01f    // Meter/Sec2
+#define POSITION_MGR_Y_ACC_DEADBAND 0.0f //0.01f    // Meter/Sec2
 #define POSITION_MGR_Z_ACC_DEADBAND 1.0f    // Meter/Sec2
 
-#define POSITION_MGR_X_ESTIMATION_ACC_DEADBAND   0.1f    // Meter/Sec2
-#define POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND   0.1f    // Meter/Sec2
+#define POSITION_MGR_X_ESTIMATION_ACC_DEADBAND   0.0f//0.1f    // Meter/Sec2
+#define POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND    0.0f//0.1f    // Meter/Sec2
 #define POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND   0.1f    // Meter/Sec2
 
-#define POSITION_MGR_X_VEL_DEADBAND     0.005f    // Meter/Sec
-#define POSITION_MGR_Y_VEL_DEADBAND     0.005f   // Meter/Sec
+#define POSITION_MGR_X_VEL_DEADBAND     0.0f//0.005f    // Meter/Sec
+#define POSITION_MGR_Y_VEL_DEADBAND     0.0f//0.005f   // Meter/Sec
 #define POSITION_MGR_Z_VEL_DEADBAND     1.0f     // Cm/Sec
 
 #define POSITION_MGR_X_VEL_MAX          500.0f  // cm/Sec2
@@ -39,7 +39,7 @@
 #define POSITION_MGR_Z_ACC_MAX          500.0f  // cm/Sec2
 
 #define POSITION_MGR_XY_VEL_RESET_DAMP_STRENGTH   0.5f
-#define POSITION_MGR_XY_VEL_UPDATE_DAMP_STRENGTH   0.1f
+#define POSITION_MGR_XY_VEL_UPDATE_DAMP_STRENGTH  0.5f // 0.1f
 
 #define POSITION_MGR_GNSS_VEL_SACC_SCALE     1.0f
 #define POSITION_MGR_GNSS_VEL_SACC_MIN       0.05f

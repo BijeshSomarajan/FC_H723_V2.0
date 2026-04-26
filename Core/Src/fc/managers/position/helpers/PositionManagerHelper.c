@@ -10,9 +10,6 @@
 float posManagerGNSSStableTime = 0;
 
 void updatePositionDataReliability(float dt) {
-	//fcStatusData.isPositionDataReliable = 1;
-	//return;
-
 	// 1. Basic threshold check
 	uint8_t valid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
 	if (valid) {

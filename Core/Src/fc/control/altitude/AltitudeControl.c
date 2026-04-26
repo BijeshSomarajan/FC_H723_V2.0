@@ -7,6 +7,8 @@
 #include "../../managers/position/PositionManager.h"
 #include "../ControlData.h"
 #include "../Pid.h"
+#include "../../FCConfig.h"
+
 
 PID altPID;
 PID altRatePID;
@@ -120,7 +122,11 @@ void controlAltitudeWithGains(float dt, float expectedAltitude, float currentAlt
 	} else {
 		controlData.altitudeControl = altRatePID.pid;
 	}
-	//controlData.altitudeControl = 0;
+
+#if DISABLE_ALT_CONTROL_FOR_DEBUG == 1
+	controlData.altitudeControl = 0;
+#endif
+
 	controlData.altitudeControlDt = dt;
 }
 

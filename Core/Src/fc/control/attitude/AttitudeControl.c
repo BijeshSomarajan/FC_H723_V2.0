@@ -8,6 +8,7 @@
 #include "../../status/FCStatus.h"
 #include "../ControlData.h"
 #include "../Pid.h"
+#include "../../FCConfig.h"
 
 //Attitude PID references
 PID attitudePitchPID, attitudeRollPID, attitudeYawPID, attitudePitchRatePID, attitudeRollRatePID, attitudeYawRatePID;
@@ -100,22 +101,22 @@ float updateHeadingDelta() {
 __ATTR_ITCM_TEXT
 void controlAttitudeWithGains(float dt, float expectedPitch, float expectedRoll, float expectedYaw, float rateIGain, float rateDGain) {
 
-	 float headingDelta = updateHeadingDelta();
-	 fcStatusData.headingDelta = headingDelta;
-	 float pitch = sensorAttitudeData.pitch;
-	 float roll = sensorAttitudeData.roll;
-	 float pitchRate = sensorAttitudeData.pitchRate;
-	 float rollRate = sensorAttitudeData.rollRate;
-	 float yawRate = sensorAttitudeData.yawRate;
-
-/*
+#if DISABLE_ATT_CONTROL_FOR_DEBUG == 1
 	float headingDelta = 0;
 	float pitch = 0;
 	float roll = 0;
 	float pitchRate = 0;
 	float rollRate = 0;
 	float yawRate = 0;
-*/
+#else
+	float headingDelta = updateHeadingDelta();
+	fcStatusData.headingDelta = headingDelta;
+	float pitch = sensorAttitudeData.pitch;
+	float roll = sensorAttitudeData.roll;
+	float pitchRate = sensorAttitudeData.pitchRate;
+	float rollRate = sensorAttitudeData.rollRate;
+	float yawRate = sensorAttitudeData.yawRate;
+#endif
 
 	pidUpdate(&attitudePitchPID, pitch, expectedPitch, dt);
 	pidUpdate(&attitudeRollPID, roll, expectedRoll, dt);
@@ -126,12 +127,8 @@ void controlAttitudeWithGains(float dt, float expectedPitch, float expectedRoll,
 	pidUpdateWithGains(&attitudeYawRatePID, yawRate, attitudeYawPID.pid, dt, 1.0f, rateIGain, rateDGain);
 
 	controlData.pitchControl = attitudePitchRatePID.pid;
-	controlData.rollControl  = attitudeRollRatePID.pid;
-	controlData.yawControl   = attitudeYawRatePID.pid;
-
-	// controlData.pitchControl = 0;
-	// controlData.rollControl = 0;
-	// controlData.yawControl = 0;
+	controlData.rollControl = attitudeRollRatePID.pid;
+	controlData.yawControl = attitudeYawRatePID.pid;
 
 	controlData.attitudeControlDt = dt;
 }

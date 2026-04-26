@@ -171,15 +171,18 @@ void debugPositionXy(float dt) {
 }
 
 void debugPositionAlign(float dt) {
-	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
-	DEBUG_DATA_BUFFER[0] = (positionCordinateData.zPosition);
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.xVelocity * 100;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.xAcceleration * 10;
 
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.yVelocity * 100;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.yAcceleration * 10;
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.xPosition  * 10;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.xVelocity  * 10;
+	DEBUG_DATA_BUFFER[2] = controlData.positionXControl     * 10;
+	DEBUG_DATA_BUFFER[3] = positionCommandData.pitchCommand * 10;
 
-	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition  * 10;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.yVelocity  * 10;
+	DEBUG_DATA_BUFFER[6] = controlData.positionYControl     * 10;
+	DEBUG_DATA_BUFFER[7] = positionCommandData.rollCommand * 10;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
 }
 
 void debugTask() {
@@ -190,9 +193,9 @@ void debugTask() {
 	//debugPosition(dt);
 	//debugAltThrottle(dt);
 	//debugGPS();
-	debugPosition(dt);
+	//debugPosition(dt);
 	//debugPositionXy(dt);
-	//debugPositionAlign(dt);
+	debugPositionAlign(dt);
 	// debugBrake(dt);
 	//debugTime(dt);
 	//currentDebug();
