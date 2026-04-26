@@ -23,21 +23,12 @@ void resetAltitudeControlRate(void);
 
 void resetAltitudeRIControl(void);
 void setAltitudeRIControl(float value);
-void suspendAltitudeRIControl(void);
-void resumeAltitudeRIControl(void);
-
-float getAltitudeControlMPValue(void);
-float getAltitudeControlRIValue(void);
-
-void resetAltitudeControlMPLimits(void);
-void resetAltitudeControlRILimits(void);
 
 void applyAltitudeControlMPMinLimitToValue(float value);
 void applyAltitudeControlRIMinLimitToValue(float value);
 
 void resetAltitudeRateControl(void);
 void resetAltitudeMasterControl(void);
-void controlAltitude(float dt, float expectedAltitude, float currentAltitude);
 void controlAltitudeWithGains(float dt, float expectedAltitude, float currentAltitude, ALTITUDE_CONTROL_GAINS altControlGains);
 
 #define ALT_CONTROL_RATE_PID_D_LPF_FREQ 32.0f

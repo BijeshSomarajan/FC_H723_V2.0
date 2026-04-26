@@ -54,7 +54,8 @@ const float atan2PolyCoef7 = 0.6444640676891548f;
  * - Output: approximate sin(x). Error is small for typical flight angles but
  *   is not IEEE-754 accurate for all inputs.
  */
-float sinApprox(float x) {
+__ATTR_ITCM_TEXT
+float sinApproxF(float x) {
 	while ( x > ONE_PI ) {
 		x -= TWO_PI;
 	}
@@ -72,23 +73,50 @@ float sinApprox(float x) {
 	return x + x * x2 * (sinPolyCoef3 + x2 * (sinPolyCoef5 + x2 * sinPolyCoef7));
 }
 
+
+__ATTR_ITCM_TEXT
+double sinApprox(double x) {
+	while ( x > ONE_PI ) {
+		x -= TWO_PI;
+	}
+	while ( x < -ONE_PI ) {
+		x += TWO_PI;
+	}
+
+	if (x > HALF_PI) {
+		x = ONE_PI - x;
+	} else if (x < -HALF_PI) {
+		x = -ONE_PI - x;
+	}
+
+	double x2 = x * x;
+	return x + x * x2 * (sinPolyCoef3 + x2 * (sinPolyCoef5 + x2 * sinPolyCoef7));
+}
+
 /* Fast cosine approximation
  * - Implemented via a phase-shift of sinApprox for code reuse.
  */
-float cosApprox(float x) {
+__ATTR_ITCM_TEXT
+float cosApproxF(float x) {
+	return sinApproxF(x + HALF_PI);
+}
+
+__ATTR_ITCM_TEXT
+double cosApprox(double x) {
 	return sinApprox(x + HALF_PI);
 }
+
 
 /* Fast tangent approximation
  * - Returns sin(x)/cos(x) using the fast approximations; clamps to 0 when
  *   the cosine is very small to avoid large spikes or NaN.
  */
 float tanApprox(float x) {
-	float c = cosApprox(x);
+	float c = cosApproxF(x);
 	if (fabsf(c) < 1e-6f) {
 		return 0.0f; // avoid division by near-zero
 	}
-	return sinApprox(x) / c;
+	return sinApproxF(x) / c;
 }
 
 /* atan(x) polynomial approximation with range reduction
@@ -204,6 +232,7 @@ float asinApproxFast(float x) {
  * - Accuracy: one Newton-style iteration applied; good for control loops but
  *   not as accurate as 1.0f / sqrtf(val).
  */
+__ATTR_ITCM_TEXT
 float fastInvSqrtf(float val) {
 	if (val <= 0.0f) {
 		return 0.0f;
@@ -223,6 +252,7 @@ float fastInvSqrtf(float val) {
  * - Fast square root implemented via fastInvSqrtf: sqrt(x) ~= x * invSqrt(x).
  * - Input: x >= 0. Returns approximate sqrt(x), 0 for non-positive inputs.
  */
+__ATTR_ITCM_TEXT
 float fastSqrtf(float x) {
 	if (x <= 0.0f) {
 		return 0.0f;
@@ -256,6 +286,7 @@ float mapToRangeFloat(float inValue, float minInRange, float maxInRange, float m
 /* constrainToRange
  * - Constrain a signed 32-bit integer to [minValue, maxValue].
  */
+__ATTR_ITCM_TEXT
 int32_t constrainToRange(int32_t rawValue, int32_t minValue, int32_t maxValue) {
 	if (rawValue < minValue) {
 		return minValue;
@@ -269,6 +300,7 @@ int32_t constrainToRange(int32_t rawValue, int32_t minValue, int32_t maxValue) {
 /* constrainToRangeF
  * - Constrain a float to [minValue, maxValue].
  */
+__ATTR_ITCM_TEXT
 float constrainToRangeF(float rawValue, float minValue, float maxValue) {
 	if (rawValue < minValue) {
 		return minValue;
@@ -318,9 +350,20 @@ float convertRadToDeg(float rads) {
 /* convertDegToRad
  * - Convert degrees to radians.
  */
-float convertDegToRad(float deg) {
+__ATTR_ITCM_TEXT
+float convertDegToRadF(float deg) {
 	return deg * PI_BY_180;
 }
+
+/* convertDegToRad
+ * - Convert degrees to radians.
+ */
+__ATTR_ITCM_TEXT
+double convertDegToRad(double deg) {
+	return (double)deg * PI_BY_180;
+}
+
+
 
 /* ============================================================
  BIT OPERATIONS

@@ -11,6 +11,5 @@
 uint8_t initAttitudeControl();
 void resetAttitudeControl(uint8_t hard);
 void controlAttitudeWithGains(float dt, float expectedPitch, float expectedRoll, float expectedYaw, float rateIGain,float rateDGain);
-void controlAttitude(float dt, float expectedPitch, float expectedRoll, float expectedYaw);
 
 #endif

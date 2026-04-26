@@ -47,29 +47,58 @@
  PANIC: The threshold to force-reset the filter state.
  Number of consecutive rejected measurements before the filter "gives up" and snaps to sensor.
  */
+/*
+#define POS_EKF_X_Q_POS         0.00015f
+#define POS_EKF_X_Q_VEL         0.015f
+#define POS_EKF_X_Q_BIAS        0.001f
+#define POS_EKF_X_R_MEAS        4.0f
+#define POS_EKF_X_GATE          3.0f
+#define POS_EKF_X_PANIC         20
 
-/* --- X-Axis Tuning (Lateral / Roll) @ 1kHz --- */
-#define POS_EKF_X_Q_POS         0.00013f       // Increased for high-speed tracking
-#define POS_EKF_X_Q_VEL         0.0128f       // HIGH: Forces velocity to integrate at 1kHz
-#define POS_EKF_X_Q_BIAS        0.001f // ULTRA-LOW: Prevents "Bias Walking" from eating speed
-#define POS_EKF_X_R_MEAS        5000.0f       // TRUST: Pulls Red line toward Orange slope quickly
-#define POS_EKF_X_GATE          15.0f       // WIDE: No rejection during high-speed 1kHz updates
-#define POS_EKF_X_PANIC         100         // Higher panic for 1kHz (100ms window)
+#define POS_EKF_Y_Q_POS         0.00015f
+#define POS_EKF_Y_Q_VEL         0.015f
+#define POS_EKF_Y_Q_BIAS        0.001f
+#define POS_EKF_Y_R_MEAS        4.0f
+#define POS_EKF_Y_GATE          3.0f
+#define POS_EKF_Y_PANIC         20
+*/
 
-/* --- Y-Axis Tuning (Longitudinal / Pitch) @ 1kHz --- */
-#define POS_EKF_Y_Q_POS         0.00013f
-#define POS_EKF_Y_Q_VEL         0.0128f        // HIGH: Velocity will now climb as long as you are pitched
-#define POS_EKF_Y_Q_BIAS        0.001f // "Freeze" the bias during the flight
-#define POS_EKF_Y_R_MEAS        5000.0f       // Lower R = Red line follows the slope of Orange line
-#define POS_EKF_Y_GATE          15.0f
-#define POS_EKF_Y_PANIC         100
+//Chat GPT
+/*
+#define POS_EKF_X_Q_POS         0.0005f
+#define POS_EKF_X_Q_VEL         0.02f
+#define POS_EKF_X_Q_BIAS        0.00005f
+#define POS_EKF_X_R_MEAS        2.0f// 4.0f
 
-#define POS_EKF_Z_Q_POS         0.00015//0.00013f
-#define POS_EKF_Z_Q_VEL         0.015f
-#define POS_EKF_Z_Q_BIAS        0.001f
-#define POS_EKF_Z_R_MEAS        800000.0f
+#define POS_EKF_Y_Q_POS  0.0005f
+#define POS_EKF_Y_Q_VEL  0.02f
+#define POS_EKF_Y_Q_BIAS 0.00005f
+#define POS_EKF_Y_R_MEAS 2.0f//4.0f
+*/
 
-#define POS_EKF_Z_GATE          3.0f //Was 4
+#define POS_EKF_X_Q_POS   0.006f // 0.003f   // was 0.0005
+#define POS_EKF_X_Q_VEL   0.15f  //0.06f    // was 0.02
+#define POS_EKF_X_Q_BIAS  0.001f
+#define POS_EKF_X_R_MEAS  1.0f     // was 2.0
+#define POS_EKF_X_GATE    4.0f
+#define POS_EKF_X_PANIC   8
+
+#define POS_EKF_Y_Q_POS   0.006f //0.003f   // was 0.0005
+#define POS_EKF_Y_Q_VEL   0.15f  //0.06f    // was 0.02
+#define POS_EKF_Y_Q_BIAS  0.001f
+#define POS_EKF_Y_R_MEAS  1.0f     // was 2.0
+#define POS_EKF_Y_GATE    4.0f
+#define POS_EKF_Y_PANIC   8
+
+//--------------------------------- Finalized ------------------------------------*/
+// Increase >> Filter relies more on sensors (GPS/Baro) to correct position; responsive but higher noise.
+#define POS_EKF_Z_Q_POS         0.00013f //0.00013f
+// Increase >> Filter relies more on sensors (Baro/GPS) for velocity; decreased reliance on IMU integration.
+#define POS_EKF_Z_Q_VEL         0.015f //0.015f
+// Increase >> Allows the bias state to track sensor drift faster; good for thermal changes, bad if set too high.
+#define POS_EKF_Z_Q_BIAS        0.001f //0.001f
+#define POS_EKF_Z_R_MEAS        900000.0f//800000.0f
+#define POS_EKF_Z_GATE          4.0f //Was 4
 #define POS_EKF_Z_PANIC         100
 
 /* --- Numerical Stability Limits --- */
@@ -123,7 +152,7 @@ void positionEKFUpdateZMeasure(POSITION_EKF *ekf, float z_meas);
 /**
  *
  */
-void positionEKFUpdateZMeasureWithBias(POSITION_EKF *ekf, float z_meas,float bias);
+void positionEKFUpdateZMeasureWithBias(POSITION_EKF *ekf, float z_meas, float bias);
 
 /**
  * @brief Horizontal Measurement Update.
@@ -140,7 +169,7 @@ void positionEKFUpdateXYMeasure(POSITION_EKF *ekf, float x_meas, float y_meas);
  * * @param ekf Pointer to the EKF instance.
  * @param dampingStrength Damping factor (0.1 = Aggressive, 2.0 = Loose).
  */
-void positionEKFApplyXYDamping(POSITION_EKF *ekf, float dampingStrength);
+void positionEKFUpdateXYVel(POSITION_EKF *ekf, float xVel , float yVel , float dampingStrength);
 
 /**
  * @brief Apply damping to Vertical axis.
@@ -148,7 +177,7 @@ void positionEKFApplyXYDamping(POSITION_EKF *ekf, float dampingStrength);
  * * @param ekf Pointer to the EKF instance.
  * @param dampingStrength Damping factor (0.1 = Aggressive, 2.0 = Loose).
  */
-void positionEKFApplyZDamping(POSITION_EKF *ekf, float dampingStrength);
+void positionEKFUpdateZVel(POSITION_EKF *ekf,float zVel , float dampingStrength);
 
 /**
  * @brief Resets Position and Velocity while preserving learned biases.
@@ -159,5 +188,14 @@ void positionEKFApplyZDamping(POSITION_EKF *ekf, float dampingStrength);
  * @param z_new New Z position (usually current baro height).
  */
 void positionEKFReset(POSITION_EKF *ekf, float x_new, float y_new, float z_new);
+
+/**
+ * @brief Resets Position and Velocity for a single axis while preserving learned bias.
+ */
+void positionEKFResetAxis(POSITION_EKF *ekf, uint8_t axis, float pos_new);
+/**
+ *
+ */
+void positionEKFSetDymamicPosR(POSITION_EKF *ekf, uint8_t axis, float rValue);
 
 #endif /* SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_ */

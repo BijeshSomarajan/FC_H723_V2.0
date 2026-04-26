@@ -14,7 +14,9 @@
 #include "../../timers/GPTimer.h"
 #include "../../util/MathUtil.h"
 #include "../../FCConfig.h"
+#include "../../managers/position/common/PositionCommon.h"
 #include "../../managers/position/PositionManager.h"
+
 
 extern POSITION_COMMAND_DATA positionCommandData;
 
@@ -52,7 +54,7 @@ __ATTR_ITCM_TEXT
 void alignImuAnglesToBoard() {
 	sensorAttitudeData.pitch = -imuData.roll;
 	sensorAttitudeData.roll = -imuData.pitch;
-	float temp = 180 - imuData.heading;
+	float temp = 360 - imuData.heading;
 	if (temp < 0) {
 		sensorAttitudeData.heading = temp + 360.0f;
 	} else if (temp > 360) {
@@ -67,10 +69,11 @@ void doAttitudeControl(float dt) {
 	if (!rcData.yawCentered) {
 		fcStatusData.headingRef = sensorAttitudeData.heading;
 	}
+
 	if (fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
-		float expectedPitch = (float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX] + positionCommandData.pitchCommand;
-		float expectedRoll = -(float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] - positionCommandData.rollCommand;
-		float expectedYaw = +(float) rcData.RC_EFFECTIVE_DATA[RC_YAW_CHANNEL_INDEX];
+		float expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]) - positionCommandData.pitchCommand;
+		float expectedRoll  = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] + positionCommandData.rollCommand;
+		float expectedYaw   = ((float) rcData.RC_EFFECTIVE_DATA[RC_YAW_CHANNEL_INDEX]);
 		expectedPitch = constrainToRangeF(expectedPitch, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
 		expectedRoll = constrainToRangeF(expectedRoll, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
 
@@ -139,7 +142,6 @@ void handleAttitudeSensorUpdates() {
 			alignImuRateToBoard();
 			//Handling crash land as soon as possible
 			if (!fcStatusData.hasCrashed) {
-				updatePositionCommand(dt);
 				doAttitudeControl(dt);
 			} else {
 				resetAttitudeManager();
@@ -150,8 +152,8 @@ void handleAttitudeSensorUpdates() {
 			resetAttitudeManager();
 		}
 	}
-
 }
+
 
 __ATTR_ITCM_TEXT
 void doAttitudeManagement() {
@@ -174,6 +176,7 @@ uint8_t initAttitudeManager() {
 	}
 	return status;
 }
+
 
 uint8_t resetAttitudeManager() {
 	resetAttitudeSensors(0);

@@ -10,4 +10,5 @@ void bubbleSortF(float* arr, int n);
 void bubbleSortDecF(float* arr, int n);
 float applyQuadraticShaper(float input, float divisor, float deadzone);
 float convertPascalToHectoPascal(float pascal);
+float wrapAngleTo360Scale(float angle);
 #endif

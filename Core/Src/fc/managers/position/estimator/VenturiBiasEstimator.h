@@ -33,7 +33,7 @@ void resetVenturiBiasEstimator(void);
 
 #define VENTURI_EST_SPEED_MAX         60.0f
 
-#define VENTURI_EST_BIAS_GAIN_FWD     70.0f
+#define VENTURI_EST_BIAS_GAIN_FWD     80.0f
 #define VENTURI_EST_BIAS_GAIN_BWD     80.0f
 
 #define VENTURI_EST_THRUST_GAIN_FACTOR 1.5f

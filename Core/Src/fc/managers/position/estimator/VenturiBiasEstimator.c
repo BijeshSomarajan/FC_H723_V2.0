@@ -37,10 +37,10 @@ float updateVenturiBiasEstimatePhysical(float dt) {
 	float imuPitch = constrainToRangeF(applyDeadBandFloat(0, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN), -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);
 	float imuPitchAbs = fabsf(imuPitch);
 	venturiEstimateData.pitchAngleAbsFiltered = lowPassFilterUpdate(&venturiPitchAngleLPF, imuPitchAbs, dt);
-	float imuPitchAbsRadians = convertDegToRad(venturiEstimateData.pitchAngleAbsFiltered);
+	float imuPitchAbsRadians = convertDegToRadF(venturiEstimateData.pitchAngleAbsFiltered);
 	venturiEstimateData.effectiveThrottle = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
 
-	float thrust = fastSqrtf(venturiEstimateData.effectiveThrottle) * sinApprox(imuPitchAbsRadians) *  venturiEstimateData.thrustGain * VENTURI_EST_THRUST_GAIN_FACTOR;
+	float thrust = fastSqrtf(venturiEstimateData.effectiveThrottle) * sinApproxF(imuPitchAbsRadians) *  venturiEstimateData.thrustGain * VENTURI_EST_THRUST_GAIN_FACTOR;
 	float drag = venturiEstimateData.lateralSpeed * VENTURI_EST_DRAG_FEEDBACK_GAIN;
 	float acceleration = thrust - drag;
 	venturiEstimateData.lateralSpeed += (acceleration * dt);
@@ -72,13 +72,13 @@ float updateVenturiBiasEstimateAlgebraic(float dt) {
 	float imuPitch = constrainToRangeF(applyDeadBandFloat(0, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN), -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);
 	float imuPitchAbs = fabsf(imuPitch);
 	venturiEstimateData.pitchAngleAbsFiltered = lowPassFilterUpdate(&venturiPitchAngleLPF, imuPitchAbs, dt);
-	float imuPitchAbsRadians = convertDegToRad(venturiEstimateData.pitchAngleAbsFiltered);
+	float imuPitchAbsRadians = convertDegToRadF(venturiEstimateData.pitchAngleAbsFiltered);
 	venturiEstimateData.effectiveThrottle = fmaxf(fcStatusData.throttlePercent - fcStatusData.liftOffThrottlePercent, 0.0f);
 
 	float pitchDrag = fastSqrtf(tanApprox(imuPitchAbsRadians)) * VENTURI_EST_PITCH_DRAG_GAIN;
 	float aeroDrag = venturiEstimateData.lateralSpeed * VENTURI_EST_AERO_DRAG_FEEDBACK_GAIN;
 	float dragSpeed = pitchDrag + aeroDrag;
-	float thrustSpeed = venturiEstimateData.effectiveThrottle * sinApprox(imuPitchAbsRadians) * venturiEstimateData.thrustGain * VENTURI_EST_THRUST_GAIN_FACTOR;
+	float thrustSpeed = venturiEstimateData.effectiveThrottle * sinApproxF(imuPitchAbsRadians) * venturiEstimateData.thrustGain * VENTURI_EST_THRUST_GAIN_FACTOR;
 	venturiEstimateData.lateralSpeed = dragSpeed + thrustSpeed;
 
 	venturiEstimateData.lateralSpeed = constrainToRangeF(venturiEstimateData.lateralSpeed, 0, VENTURI_EST_SPEED_MAX);

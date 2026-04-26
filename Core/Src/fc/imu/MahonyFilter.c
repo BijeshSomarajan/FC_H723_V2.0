@@ -38,7 +38,7 @@ void imuFilterUpdateAngles(void) {
  * Updates compass heading based on magnetic inclination and external error offsets
  */
 __ATTR_ITCM_TEXT
-void imuFilterUpdateHeading(float magIncl, float error) {
+void imuFilterUpdateHeading(float headingBias) {
 	imuData.heading = -imuData.yaw;
 	// Normalize to [0, 360]
 	if (imuData.heading < 0.0f) {
@@ -48,7 +48,7 @@ void imuFilterUpdateHeading(float magIncl, float error) {
 		imuData.heading -= 360.0f;
 	}
 
-	imuData.heading += (magIncl + error);
+	imuData.heading -= headingBias;
 
 	// Final Wrap-around
 	if (imuData.heading > 360.0f) {
@@ -92,9 +92,9 @@ void imuFilterUpdate(float dt) {
 	float halfDt, ex = 0, ey = 0, ez = 0;
 	float recipNorm, spin_rate;
 	// 1. Prepare sensor data
-	gx = convertDegToRad(sensorAttitudeData.gxDSFiltered);
-	gy = convertDegToRad(sensorAttitudeData.gyDSFiltered);
-	gz = convertDegToRad(sensorAttitudeData.gzDSFiltered);
+	gx = convertDegToRadF(sensorAttitudeData.gxDSFiltered);
+	gy = convertDegToRadF(sensorAttitudeData.gyDSFiltered);
+	gz = convertDegToRadF(sensorAttitudeData.gzDSFiltered);
 	ax = sensorAttitudeData.axGFiltered;
 	ay = sensorAttitudeData.ayGFiltered;
 	az = sensorAttitudeData.azGFiltered;
@@ -187,7 +187,7 @@ uint8_t imuFilterInit(uint8_t stabilize) {
 	imuFilterSetMode(stabilize);
 	imuFilterReset();
 	mahonyFilterUpdateRotationMatrix();
-	mahonyFilter_MaxSpinRateRad = convertDegToRad(MAHONY_FILTER_SPIN_RATE_LIMIT);
+	mahonyFilter_MaxSpinRateRad = convertDegToRadF(MAHONY_FILTER_SPIN_RATE_LIMIT);
 	return 1;
 }
 

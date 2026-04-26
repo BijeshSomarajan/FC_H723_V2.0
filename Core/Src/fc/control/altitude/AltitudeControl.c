@@ -7,6 +7,8 @@
 #include "../../managers/position/PositionManager.h"
 #include "../ControlData.h"
 #include "../Pid.h"
+#include "../../FCConfig.h"
+
 
 PID altPID;
 PID altRatePID;
@@ -90,13 +92,6 @@ void resetAltitudeControl(uint8_t hard) {
 	pidResetI(&altAccPID);
 }
 
-void suspendAltitudeRIControl() {
-	altRatePID.suspendITerm = 1;
-}
-
-void resumeAltitudeRIControl() {
-	altRatePID.suspendITerm = 0;
-}
 
 void setAltitudeRIControl(float value) {
 	altRatePID.i = constrainToRangeF(value, -altRateILimit, altRateILimit);
@@ -116,30 +111,6 @@ void resetAltitudeMasterControl() {
 	pidResetI(&altPID);
 }
 
-void resetAltitudeControlMPMinLimit(void) {
-}
-void resetAltitudeControlMPMaxLimit(void);
-void resetAltitudeControlRIMinLimit(void);
-void resetAltitudeControlRIMaxLimit(void);
-
-void applyAltitudeControlMPMinLimit(float minLimit, uint8_t copyOutput);
-void applyAltitudeControlMPMaxLimit(float maxLimit, uint8_t copyOutput);
-void applyAltitudeControlRIMinLimit(float minLimit, uint8_t copyOutput);
-void applyAltitudeControlRIMaxLimit(float maxLimit, uint8_t copyOutput);
-
-__ATTR_ITCM_TEXT
-void controlAltitude(float dt, float expectedAltitude, float currentAltitude) {
-	pidUpdate(&altPID, currentAltitude, expectedAltitude, dt);
-	pidUpdate(&altRatePID, positionCordinateData.zVelocity, altPID.pid, dt);
-	if (altControlAccEnabled == 1) {
-		pidUpdate(&altAccPID, positionCordinateData.zAcceleration, altRatePID.pid, dt);
-		controlData.altitudeControl = altAccPID.pid;
-	} else {
-		controlData.altitudeControl = altRatePID.pid;
-	}
-	controlData.altitudeControl = 0;
-	controlData.altitudeControlDt = dt;
-}
 
 __ATTR_ITCM_TEXT
 void controlAltitudeWithGains(float dt, float expectedAltitude, float currentAltitude, ALTITUDE_CONTROL_GAINS altControlGains) {
@@ -151,7 +122,11 @@ void controlAltitudeWithGains(float dt, float expectedAltitude, float currentAlt
 	} else {
 		controlData.altitudeControl = altRatePID.pid;
 	}
-	//controlData.altitudeControl = 0;
+
+#if DISABLE_ALT_CONTROL_FOR_DEBUG == 1
+	controlData.altitudeControl = 0;
+#endif
+
 	controlData.altitudeControlDt = dt;
 }
 

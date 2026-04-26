@@ -35,13 +35,17 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 void positionEKFSetMode(POSITION_EKF *ekf, uint8_t stabilize) {
 	if (stabilize) {
 		for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
-			ekf->R[axis] = ekf->R[axis] / 1000.0f;
+			ekf->R[axis] = ekf->R[axis] / 10.0f;
 		}
 	} else {
 		for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
-			ekf->R[axis] = ekf->R[axis] * 1000.0f;
+			ekf->R[axis] = ekf->R[axis] * 10.0f;
 		}
 	}
+}
+
+void positionEKFSetDymamicPosR(POSITION_EKF *ekf, uint8_t axis, float rValue) {
+	ekf->R[axis] = rValue;
 }
 
 /* --- Prediction Step --- */
@@ -91,6 +95,38 @@ void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float d
 			}
 		}
 	}
+}
+
+/**
+ * @brief Resets Position and Velocity for a single axis while preserving learned bias.
+ * @param ekf Pointer to the EKF structure.
+ * @param axis Axis index (0 = X, 1 = Y, 2 = Z).
+ * @param pos_new New position for the selected axis.
+ */
+void positionEKFResetAxis(POSITION_EKF *ekf, uint8_t axis, float pos_new) {
+
+	if (axis >= POS_EKF_SPACE_DIM) return;
+
+	int i = axis * POS_EKF_AXIS_DIM;
+
+	// 1. Reset State: Position to new value, Velocity to zero.
+	// Bias (x[i + 2]) is preserved.
+	ekf->x[i + POS_EKF_STATE_P] = pos_new;
+	ekf->x[i + POS_EKF_STATE_V] = 0.0f;
+
+	// 2. Reset Covariance: Re-initialize uncertainty for this axis block.
+	for (int r = 0; r < 3; r++) {
+		for (int c = 0; c < 3; c++) {
+			ekf->P[i + r][i + c] = 0.0f;
+		}
+	}
+
+	ekf->P[i + 0][i + 0] = 10.0f; // Position uncertainty
+	ekf->P[i + 1][i + 1] = 10.0f; // Velocity uncertainty
+	ekf->P[i + 2][i + 2] = 0.01f; // Bias uncertainty (kept low)
+
+	// 3. Reset Gating
+	ekf->rejectCount[axis] = 0;
 }
 
 /**
@@ -236,56 +272,50 @@ static void _axisPositionUpdateWithBias(POSITION_EKF *ekf, int axis, float meas,
 	}
 }
 
-/**
- * @brief Performs a Kalman update using a velocity measurement (Inertial Damping).
- * @param ekf   Pointer to the EKF structure.
- * @param axis  The axis index (0=X, 1=Y, 2=Z).
- * @param meas_v The reference velocity (usually 0.0f for damping).
- * @param R_v   The noise/uncertainty of this velocity measurement.
- */
-static void _axisVelocityUpdate(POSITION_EKF *ekf, int axis, float meas_v, float R_v) {
-	const int i = axis * POS_EKF_AXIS_DIM;
+void _axisVelocityUpdate(POSITION_EKF *ekf, int axis, float meas_v, float R_v) {
+	const int i = (axis * POS_EKF_AXIS_DIM);
 
-	// 1. Innovation (y)
-	// For this update, H = [0, 1, 0]. We are observing the Velocity state (index i + 1).
-	float y = meas_v - ekf->x[i + 1];
+	float y = (meas_v - ekf->x[i + 1]);
+	float S = (ekf->P[i + 1][i + 1] + R_v);
 
-	// 2. Innovation Covariance (S)
-	// S = HPH' + R. Since H = [0, 1, 0], S is simply the Velocity Variance + R.
-	float S = ekf->P[i + 1][i + 1] + R_v;
+	if (S < 1e-6f) {
+		return;
+	}
 
-	// 3. Kalman Gain (K)
-	// K = PH' / S. With H' as [0; 1; 0], we pull the second column of the axis block.
-	float K[3] = { ekf->P[i + 0][i + 1] / S, // Cross-covariance: Pos/Vel
-	ekf->P[i + 1][i + 1] / S, // Velocity Variance
-	ekf->P[i + 2][i + 1] / S  // Cross-covariance: Bias/Vel
-	};
+	float d2 = ((y * y) / S);
 
-	// 4. State Update
-	ekf->x[i + 0] += K[0] * y; // Adjusts Position based on velocity error
-	ekf->x[i + 1] += K[1] * y; // Adjusts Velocity
-	ekf->x[i + 2] += K[2] * y; // Adjusts Bias (Learns bias from persistent velocity error)
+	if (d2 > ekf->gateSize[axis]) {
+		if (ekf->rejectCount[axis] < ekf->panicLimit[axis]) {
+			ekf->rejectCount[axis]++;
+			return;
+		}
+	}
+	ekf->rejectCount[axis] = 0;
 
-	// 5. Covariance Update (P = (I - KH)P)
-	// Since H = [0, 1, 0], we must cache the Velocity Row (row 1 of the block)
+	float K[3] = { (ekf->P[i + 0][i + 1] / S), (ekf->P[i + 1][i + 1] / S), (ekf->P[i + 2][i + 1] / S) };
+
+	ekf->x[i + 0] += (K[0] * y);
+	ekf->x[i + 1] += (K[1] * y);
+	ekf->x[i + 2] += (K[2] * y);
+
 	float p1[3] = { ekf->P[i + 1][i + 0], ekf->P[i + 1][i + 1], ekf->P[i + 1][i + 2] };
 
-	for (int r = 0; r < 3; r++) {
-		for (int c = 0; c < 3; c++) {
-			// P_new[r][c] = P_old[r][c] - K[r] * H * P_old
-			ekf->P[i + r][i + c] -= K[r] * p1[c];
+	for (int r = 0; (r < 3); r++) {
+		for (int c = 0; (c < 3); c++) {
+			ekf->P[i + r][i + c] -= (K[r] * p1[c]);
 		}
 	}
 
-	// 6. Full Resymmetrization and Positivity pass for the axis block
-	for (int r = 0; r < 3; r++) {
-		for (int c = r; c < 3; c++) {
-			int row = i + r;
-			int col = i + c;
+	for (int r = 0; (r < 3); r++) {
+		for (int c = r; (c < 3); c++) {
+			int row = (i + r);
+			int col = (i + c);
 			if (row == col) {
-				if (ekf->P[row][col] < POS_EKF_P_MIN) ekf->P[row][col] = POS_EKF_P_MIN;
+				if (ekf->P[row][col] < POS_EKF_P_MIN) {
+					ekf->P[row][col] = POS_EKF_P_MIN;
+				}
 			} else {
-				float avg = 0.5f * (ekf->P[row][col] + ekf->P[col][row]);
+				float avg = (0.5f * (ekf->P[row][col] + ekf->P[col][row]));
 				ekf->P[row][col] = ekf->P[col][row] = avg;
 			}
 		}
@@ -312,16 +342,16 @@ void positionEKFUpdateXYMeasure(POSITION_EKF *ekf, float x_meas, float y_meas) {
  * @brief Apply damping to Horizontal axes only.
  * Call this when GPS is lost or sticks are centered.
  */
-void positionEKFApplyXYDamping(POSITION_EKF *ekf, float dampingStrength) {
+void positionEKFUpdateXYVel(POSITION_EKF *ekf, float xVel, float yVel, float dampingStrength) {
 	// damping_strength: 0.1 (Aggressive) to 2.0 (Loose/Soft)
-	_axisVelocityUpdate(ekf, POS_EKF_X_AXIS, 0.0f, dampingStrength);
-	_axisVelocityUpdate(ekf, POS_EKF_Y_AXIS, 0.0f, dampingStrength);
+	_axisVelocityUpdate(ekf, POS_EKF_X_AXIS, xVel, dampingStrength);
+	_axisVelocityUpdate(ekf, POS_EKF_Y_AXIS, yVel, dampingStrength);
 }
 
 /**
  * @brief Apply damping to Vertical axis.
  * Useful during landing detection to prevent "bounce" estimates.
  */
-void positionEKFApplyZDamping(POSITION_EKF *ekf, float dampingStrength) {
-	_axisVelocityUpdate(ekf, POS_EKF_Z_AXIS, 0.0f, dampingStrength);
+void positionEKFUpdateZVel(POSITION_EKF *ekf, float zVel, float dampingStrength) {
+	_axisVelocityUpdate(ekf, POS_EKF_Z_AXIS, zVel, dampingStrength);
 }
