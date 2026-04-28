@@ -271,7 +271,8 @@ void doAltitudeManagement(void) {
 			float dt = getDeltaTime(SENSOR_BARO_READ_TIMER_CHANNEL);
 			sensorAltitudeData.altUpdateDt = dt;
 			updateAltitudeSensorData(dt);
-			updatePositionManagerZPosition(sensorAltitudeData.altitudeSLScaled, dt);
+			//updatePositionManagerZPosition(sensorAltitudeData.altitudeSLScaled, dt);
+			updatePositionManagerZPosition(sensorAltitudeData.altitudeSLFiltered, dt);
 		}
 	}
 }
