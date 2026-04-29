@@ -90,16 +90,13 @@
 #define POS_EKF_Y_GATE    4.0f
 #define POS_EKF_Y_PANIC   8
 
-//--------------------------------- Finalized ------------------------------------*/
-// Increase >> Filter relies more on sensors (GPS/Baro) to correct position; responsive but higher noise.
-#define POS_EKF_Z_Q_POS         0.00013f //0.00013f
-// Increase >> Filter relies more on sensors (Baro/GPS) for velocity; decreased reliance on IMU integration.
-#define POS_EKF_Z_Q_VEL         0.015f //0.015f
-// Increase >> Allows the bias state to track sensor drift faster; good for thermal changes, bad if set too high.
-#define POS_EKF_Z_Q_BIAS        0.001f //0.001f
-#define POS_EKF_Z_R_MEAS        900000.0f//800000.0f
-#define POS_EKF_Z_GATE          4.0f //Was 4
-#define POS_EKF_Z_PANIC         100
+#define POS_EKF_Z_Q_POS   0.00005f
+#define POS_EKF_Z_Q_VEL   0.001f
+#define POS_EKF_Z_Q_BIAS  0.0005f
+#define POS_EKF_Z_R_MEAS  2500.0f   // start here
+
+#define POS_EKF_Z_GATE    5.0f
+#define POS_EKF_Z_PANIC   100
 
 /* --- Numerical Stability Limits --- */
 #define POS_EKF_P_MIN           1e-9f
