@@ -28,7 +28,7 @@ float sensorGyroYMaxDS;
 float sensorGyroZMaxDS;
 
 // --- Start & Init ---
-void startAttitudeSensorsRead(void);
+void startAttitudeMgmtTimers(void);
 uint8_t initAttitudeSensors(void);
 
 void loadAttitudeSensorConfig(void);

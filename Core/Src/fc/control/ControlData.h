@@ -12,7 +12,10 @@ struct _CONTROL_DATA {
 	float altitudeControl;
 	float positionXControl;
 	float positionYControl;
-	float attitudeControlDt;
+
+	float attitudeControlRateDt;
+	float attitudeControlAngleDt;
+
 	float altitudeControlDt;
 	float tiltCompThDelta;
 };

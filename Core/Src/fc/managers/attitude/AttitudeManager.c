@@ -17,14 +17,16 @@
 #include "../../managers/position/common/PositionCommon.h"
 #include "../../managers/position/PositionManager.h"
 
-
 extern POSITION_COMMAND_DATA positionCommandData;
 
 uint8_t attitudeManagerWasInStabMode = 0;
 void readAGTSensorTimerCallback(void);
 void readMagSensorTimerCallback(void);
+void attRateControlTimerCallback(void);
+
 float attitudeManagerCrashThresholdG;
 uint16_t attitudeManagerCrashTriggerCounter = 0;
+float attitudeAngleControlDt = 0;
 
 __ATTR_ITCM_TEXT
 void readAGTSensorTimerCallback() {
@@ -36,11 +38,13 @@ void readMagSensorTimerCallback() {
 	readMagSensor();
 }
 
-void startAttitudeSensorsRead() {
+void startAttitudeMgmtTimers() {
 	initGPTimer24(ATTITUDE_SENSOR_AGT_READ_FREQUENCY, readAGTSensorTimerCallback, 4);
 	initGPTimer4(ATTITUDE_SENSOR_MAG_READ_FREQUENCY, readMagSensorTimerCallback, 5);
+	initGPTimer7(ATTITUDE_RATE_CONTROL_FREQUENCY, attRateControlTimerCallback, 4);
 	startGPTimer4();
 	startGPTimer24();
+	startGPTimer7();
 }
 
 __ATTR_ITCM_TEXT
@@ -65,28 +69,42 @@ void alignImuAnglesToBoard() {
 }
 
 __ATTR_ITCM_TEXT
-void doAttitudeControl(float dt) {
-	if (!rcData.yawCentered) {
-		fcStatusData.headingRef = sensorAttitudeData.heading;
-	}
-
-	if (fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
-		float expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]) - positionCommandData.pitchCommand;
-		float expectedRoll  = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] + positionCommandData.rollCommand;
-		float expectedYaw   = ((float) rcData.RC_EFFECTIVE_DATA[RC_YAW_CHANNEL_INDEX]);
-		expectedPitch = constrainToRangeF(expectedPitch, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
-		expectedRoll = constrainToRangeF(expectedRoll, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
-
+void doAttitudeRateControl(float dt) {
+	if (!fcStatusData.hasCrashed) {
+		float ratePGain = 1.0f;
 		float rateIGain = 1.0;
 		float rateDGain = 1.0f;
-
 		//Reset the I and D gains
 		if (!fcStatusData.isFlying) {
 			rateIGain = 0;
 			rateDGain = 0;
 		}
+		controlAttitudeRateWithGains(ATTITUDE_RATE_CONTROL_PERIOD, ratePGain, rateIGain, rateDGain);
+	} else {
+		resetAttitudeControl(1);
+	}
 
-		controlAttitudeWithGains(dt, expectedPitch, expectedRoll, expectedYaw, rateIGain, rateDGain);
+}
+
+__ATTR_ITCM_TEXT
+void attRateControlTimerCallback() {
+	imuUpdateRate();
+	alignImuRateToBoard();
+	doAttitudeRateControl(ATTITUDE_RATE_CONTROL_PERIOD);
+}
+
+__ATTR_ITCM_TEXT
+void doAttitudeAngleControl(float dt) {
+	if (!rcData.yawCentered) {
+		fcStatusData.headingRef = sensorAttitudeData.heading;
+	}
+	if (fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
+		float expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]) - positionCommandData.pitchCommand;
+		float expectedRoll = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] + positionCommandData.rollCommand;
+		float expectedYaw = ((float) rcData.RC_EFFECTIVE_DATA[RC_YAW_CHANNEL_INDEX]);
+		expectedPitch = constrainToRangeF(expectedPitch, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
+		expectedRoll = constrainToRangeF(expectedRoll, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
+		controlAttitudeAngle(dt, expectedPitch, expectedRoll, expectedYaw);
 	} else {
 		resetAttitudeControl(1);
 	}
@@ -136,15 +154,13 @@ void handleAttitudeSensorUpdates() {
 			updateNoiseFilterData(dt);
 			checkForCrash();
 			filterAGTNoise(dt);
-			imuUpdateRate();
-			imuAHRSUpdate(dt);
-			alignImuAnglesToBoard();
-			alignImuRateToBoard();
-			//Handling crash land as soon as possible
-			if (!fcStatusData.hasCrashed) {
-				doAttitudeControl(dt);
-			} else {
-				resetAttitudeManager();
+
+			attitudeAngleControlDt += dt;
+			while ( attitudeAngleControlDt >= ATTITUDE_ANGLE_CONTROL_PERIOD ) {
+				imuAHRSUpdate(ATTITUDE_ANGLE_CONTROL_PERIOD);
+				alignImuAnglesToBoard();
+				doAttitudeAngleControl(ATTITUDE_ANGLE_CONTROL_PERIOD);
+				attitudeAngleControlDt -= ATTITUDE_ANGLE_CONTROL_PERIOD;
 			}
 		}
 		updateNoiseFilterCoefficients();
@@ -153,7 +169,6 @@ void handleAttitudeSensorUpdates() {
 		}
 	}
 }
-
 
 __ATTR_ITCM_TEXT
 void doAttitudeManagement() {
@@ -166,7 +181,7 @@ uint8_t initAttitudeManager() {
 	if (status) {
 		logString("[Attitude Manager] Sensor Init > Success\n");
 		initAttitudeNoiseFilter(ATTITUDE_SENSOR_AGT_READ_FREQUENCY, ATTITUDE_SENSOR_AGT_READ_FREQUENCY, ATTITUDE_SENSOR_MAG_READ_FREQUENCY, ATTITUDE_SENSOR_AGT_READ_FREQUENCY);
-		startAttitudeSensorsRead();
+		startAttitudeMgmtTimers();
 		imuInit(0);
 		initAttitudeControl();
 		attitudeManagerCrashThresholdG = getMaxValidG() * ATTITUDE_SENSOR_ACC_CRASH_G_GAIN;
@@ -176,7 +191,6 @@ uint8_t initAttitudeManager() {
 	}
 	return status;
 }
-
 
 uint8_t resetAttitudeManager() {
 	resetAttitudeSensors(0);

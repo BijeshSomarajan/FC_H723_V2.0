@@ -98,6 +98,48 @@ float updateHeadingDelta() {
 	return headingDelta;
 }
 
+
+__ATTR_ITCM_TEXT
+void controlAttitudeRateWithGains(float dt,float ratePGain,float rateIGain, float rateDGain) {
+#if DISABLE_ATT_CONTROL_FOR_DEBUG == 1
+	float pitchRate = 0;
+	float rollRate = 0;
+	float yawRate = 0;
+#else
+	float pitchRate = sensorAttitudeData.pitchRate;
+	float rollRate = sensorAttitudeData.rollRate;
+	float yawRate = sensorAttitudeData.yawRate;
+#endif
+	pidUpdateWithGains(&attitudePitchRatePID, pitchRate, attitudePitchPID.pid, dt, ratePGain, rateIGain, rateDGain);
+	pidUpdateWithGains(&attitudeRollRatePID, rollRate, attitudeRollPID.pid, dt, ratePGain, rateIGain, rateDGain);
+	pidUpdateWithGains(&attitudeYawRatePID, yawRate, attitudeYawPID.pid, dt, ratePGain, rateIGain, rateDGain);
+
+	controlData.pitchControl = attitudePitchRatePID.pid;
+	controlData.rollControl = attitudeRollRatePID.pid;
+	controlData.yawControl = attitudeYawRatePID.pid;
+
+	controlData.attitudeControlRateDt = dt;
+}
+
+__ATTR_ITCM_TEXT
+void controlAttitudeAngle(float dt, float expectedPitch, float expectedRoll, float expectedYaw) {
+#if DISABLE_ATT_CONTROL_FOR_DEBUG == 1
+	float headingDelta = 0;
+	float pitch = 0;
+	float roll = 0;
+#else
+	float headingDelta = updateHeadingDelta();
+	fcStatusData.headingDelta = headingDelta;
+	float pitch = sensorAttitudeData.pitch;
+	float roll = sensorAttitudeData.roll;
+#endif
+	pidUpdate(&attitudePitchPID, pitch, expectedPitch, dt);
+	pidUpdate(&attitudeRollPID, roll, expectedRoll, dt);
+	pidUpdate(&attitudeYawPID, headingDelta, expectedYaw, dt);
+	controlData.attitudeControlAngleDt = dt;
+}
+
+
 __ATTR_ITCM_TEXT
 void controlAttitudeWithGains(float dt, float expectedPitch, float expectedRoll, float expectedYaw, float rateIGain, float rateDGain) {
 
@@ -130,6 +172,6 @@ void controlAttitudeWithGains(float dt, float expectedPitch, float expectedRoll,
 	controlData.rollControl = attitudeRollRatePID.pid;
 	controlData.yawControl = attitudeYawRatePID.pid;
 
-	controlData.attitudeControlDt = dt;
+	controlData.attitudeControlRateDt = dt;
 }
 

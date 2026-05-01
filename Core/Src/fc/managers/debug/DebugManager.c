@@ -116,11 +116,11 @@ void currentDebug() {
 
 void debugAltThrottle(float dt) {
 	/*
-	DEBUG_DATA_BUFFER[0] = controlData.throttleControl;
-	DEBUG_DATA_BUFFER[1] = altMgrThrottleControlLPF.output;
-	DEBUG_DATA_BUFFER[2] = controlData.altitudeControl;
-	DEBUG_DATA_BUFFER[3] = fcStatusData.currentThrottle;
-	*/
+	 DEBUG_DATA_BUFFER[0] = controlData.throttleControl;
+	 DEBUG_DATA_BUFFER[1] = altMgrThrottleControlLPF.output;
+	 DEBUG_DATA_BUFFER[2] = controlData.altitudeControl;
+	 DEBUG_DATA_BUFFER[3] = fcStatusData.currentThrottle;
+	 */
 	DEBUG_DATA_BUFFER[0] = deviceAltitudeData.altitude * 100;
 	DEBUG_DATA_BUFFER[1] = (positionCordinateData.zVelocity);
 	DEBUG_DATA_BUFFER[2] = (positionCordinateData.zPosition);
@@ -173,20 +173,24 @@ void debugPositionXy(float dt) {
 
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
-
+extern float attitudeAngleControlDt;
 void debugPositionAlign(float dt) {
-	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading * 10;
-	//DEBUG_DATA_BUFFER[0] = positionCordinateData.xPosition  * 10;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.xVelocity * 10;
-	DEBUG_DATA_BUFFER[2] = controlData.positionXControl * 10;
-	DEBUG_DATA_BUFFER[3] = positionCommandData.pitchCommand * 10;
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.roll * 10;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.heading * 10;
+	DEBUG_DATA_BUFFER[3] = 1.0f / attitudeAngleControlDt;
+	/*
+	 //DEBUG_DATA_BUFFER[0] = positionCordinateData.xPosition  * 10;
+	 DEBUG_DATA_BUFFER[1] = positionCordinateData.xVelocity * 10;
+	 DEBUG_DATA_BUFFER[2] = controlData.positionXControl * 10;
+	 DEBUG_DATA_BUFFER[3] = positionCommandData.pitchCommand * 10;
 
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition * 10;
-	DEBUG_DATA_BUFFER[5] = positionCordinateData.yVelocity * 10;
-	DEBUG_DATA_BUFFER[6] = controlData.positionYControl * 10;
-	DEBUG_DATA_BUFFER[7] = positionCommandData.rollCommand * 10;
-
-	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
+	 DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition * 10;
+	 DEBUG_DATA_BUFFER[5] = positionCordinateData.yVelocity * 10;
+	 DEBUG_DATA_BUFFER[6] = controlData.positionYControl * 10;
+	 DEBUG_DATA_BUFFER[7] = positionCommandData.rollCommand * 10;
+	 */
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
 void debugTask() {
@@ -194,9 +198,9 @@ void debugTask() {
 		return;
 	}
 	float dt = 0.001f;	//getDeltaTime(DEBUG_TIMER_CHANNEL);
-
+	debugPositionAlign(dt);
 	//debugPosition(dt);
-	debugAltThrottle(dt);
+	//debugAltThrottle(dt);
 	//debugGPS();
 	//debugPosition(dt);
 	//debugPositionXy(dt);
