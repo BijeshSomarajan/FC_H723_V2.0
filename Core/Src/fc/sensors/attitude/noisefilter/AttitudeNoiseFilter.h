@@ -40,7 +40,7 @@
 #define SENSOR_LPF_STD_ACC_ENABLED              1
 
 // Accelerometer low-pass filter cutoff frequency (Hz)
-#define SENSOR_LPF_STD_ACC_FREQUENCY            20.0f
+#define SENSOR_LPF_STD_ACC_FREQUENCY         12.50f
 
 
 /* --- Gyroscope LPF Configuration --- */

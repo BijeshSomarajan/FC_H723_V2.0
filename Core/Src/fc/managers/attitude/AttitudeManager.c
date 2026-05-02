@@ -79,7 +79,7 @@ void doAttitudeRateControl(float dt) {
 			rateIGain = 0;
 			rateDGain = 0;
 		}
-		controlAttitudeRateWithGains(ATTITUDE_RATE_CONTROL_PERIOD, ratePGain, rateIGain, rateDGain);
+		controlAttitudeRateWithGains(dt, ratePGain, rateIGain, rateDGain);
 	} else {
 		resetAttitudeControl(1);
 	}
@@ -88,9 +88,11 @@ void doAttitudeRateControl(float dt) {
 
 __ATTR_ITCM_TEXT
 void attRateControlTimerCallback() {
+	float dt = getDeltaTime(SENSOR_ATT_RATE_CONTROL_TIMER_CHANNEL);
+	dt = constrainToRangeF(dt, ATTITUDE_RATE_CONTROL_PERIOD * 0.001f, ATTITUDE_RATE_CONTROL_PERIOD * 4.0f);
 	imuUpdateRate();
 	alignImuRateToBoard();
-	doAttitudeRateControl(ATTITUDE_RATE_CONTROL_PERIOD);
+	doAttitudeRateControl(dt);
 }
 
 __ATTR_ITCM_TEXT
@@ -150,18 +152,15 @@ void handleAttitudeSensorUpdates() {
 		}
 		if (loadAccGyroTempSensorData()) {
 			float dt = getDeltaTime(SENSOR_AGT_READ_TIMER_CHANNEL);
+			dt = constrainToRangeF(dt, ATTITUDE_ANGLE_CONTROL_PERIOD * 0.001f, ATTITUDE_ANGLE_CONTROL_PERIOD * 4.0f);
 			updateAGTSensorData(dt);
 			updateNoiseFilterData(dt);
 			checkForCrash();
 			filterAGTNoise(dt);
 
-			attitudeAngleControlDt += dt;
-			while ( attitudeAngleControlDt >= ATTITUDE_ANGLE_CONTROL_PERIOD ) {
-				imuAHRSUpdate(ATTITUDE_ANGLE_CONTROL_PERIOD);
-				alignImuAnglesToBoard();
-				doAttitudeAngleControl(ATTITUDE_ANGLE_CONTROL_PERIOD);
-				attitudeAngleControlDt -= ATTITUDE_ANGLE_CONTROL_PERIOD;
-			}
+			imuAHRSUpdate(dt);
+			alignImuAnglesToBoard();
+			doAttitudeAngleControl(dt);
 		}
 		updateNoiseFilterCoefficients();
 		if (fcStatusData.hasCrashed) {
