@@ -47,7 +47,4 @@ void resetVenturiBiasEstimator(void);
 #define VENTURI_EST_PITCH_DRAG_GAIN         1.25f
 #define VENTURI_EST_AERO_DRAG_FEEDBACK_GAIN 2.5f
 
-
-
-
 #endif

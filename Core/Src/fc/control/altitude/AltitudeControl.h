@@ -31,8 +31,8 @@ void resetAltitudeRateControl(void);
 void resetAltitudeMasterControl(void);
 void controlAltitudeWithGains(float dt, float expectedAltitude, float currentAltitude, ALTITUDE_CONTROL_GAINS altControlGains);
 
-#define ALT_CONTROL_RATE_PID_D_LPF_FREQ 32.0f
-#define ALT_CONTROL_ACC_PID_D_LPF_FREQ  32.0f
+#define ALT_CONTROL_RATE_PID_D_LPF_FREQ 40.0f
+#define ALT_CONTROL_ACC_PID_D_LPF_FREQ  40.0f
 
 #define ALT_CONTROL_RATE_PID_I_LIMIT_RATIO 1.0f
 #define ALT_CONTROL_RATE_PID_D_LIMIT_RATIO 1.0f

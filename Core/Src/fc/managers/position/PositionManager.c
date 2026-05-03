@@ -1,6 +1,5 @@
 #include "PositionManager.h"
 
-#include <math.h>
 #include <sys/_stdint.h>
 
 #include "../../control/ControlData.h"
@@ -12,7 +11,6 @@
 #include "../../memory/Memory.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
 #include "../../sensors/position/GNSS.h"
-#include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/DeltaTimer.h"
 #include "../../timers/Scheduler.h"
@@ -23,12 +21,15 @@
 
 POSITION_EKF positionEkf;
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
+LOWPASSFILTER positionMgrVelXLPF, positionMgrVelYLPF, positionMgrVelZLPF;
+
 uint8_t positionManagerWasInStabMode;
 POSITION_CORDINATE_DATA positionCordinateData;
 POSITION_COMMAND_DATA positionCommandData;
 
 float positionMgrPitchStickCenteredTimer, positionMgrRollStickCenteredTimer;
 float positionMgrPitchPeakStick, positionMgrRollPeakStick;
+float postionMgrRateDtSum, postionMgrPositionDtSum;
 
 void managePositionTask(void);
 
@@ -50,10 +51,14 @@ uint8_t initPositionManager(void) {
 		lowPassFilterInit(&positionMgrAccYLPF, POSITION_MGR_Y_ACC_LPF_FREQ);
 		lowPassFilterInit(&positionMgrAccZLPF, POSITION_MGR_Z_ACC_LPF_FREQ);
 
+		lowPassFilterInit(&positionMgrVelXLPF, POSITION_MGR_X_VEL_LPF_FREQ);
+		lowPassFilterInit(&positionMgrVelYLPF, POSITION_MGR_Y_VEL_LPF_FREQ);
+		lowPassFilterInit(&positionMgrVelZLPF, POSITION_MGR_Z_VEL_LPF_FREQ);
+
 		schedulerAddTask(managePositionTask, POSITION_MANAGEMENT_TASK_FREQUENCY, POSITION_MANAGEMENT_TASK_PRIORITY);
 		logString("[Position Manager] All tasks   > Started\n");
 
-		initPositionControl();
+		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY, POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
 	} else {
 		logString("[Position Manager] EKF Init > Failed\n");
 	}
@@ -66,17 +71,17 @@ void upadatePositionVelocity(float vx, float vy, float vz, float dt) {
 	// X Axis
 	vel = applyDeadBandFloat(0.0f, vx, POSITION_MGR_X_VEL_DEADBAND);
 	vel = constrainToRangeF(vel, -POSITION_MGR_X_VEL_MAX, POSITION_MGR_X_VEL_MAX);
-	positionCordinateData.xVelocity = vel;
+	positionCordinateData.xVelocity = lowPassFilterUpdate(&positionMgrVelXLPF, vel, dt);
 
 	// Y Axis
 	vel = applyDeadBandFloat(0.0f, vy, POSITION_MGR_Y_VEL_DEADBAND);
 	vel = constrainToRangeF(vel, -POSITION_MGR_Y_VEL_MAX, POSITION_MGR_Y_VEL_MAX);
-	positionCordinateData.yVelocity = vel;
+	positionCordinateData.yVelocity = lowPassFilterUpdate(&positionMgrVelYLPF, vel, dt);
 
 	// Z Axis
 	vel = applyDeadBandFloat(0.0f, vz, POSITION_MGR_Z_VEL_DEADBAND);
 	vel = constrainToRangeF(vel, -POSITION_MGR_Z_VEL_MAX, POSITION_MGR_Z_VEL_MAX);
-	positionCordinateData.zVelocity = vel;
+	positionCordinateData.zVelocity = lowPassFilterUpdate(&positionMgrVelZLPF, vel, dt);
 }
 
 __ATTR_ITCM_TEXT
@@ -99,7 +104,7 @@ void upadatePositionAcceleration(float ax, float ay, float az, float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void updatePositionReference(float dt) {
+void updatePositionReference() {
 	if (fcStatusData.canFly && fcStatusData.isPositionDataReliable && fcStatusData.isPositionHomeSet) {
 		if (!fcStatusData.isPositionRefSet) {
 			fcStatusData.positionXRef = positionCordinateData.xPosition;
@@ -110,61 +115,56 @@ void updatePositionReference(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void resetPositionCommands(float dt) {
+void resetPositionCommands() {
 	positionCommandData.pitchCommand = 0.0f;
 	positionCommandData.rollCommand = 0.0f;
 }
 
-static float posCtrlDtAccum = 0.0f;
-static int positionControlTick = 0;
-__ATTR_ITCM_TEXT
-void updatePositionCommand(float dt) {
+void updatePositionRateCommand(float dt) {
 	if (fcStatusData.isPositionHoldModeActive) {
-		updatePositionReference(dt);
 		if (fcStatusData.isPositionRefSet) {
-			posCtrlDtAccum += dt;
-			positionControlTick++;
-			if (positionControlTick >= 10) {
-				controlPositionWithGains(posCtrlDtAccum, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f, 1.0f, 1.0f, 1.0f);
-				float pitchCommand, rollCommand;
-
-				float positionXControl = controlData.positionXControl ;//- 0.02 * positionCordinateData.yVelocity;
-				float positionYControl = controlData.positionYControl ;//- 0.02 * positionCordinateData.xVelocity;
-
-				convertEarthToBodyCordinates(positionXControl, positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
-				float magnitudeSq = (pitchCommand * pitchCommand) + (rollCommand * rollCommand);
-				float maxLimit = POSITION_MGR_MAX_POS_COMMAND;
-				if (magnitudeSq > (maxLimit * maxLimit)) {
-					float magnitude = fastSqrtf(magnitudeSq);
-					float scale = maxLimit / magnitude;
-					pitchCommand *= scale;
-					rollCommand *= scale;
-				}
-				positionCommandData.pitchCommand = constrainToRangeF(pitchCommand, -maxLimit, maxLimit);
-				positionCommandData.rollCommand = constrainToRangeF(rollCommand, -maxLimit, maxLimit);
-				positionControlTick = 0;
-				posCtrlDtAccum = 0.0f;
+			controlPositionRateWithGains(dt, 1.0f, 1.0f, 1.0f);
+			float pitchCommand, rollCommand;
+			float positionXControl = controlData.positionXControl;
+			float positionYControl = controlData.positionYControl;
+			convertEarthToBodyCordinates(positionXControl, positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
+			float magnitudeSq = (pitchCommand * pitchCommand) + (rollCommand * rollCommand);
+			float maxLimit = POSITION_MGR_MAX_POS_COMMAND;
+			if (magnitudeSq > (maxLimit * maxLimit)) {
+				float magnitude = fastSqrtf(magnitudeSq);
+				float scale = maxLimit / magnitude;
+				pitchCommand *= scale;
+				rollCommand *= scale;
 			}
+			positionCommandData.pitchCommand = constrainToRangeF(pitchCommand, -maxLimit, maxLimit);
+			positionCommandData.rollCommand = constrainToRangeF(rollCommand, -maxLimit, maxLimit);
 		} else {
-			posCtrlDtAccum = 0.0f;
-			positionControlTick = 0;
-			resetPositionCommands(dt);
+			resetPositionCommands();
 		}
 	} else {
-		posCtrlDtAccum = 0.0f;
-		positionControlTick = 0;
 		fcStatusData.isPositionRefSet = 0;
-		resetPositionCommands(dt);
+		resetPositionCommands();
+	}
+}
+
+void updatePositionCordinateCommand(float dt) {
+	if (fcStatusData.isPositionHoldModeActive) {
+		updatePositionReference();
+		if (fcStatusData.isPositionRefSet) {
+			controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
+		} else {
+			resetPositionCommands();
+		}
+	} else {
+		fcStatusData.isPositionRefSet = 0;
+		resetPositionCommands();
 	}
 }
 
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
 	float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
-
-	if (dt <= 0.0f || dt > 0.1f) {
-		dt = 0.001f; // Safety guard for dt
-	}
+	dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
 
 	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_X_ACC_OUTPUT_GAIN;
 	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_Y_ACC_OUTPUT_GAIN;
@@ -187,14 +187,25 @@ void managePositionTask(void) {
 	upadatePositionAcceleration(axEarth - positionCordinateData.xAccelerationBias, ayEarth - positionCordinateData.yAccelerationBias, azEarth - positionCordinateData.zAccelerationBias, dt);
 	// 3. Filtered Velocity
 	upadatePositionVelocity(x[1], x[4], x[7], dt);
-	//Update the position command
-	updatePositionCommand(dt);
+
+	postionMgrRateDtSum += dt;
+	while ( postionMgrRateDtSum >= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD ) {
+		updatePositionRateCommand(POSITION_MANAGEMENT_RATE_CONTROL_PERIOD);
+		postionMgrRateDtSum -= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD;
+	}
+
+	postionMgrPositionDtSum += dt;
+	while ( postionMgrPositionDtSum >= POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD ) {
+		updatePositionCordinateCommand(POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD);
+		postionMgrPositionDtSum -= POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD;
+	}
 
 	positionCordinateData.positionProcessDt = dt;
 }
 
 __ATTR_ITCM_TEXT
 void doPositionManagement() {
+
 	if ((fcStatusData.canStabilize != 0) && (positionManagerWasInStabMode == 0)) {
 		positionManagerWasInStabMode = 1;
 		positionEKFSetMode(&positionEkf, 1);
@@ -202,6 +213,7 @@ void doPositionManagement() {
 		positionManagerWasInStabMode = 0;
 		positionEKFSetMode(&positionEkf, 0);
 	}
+
 	if (readGNSSData()) {
 		float dt = getDeltaTime(POSITION_MANAGER_GPS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
