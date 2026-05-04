@@ -47,53 +47,24 @@
  PANIC: The threshold to force-reset the filter state.
  Number of consecutive rejected measurements before the filter "gives up" and snaps to sensor.
  */
-/*
-#define POS_EKF_X_Q_POS         0.00015f
-#define POS_EKF_X_Q_VEL         0.015f
-#define POS_EKF_X_Q_BIAS        0.001f
-#define POS_EKF_X_R_MEAS        4.0f
-#define POS_EKF_X_GATE          3.0f
-#define POS_EKF_X_PANIC         20
-
-#define POS_EKF_Y_Q_POS         0.00015f
-#define POS_EKF_Y_Q_VEL         0.015f
-#define POS_EKF_Y_Q_BIAS        0.001f
-#define POS_EKF_Y_R_MEAS        4.0f
-#define POS_EKF_Y_GATE          3.0f
-#define POS_EKF_Y_PANIC         20
-*/
-
-//Chat GPT
-/*
-#define POS_EKF_X_Q_POS         0.0005f
-#define POS_EKF_X_Q_VEL         0.02f
-#define POS_EKF_X_Q_BIAS        0.00005f
-#define POS_EKF_X_R_MEAS        2.0f// 4.0f
-
-#define POS_EKF_Y_Q_POS  0.0005f
-#define POS_EKF_Y_Q_VEL  0.02f
-#define POS_EKF_Y_Q_BIAS 0.00005f
-#define POS_EKF_Y_R_MEAS 2.0f//4.0f
-*/
-
-#define POS_EKF_X_Q_POS   0.006f // 0.003f   // was 0.0005
-#define POS_EKF_X_Q_VEL   0.15f  //0.06f    // was 0.02
+#define POS_EKF_X_Q_POS   0.006f
+#define POS_EKF_X_Q_VEL   0.12f //0.15f
 #define POS_EKF_X_Q_BIAS  0.001f
-#define POS_EKF_X_R_MEAS  1.0f     // was 2.0
+#define POS_EKF_X_R_MEAS  2.0f//1.0f
 #define POS_EKF_X_GATE    4.0f
 #define POS_EKF_X_PANIC   8
 
-#define POS_EKF_Y_Q_POS   0.006f //0.003f   // was 0.0005
-#define POS_EKF_Y_Q_VEL   0.15f  //0.06f    // was 0.02
+#define POS_EKF_Y_Q_POS   0.006f
+#define POS_EKF_Y_Q_VEL   0.12f //0.15f
 #define POS_EKF_Y_Q_BIAS  0.001f
-#define POS_EKF_Y_R_MEAS  1.0f     // was 2.0
+#define POS_EKF_Y_R_MEAS  2.0f//1.0f
 #define POS_EKF_Y_GATE    4.0f
 #define POS_EKF_Y_PANIC   8
 
 #define POS_EKF_Z_Q_POS   0.00005f
 #define POS_EKF_Z_Q_VEL   0.001f
 #define POS_EKF_Z_Q_BIAS  0.0005f
-#define POS_EKF_Z_R_MEAS  2500.0f   // start here
+#define POS_EKF_Z_R_MEAS  2500.0f
 
 #define POS_EKF_Z_GATE    5.0f
 #define POS_EKF_Z_PANIC   100
