@@ -50,24 +50,35 @@
 #define POS_EKF_X_Q_POS   0.006f
 #define POS_EKF_X_Q_VEL   0.12f //0.15f
 #define POS_EKF_X_Q_BIAS  0.001f
-#define POS_EKF_X_R_MEAS  2.0f//1.0f
+#define POS_EKF_X_R_MEAS  2.0f//1.0f//Overridden by positionEKFSetDymamicPosR() function based on GPS SAcc
 #define POS_EKF_X_GATE    4.0f
 #define POS_EKF_X_PANIC   8
 
 #define POS_EKF_Y_Q_POS   0.006f
 #define POS_EKF_Y_Q_VEL   0.12f //0.15f
 #define POS_EKF_Y_Q_BIAS  0.001f
-#define POS_EKF_Y_R_MEAS  2.0f//1.0f
+#define POS_EKF_Y_R_MEAS  2.0f//1.0f//Overridden by positionEKFSetDymamicPosR() function based on GPS SAcc
 #define POS_EKF_Y_GATE    4.0f
 #define POS_EKF_Y_PANIC   8
 
+/*----------------------------------------- Z Axis ---------------------------------------------*/
 #define POS_EKF_Z_Q_POS   0.00005f
 #define POS_EKF_Z_Q_VEL   0.001f
 #define POS_EKF_Z_Q_BIAS  0.0005f
 #define POS_EKF_Z_R_MEAS  2500.0f
-
 #define POS_EKF_Z_GATE    5.0f
-#define POS_EKF_Z_PANIC   100
+#define POS_EKF_Z_PANIC   10//100
+/// Dynamic R configuration for Z-axis based on vertical velocity and acceleration
+#define POS_Z_DYNAMIC_R_GAIN              2.5f
+#define POS_Z_DYNAMIC_R_SMOOTH_ALPHA      0.4f
+#define POS_Z_DYNAMIC_R_MIN               POS_EKF_Z_R_MEAS
+#define POS_Z_DYNAMIC_R_MAX               7500.0f
+#define POS_Z_DYNAMIC_R_EPS               1e-6f
+#define POS_Z_DYNAMIC_R_SCALE_EPS         1e-3f
+#define POS_Z_RESIDUAL_CLAMP              5.0f
+#define POS_Z_ACC_XY_THRESH               1.2f   // m/s² (forward flight detection)
+#define POS_Z_ACC_Z_THRESH                1.5f   // m/s² (vertical motion)
+
 
 /* --- Numerical Stability Limits --- */
 #define POS_EKF_P_MIN           1e-9f
@@ -89,81 +100,17 @@ typedef struct {
 	uint8_t initialized;                                // Filter operational status
 } POSITION_EKF;
 
-/**
- * @brief Initializes the Position EKF with default parameters.
- * Sets initial state to zero and configures noise matrices.
- * * @param ekf Pointer to the EKF instance to initialize.
- * @return 1 on success, 0 on failure.
- */
 uint8_t positionEKFInit(POSITION_EKF *ekf);
-
 void positionEKFSetMode(POSITION_EKF *ekf, uint8_t stabilize);
-
-/**
- * @brief Prediction Step (Time Update).
- * Integrates Earth-frame acceleration into position and velocity.
- * * @param ekf Pointer to the EKF instance.
- * @param ax Earth-frame X acceleration (m/s^2).
- * @param ay Earth-frame Y acceleration (m/s^2).
- * @param az Earth-frame Z acceleration (m/s^2).
- * @param dt Delta time since last prediction (s).
- */
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt);
-
-/**
- * @brief Vertical Measurement Update.
- * Corrects altitude and vertical velocity using Barometer or ToF data.
- * * @param ekf Pointer to the EKF instance.
- * @param z_meas Measured altitude (m).
- */
 void positionEKFUpdateZMeasure(POSITION_EKF *ekf, float z_meas);
-/**
- *
- */
 void positionEKFUpdateZMeasureWithBias(POSITION_EKF *ekf, float z_meas, float bias);
-
-/**
- * @brief Horizontal Measurement Update.
- * Corrects horizontal position and velocity using GPS or Flow data.
- * * @param ekf Pointer to the EKF instance.
- * @param x_meas Measured X position (m).
- * @param y_meas Measured Y position (m).
- */
 void positionEKFUpdateXYMeasure(POSITION_EKF *ekf, float x_meas, float y_meas);
-
-/**
- * @brief Apply damping to Vertical axis.
- * Useful during landing detection to prevent "bounce" estimates.
- * * @param ekf Pointer to the EKF instance.
- * @param dampingStrength Damping factor (0.1 = Aggressive, 2.0 = Loose).
- */
 void positionEKFUpdateXYVel(POSITION_EKF *ekf, float xVel , float yVel , float dampingStrength);
-
-/**
- * @brief Apply damping to Vertical axis.
- * Useful during landing detection to prevent "bounce" estimates.
- * * @param ekf Pointer to the EKF instance.
- * @param dampingStrength Damping factor (0.1 = Aggressive, 2.0 = Loose).
- */
 void positionEKFUpdateZVel(POSITION_EKF *ekf,float zVel , float dampingStrength);
-
-/**
- * @brief Resets Position and Velocity while preserving learned biases.
- * Call this when GPS is regained or during takeoff to prevent large jumps.
- * * @param ekf Pointer to the EKF instance.
- * @param x_new New X position (usually 0.0f).
- * @param y_new New Y position (usually 0.0f).
- * @param z_new New Z position (usually current baro height).
- */
 void positionEKFReset(POSITION_EKF *ekf, float x_new, float y_new, float z_new);
-
-/**
- * @brief Resets Position and Velocity for a single axis while preserving learned bias.
- */
 void positionEKFResetAxis(POSITION_EKF *ekf, uint8_t axis, float pos_new);
-/**
- *
- */
 void positionEKFSetDymamicPosR(POSITION_EKF *ekf, uint8_t axis, float rValue);
+float positionEKFUpdateZR(POSITION_EKF *ekf, float zMeas, float bias, float ax, float ay, float az) ;
 
 #endif /* SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_ */

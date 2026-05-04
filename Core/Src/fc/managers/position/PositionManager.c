@@ -288,6 +288,12 @@ void updatePositionManagerZPosition(float zPos, float dt) {
 	positionCordinateData.positionZUpdateDt = dt;
 	positionCordinateData.zPositionRaw = zPos;
 	float venturiBias = updateVenturiBiasEstimate(dt);
+
+#if POSITION_MGR_Z_ENABLE_DYNAMIC_R  == 1
+	float dynamicR = positionEKFUpdateZR(&positionEkf, zPos, venturiBias, imuData.axEarthLinear,  imuData.ayEarthLinear,  imuData.azEarthLinear);
+	positionEKFSetDymamicPosR(&positionEkf, POS_EKF_Z_AXIS, dynamicR);
+#endif
+
 	positionEKFUpdateZMeasureWithBias(&positionEkf, zPos, venturiBias);
 }
 

@@ -1,6 +1,12 @@
 #include "PositionEstimator.h"
+
 #include <string.h>
-#include <math.h>
+#include <sys/_stdint.h>
+
+#include "../../../memory/Memory.h"
+#include "../../../util/MathUtil.h"
+
+float positionEKFPrevZR;
 
 /* --- Initialization --- */
 uint8_t positionEKFInit(POSITION_EKF *ekf) {
@@ -29,6 +35,9 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 		ekf->P[i + 2][i + 2] = 1.0f;
 	}
 	ekf->initialized = 0;
+
+	positionEKFPrevZR = POS_EKF_Z_R_MEAS;
+
 	return 1;
 }
 
@@ -44,11 +53,13 @@ void positionEKFSetMode(POSITION_EKF *ekf, uint8_t stabilize) {
 	}
 }
 
+__ATTR_ITCM_TEXT
 void positionEKFSetDymamicPosR(POSITION_EKF *ekf, uint8_t axis, float rValue) {
 	ekf->R[axis] = rValue;
 }
 
 /* --- Prediction Step --- */
+__ATTR_ITCM_TEXT
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt) {
 	float acc[3] = { ax, ay, az };
 	float hdt2 = 0.5f * dt * dt;
@@ -165,7 +176,8 @@ void positionEKFReset(POSITION_EKF *ekf, float x_new, float y_new, float z_new) 
 }
 
 /* --- Axis Update --- */
-static void _axisPositionUpdate(POSITION_EKF *ekf, int axis, float meas) {
+__ATTR_ITCM_TEXT
+void _axisPositionUpdate(POSITION_EKF *ekf, int axis, float meas) {
 	const int i = axis * POS_EKF_AXIS_DIM;
 
 	// Initial vertical alignment
@@ -217,7 +229,8 @@ static void _axisPositionUpdate(POSITION_EKF *ekf, int axis, float meas) {
 	}
 }
 
-static void _axisPositionUpdateWithBias(POSITION_EKF *ekf, int axis, float meas, float bias) {
+__ATTR_ITCM_TEXT
+void _axisPositionUpdateWithBias(POSITION_EKF *ekf, int axis, float meas, float bias) {
 	const int i = axis * POS_EKF_AXIS_DIM;
 
 	// Initial vertical alignment
@@ -272,6 +285,7 @@ static void _axisPositionUpdateWithBias(POSITION_EKF *ekf, int axis, float meas,
 	}
 }
 
+__ATTR_ITCM_TEXT
 void _axisVelocityUpdate(POSITION_EKF *ekf, int axis, float meas_v, float R_v) {
 	const int i = (axis * POS_EKF_AXIS_DIM);
 
@@ -322,17 +336,54 @@ void _axisVelocityUpdate(POSITION_EKF *ekf, int axis, float meas_v, float R_v) {
 	}
 }
 
-/* --- External Update Functions --- */
+
+__ATTR_ITCM_TEXT
+float positionEKFUpdateZR(POSITION_EKF *ekf, float zMeas, float bias, float ax, float ay, float az) {
+	float zPred = ekf->x[6];
+	float residual = zMeas - (zPred + bias);
+	residual = constrainToRangeF(residual, -POS_Z_RESIDUAL_CLAMP,POS_Z_RESIDUAL_CLAMP);
+	float Pzz = ekf->P[6][6];
+	if (Pzz < POS_Z_DYNAMIC_R_EPS) {
+		Pzz = POS_Z_DYNAMIC_R_EPS;
+	}
+	float denom = Pzz + POS_EKF_Z_R_MEAS + POS_Z_DYNAMIC_R_SCALE_EPS;
+	if (denom < 1e-3f) {
+		denom = 1e-3f;
+	}
+	float scale = 1.0f / denom;
+	float residualTerm = POS_Z_DYNAMIC_R_GAIN * residual * residual * scale;
+	float accXY = fabsf(ax) + fabsf(ay);
+	float accZ = fabsf(az);
+	float accXYScale = constrainToRangeF(accXY / POS_Z_ACC_XY_THRESH, 0.0f, 1.0f);
+	float accZScale = constrainToRangeF(accZ / POS_Z_ACC_Z_THRESH, 0.0f, 1.0f);
+	float motionScale = constrainToRangeF(accXYScale + accZScale, 0.0f, 1.0f);
+	float dynamicR;
+	if (motionScale > 0.15f) {
+		dynamicR = POS_Z_DYNAMIC_R_MAX;
+	} else {
+		dynamicR = POS_EKF_Z_R_MEAS + residualTerm;
+	}
+	dynamicR = constrainToRangeF(dynamicR,	POS_Z_DYNAMIC_R_MIN,	POS_Z_DYNAMIC_R_MAX);
+	dynamicR = positionEKFPrevZR +	POS_Z_DYNAMIC_R_SMOOTH_ALPHA * (dynamicR - positionEKFPrevZR);
+	positionEKFPrevZR = dynamicR;
+	return dynamicR;
+}
+
+
+
+__ATTR_ITCM_TEXT
 void positionEKFUpdateZMeasure(POSITION_EKF *ekf, float z_meas) {
 	_axisPositionUpdate(ekf, POS_EKF_Z_AXIS, z_meas);
 	ekf->initialized = 1;
 }
 
+__ATTR_ITCM_TEXT
 void positionEKFUpdateZMeasureWithBias(POSITION_EKF *ekf, float z_meas, float bias) {
 	_axisPositionUpdateWithBias(ekf, POS_EKF_Z_AXIS, z_meas, bias);
 	ekf->initialized = 1;
 }
 
+__ATTR_ITCM_TEXT
 void positionEKFUpdateXYMeasure(POSITION_EKF *ekf, float x_meas, float y_meas) {
 	_axisPositionUpdate(ekf, POS_EKF_X_AXIS, x_meas);
 	_axisPositionUpdate(ekf, POS_EKF_Y_AXIS, y_meas);
@@ -342,6 +393,7 @@ void positionEKFUpdateXYMeasure(POSITION_EKF *ekf, float x_meas, float y_meas) {
  * @brief Apply damping to Horizontal axes only.
  * Call this when GPS is lost or sticks are centered.
  */
+__ATTR_ITCM_TEXT
 void positionEKFUpdateXYVel(POSITION_EKF *ekf, float xVel, float yVel, float dampingStrength) {
 	// damping_strength: 0.1 (Aggressive) to 2.0 (Loose/Soft)
 	_axisVelocityUpdate(ekf, POS_EKF_X_AXIS, xVel, dampingStrength);
