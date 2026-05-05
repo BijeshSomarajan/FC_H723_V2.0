@@ -9,7 +9,6 @@
 #include "../Pid.h"
 #include "../../FCConfig.h"
 
-
 PID altPID;
 PID altRatePID;
 PID altAccPID;
@@ -92,7 +91,6 @@ void resetAltitudeControl(uint8_t hard) {
 	pidResetI(&altAccPID);
 }
 
-
 void setAltitudeRIControl(float value) {
 	altRatePID.i = constrainToRangeF(value, -altRateILimit, altRateILimit);
 }
@@ -111,6 +109,30 @@ void resetAltitudeMasterControl() {
 	pidResetI(&altPID);
 }
 
+__ATTR_ITCM_TEXT
+void controlAltitudeAltWithGains(float dt, float expectedAltitude, float currentAltitude, ALTITUDE_CONTROL_GAINS altControlGains) {
+	pidUpdateWithGains(&altPID, currentAltitude, expectedAltitude, dt, altControlGains.masterPGain, 0.0f, 0.0f);
+}
+
+__ATTR_ITCM_TEXT
+void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
+	pidUpdateWithGains(&altRatePID, positionCordinateData.zVelocity, altPID.pid, dt, altControlGains.ratePGain, altControlGains.rateIGain, altControlGains.rateDGain);
+
+}
+
+__ATTR_ITCM_TEXT
+void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
+	if (altControlAccEnabled == 1) {
+		pidUpdateWithGains(&altAccPID, positionCordinateData.zAcceleration, altRatePID.pid, dt, altControlGains.accPGain, 0.0f, altControlGains.accDGain);
+		controlData.altitudeControl = altAccPID.pid;
+	} else {
+		controlData.altitudeControl = altRatePID.pid;
+	}
+#if DISABLE_ALT_CONTROL_FOR_DEBUG == 1
+	controlData.altitudeControl = 0;
+#endif
+	controlData.altitudeControlDt = dt;
+}
 
 __ATTR_ITCM_TEXT
 void controlAltitudeWithGains(float dt, float expectedAltitude, float currentAltitude, ALTITUDE_CONTROL_GAINS altControlGains) {

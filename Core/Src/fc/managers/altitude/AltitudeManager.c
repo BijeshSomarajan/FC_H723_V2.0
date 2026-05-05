@@ -43,6 +43,10 @@ float altMgrCurrentThrottleRate = 0;
 float altMgrCurrentThrottleRateGain = 1.0f;
 float altMgrPreviousThrottle = 0.0f;
 
+float altMgrAccDtAccumulation = 0.0f;
+float altMgrVelDtAccumulation = 0.0f;
+float altMgrAltDtAccumulation = 0.0f;
+
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
 
@@ -204,11 +208,30 @@ void manageAltitude(float dt) {
 	}
 	manageAltControlSettings(dt);
 	if (fcStatusData.isFlying) {
-		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, getClampedCurrentAltitude(), altControlGains);
+		altMgrAccDtAccumulation += dt;
+		altMgrVelDtAccumulation += dt;
+		altMgrAltDtAccumulation += dt;
+		while ( altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD || altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD || altMgrAccDtAccumulation >= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD ) {
+			if (altMgrAccDtAccumulation >= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD) {
+				controlAltitudeAccWithGains(ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD, altControlGains);
+				altMgrAccDtAccumulation -= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD;
+			}
+			if (altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD) {
+				controlAltitudeVelWithGains(ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD, altControlGains);
+				altMgrVelDtAccumulation -= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD;
+			}
+			if (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD) {
+				controlAltitudeAltWithGains(ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD, fcStatusData.altitudeSLRef, getClampedCurrentAltitude(), altControlGains);
+				altMgrAltDtAccumulation -= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD;
+			}
+		}
 	} else {
 		updateAltitudeReferences();
 		resetAltitudeControl(1);
 		controlData.tiltCompThDelta = 0;
+		altMgrAccDtAccumulation = 0;
+		altMgrVelDtAccumulation = 0;
+		altMgrAltDtAccumulation = 0;
 	}
 	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta;
 	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
