@@ -47,6 +47,8 @@ float altMgrAccDtAccumulation = 0.0f;
 float altMgrVelDtAccumulation = 0.0f;
 float altMgrAltDtAccumulation = 0.0f;
 
+float altMgrCurrentTiltCompThDelta = 0.0f;
+
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
 
@@ -193,6 +195,40 @@ float getClampedCurrentAltitude() {
 }
 
 __ATTR_ITCM_TEXT
+void calculateTiltCompThrottle(float dt) {
+	float target = 0.0f;
+	// --- Get attitude ---
+	float pitch = sensorAttitudeData.pitch;   // degrees
+	float roll = sensorAttitudeData.roll;    // degrees
+	// --- Convert to radians ---
+	float pitchRad = convertDegToRadF(pitch);
+	float rollRad = convertDegToRadF(roll);
+	// --- Compute lift component ---
+	float cosP = cosApproxF(pitchRad);
+	float cosR = cosApproxF(rollRad);
+	float liftComponent = cosP * cosR;
+	// --- Clamp tilt effect using max tilt angle ---
+	float minComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_TH_MAX_ANGLE));
+	liftComponent = fmaxf(liftComponent, minComponent);
+	// --- Apply only if meaningful tilt ---
+	if (liftComponent < 0.999f) {
+		// % thrust loss due to tilt
+		float tiltCompFactor = (1.0f / liftComponent) - 1.0f;
+		// Convert hover throttle (0–1) → throttle units
+		float hoverThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
+		// --- Final compensation ---
+		target = hoverThrottle * tiltCompFactor;
+		// --- Safety clamp (throttle units) ---
+		target = fminf(target, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
+	}
+	// --- Smooth response (your original logic retained) ---
+	float activeTau = (target > altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
+	float alpha = dt / (activeTau + dt);
+	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
+	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
+}
+
+__ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
 	if (!rcData.throttleCentered) {
 		handleThrottleChange(dt);
@@ -225,6 +261,7 @@ void manageAltitude(float dt) {
 				altMgrAltDtAccumulation -= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD;
 			}
 		}
+		calculateTiltCompThrottle(dt);
 	} else {
 		updateAltitudeReferences();
 		resetAltitudeControl(1);

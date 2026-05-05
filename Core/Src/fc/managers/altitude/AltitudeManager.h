@@ -37,10 +37,9 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_TH_MAX_ANGLE 45.0f
 
 //Tilt compensation common settings
-#define ALT_MGR_TILT_COMP_TH_ADJUST_GAIN 500.0f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.1f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.5f
-#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT 60.0f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.5f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.15f
+#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT 100.0f
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.
