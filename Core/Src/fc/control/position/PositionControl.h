@@ -7,12 +7,30 @@
 #define POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO 1.0f
 #define POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO 1.0f
 #define POSITION_CONTROL_RATE_VEL_MAX 10.0f
-#define POSITION_CONTROL_USE_VEL_INTERPOLATION 0
 
+/*------ FF Configurations -----*/
+#define POSITION_CONTROL_VEL_FEED_FWD_ENABLED 1
+#define POSITION_CONTROL_VEL_FEED_FWD_GAIN  0.2f
+/*------ Disturbance Estimations -----*/
+#define POSITION_CONTROL_DIST_EST_ENABLED   1
+#define POSITION_CONTROL_DIST_EST_ACC_TAU   0.2f//0.5f
+#define POSITION_CONTROL_DIST_EST_VEL_TAU   1.5f
+#define POSITION_CONTROL_DIST_EST_ACC_GAIN  0.3f //0.15f
+#define POSITION_CONTROL_DIST_EST_VEL_GAIN  0.2f//0.10f
+
+#define POSITION_CONTROL_DIST_EST_ACC_LIMIT   5.0f
+#define POSITION_CONTROL_DIST_EST_STATE_LIMIT  5.0f
+
+//For radians
+//#define POSITION_CONTROL_DIST_EST_ACCEL_MODEL_K        9.81f
+//#define POSITION_CONTROL_DIST_EST_TOTAL_OUTPUT_LIMIT   0.174f
+//For degrees
+#define POSITION_CONTROL_DIST_EST_ACCEL_MODEL_K        0.1712f
+#define POSITION_CONTROL_DIST_EST_TOTAL_OUTPUT_LIMIT   15.0f //10.0f
 
 uint8_t initPositionControl(float masterControlFrequency, float rateControlFrequency);
 void resetPositionControl(uint8_t hard);
-void controlPositionWithGains(float dt, float expectedX, float expectedY, float masterPGain, float ratePGain, float rateIGain, float rateDGain);
+
 void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, float rateDGain);
 void controlPositionCordinatesWithGains(float dt, float expectedX, float expectedY, float masterPGain);
 
