@@ -175,7 +175,6 @@ void updatePositionCordinateCommand(float dt) {
 		}
 		break;
 	case POS_MGR_LOCKED:
-
 		controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
 		break;
 	}
