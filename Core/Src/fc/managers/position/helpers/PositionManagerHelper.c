@@ -9,6 +9,7 @@
 
 float posManagerGNSSStableTime = 0;
 
+__ATTR_ITCM_TEXT
 void updatePositionDataReliability(float dt) {
 	// 1. Basic threshold check
 	uint8_t valid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
@@ -34,11 +35,12 @@ void updatePositionDataReliability(float dt) {
 	}
 }
 
+__ATTR_ITCM_TEXT
 // WGS84 Earth radius (meters)
 void convertGNSSToSICordinates(double latDeg, double lonDeg, double latRefDeg, double lonRefDeg, float *x, float *y) {
 	// Convert to radians
-	double latRad    = convertDegToRad(latDeg);
-	double lonRad    = convertDegToRad(lonDeg);
+	double latRad = convertDegToRad(latDeg);
+	double lonRad = convertDegToRad(lonDeg);
 	double latRefRad = convertDegToRad(latRefDeg);
 	double lonRefRad = convertDegToRad(lonRefDeg);
 	// Differences
@@ -53,12 +55,22 @@ void convertGNSSToSICordinates(double latDeg, double lonDeg, double latRefDeg, d
 	*y = (float) (dLon * POSITION_GNSS_EARTH_RADIUS_METERS * cos(meanLat));
 }
 
+__ATTR_ITCM_TEXT
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody) {
 	//heading = 0;
-	float headingRad      = convertDegToRadF(heading);
+	float headingRad = convertDegToRadF(heading);
 	float headingCosValue = cosApproxF(headingRad);
 	float headingSinValue = sinApproxF(headingRad);
 
-	*xBody = ( xEarth * headingCosValue) + (yEarth * headingSinValue);
+	*xBody = (xEarth * headingCosValue) + (yEarth * headingSinValue);
 	*yBody = (-xEarth * headingSinValue) + (yEarth * headingCosValue);
 }
+
+__ATTR_ITCM_TEXT
+float getGroundSpeed(void) {
+    float vx = positionCordinateData.xVelocity;
+    float vy = positionCordinateData.yVelocity;
+    return fastSqrtf((vx * vx) + (vy * vy));
+}
+
+

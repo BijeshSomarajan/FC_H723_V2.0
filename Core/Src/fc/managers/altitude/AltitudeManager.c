@@ -217,13 +217,14 @@ void calculateTiltCompThrottle(float dt) {
 		// Convert hover throttle (0–1) → throttle units
 		float hoverThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
 		// --- Final compensation ---
-		target = hoverThrottle * tiltCompFactor;
+		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_TH_GAIN;
 		// --- Safety clamp (throttle units) ---
 		target = fminf(target, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
 	}
 	// --- Smooth response (your original logic retained) ---
-	float activeTau = (target > altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
+	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
 	float alpha = dt / (activeTau + dt);
+	target = constrainToRangeF(target, 0, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
 	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
@@ -261,7 +262,13 @@ void manageAltitude(float dt) {
 				altMgrAltDtAccumulation -= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD;
 			}
 		}
+
+#if ALT_MGR_TILT_COMP_ENABLED ==1
 		calculateTiltCompThrottle(dt);
+#else
+		controlData.tiltCompThDelta = 0;
+#endif
+
 	} else {
 		updateAltitudeReferences();
 		resetAltitudeControl(1);

@@ -193,12 +193,23 @@ void debugPositionAlign(float dt) {
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
+void debugTilt() {
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.roll;
+	DEBUG_DATA_BUFFER[2] = controlData.tiltCompThDelta ;
+	DEBUG_DATA_BUFFER[3] = controlData.throttleControl * 10;
+	DEBUG_DATA_BUFFER[4] = controlData.pitchControl;
+	DEBUG_DATA_BUFFER[5] = controlData.rollControl;
+	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+}
+
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
 		return;
 	}
 	float dt = 0.001f;	//getDeltaTime(DEBUG_TIMER_CHANNEL);
-	debugPositionAlign(dt);
+	debugTilt();
+	//debugPositionAlign(dt);
 	//debugPosition(dt);
 	//debugAltThrottle(dt);
 	//debugGPS();
