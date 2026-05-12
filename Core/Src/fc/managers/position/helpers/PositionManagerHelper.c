@@ -66,11 +66,3 @@ void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, flo
 	*yBody = (-xEarth * headingSinValue) + (yEarth * headingCosValue);
 }
 
-__ATTR_ITCM_TEXT
-float getGroundSpeed(void) {
-    float vx = positionCordinateData.xVelocity;
-    float vy = positionCordinateData.yVelocity;
-    return fastSqrtf((vx * vx) + (vy * vy));
-}
-
-

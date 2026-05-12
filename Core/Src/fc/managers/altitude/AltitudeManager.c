@@ -133,22 +133,6 @@ void manageAltControlSettings(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void handleThrottleChangeOld(float dt) {
-	float gain = rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX] * ALT_MGR_ALT_AGGREGATION_GAIN * dt;
-	if (altMgrWasThrottleCentered != 0) {
-		fcStatusData.currentThrottle = altMgrThrottleControlLPF.output;
-	}
-	fcStatusData.currentThrottle += gain;
-	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
-	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
-	if (fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
-		fcStatusData.isFlying = 1;
-	} else {
-		fcStatusData.isFlying = 0;
-	}
-}
-
-__ATTR_ITCM_TEXT
 void handleThrottleChange(float dt) {
 	float currentStick = rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX];
 	float gain = currentStick * ALT_MGR_ALT_AGGREGATION_GAIN * dt;
@@ -175,7 +159,11 @@ void handleThrottleChange(float dt) {
 	fcStatusData.currentThrottle = nextThrottle;
 	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
-	fcStatusData.isFlying = (fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent);
+
+	if (!fcStatusData.isFlying &&   fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
+	    fcStatusData.isFlying = 1;
+	}
+
 	altMgrPreviousThrottle = fcStatusData.currentThrottle;
 }
 

@@ -15,7 +15,6 @@
 #include "../../timers/Scheduler.h"
 #include "../config/ConfigHelper.h"
 #include "../../FCConfig.h"
-#include "../output/OutputManager.h"
 #include "../../dsp/BiQuadFilter.h"
 #include "../../dsp/FFT.h"
 #include "../../sensors/attitude/noisefilter/AdaptiveNotchFilter.h"
@@ -26,6 +25,7 @@
 #include "../../sensors/position/GNSS.h"
 #include "../../util/MathUtil.h"
 #include "../../util/CommonUtil.h"
+#include "../motor/MotorManager.h"
 
 int32_t DEBUG_DATA_BUFFER[8];
 extern LOWPASSFILTER thControlRefLPF;
@@ -34,7 +34,7 @@ extern uint8_t altControlAccEnabled;
 void debugTask(void);
 
 uint8_t initDebugManager(void) {
-	schedulerAddTask(debugTask, DEBUG_FREQUENCY, DEBUG_TASK_PRIORITY);
+	schedulerAddTask(debugTask, DEBUG_TASK_FREQUENCY, DEBUG_TASK_PRIORITY);
 	return 1;
 }
 

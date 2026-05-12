@@ -99,6 +99,7 @@ typedef struct {
 	uint8_t rejectCount[POS_EKF_SPACE_DIM];             // Current rejection counters
 
 	uint8_t initialized;                                // Filter operational status
+	float innovation[POS_EKF_SPACE_DIM];
 } POSITION_EKF;
 
 uint8_t positionEKFInit(POSITION_EKF *ekf);

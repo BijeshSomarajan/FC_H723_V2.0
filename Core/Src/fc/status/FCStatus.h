@@ -17,6 +17,7 @@ struct _FC_STATUS_DATA {
 	uint8_t isLandingModeActive, isLandingModeActiveAfterRTH, isFailSafeLandingMode;
 	//Flight debug status enabled
 	uint8_t isDebugEnabled;
+	uint8_t isOSDEnabled;
 
 	//The position references
 	double positionXRef, positionYRef;
