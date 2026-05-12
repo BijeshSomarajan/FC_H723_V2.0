@@ -30,6 +30,7 @@ POSITION_COMMAND_DATA positionCommandData;
 
 float postionMgrRateDtSum, postionMgrPositionDtSum;
 float positionMgrPosHoldElapseDtSum;
+float positionMgrPosHoldRatePIDGain;
 
 void managePositionTask(void);
 
@@ -83,7 +84,7 @@ void upadatePositionVelocity(float vx, float vy, float vz, float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void upadatePositionAcceleration(float ax, float ay, float az, float dt) {
+void updatePositionAcceleration(float ax, float ay, float az, float dt) {
 	float acc;
 	// X Axis
 	acc = applyDeadBandFloat(0.0f, ax, POSITION_MGR_X_ACC_DEADBAND);
@@ -123,7 +124,20 @@ __ATTR_ITCM_TEXT
 void updatePositionRateCommand(float dt) {
 	if (fcStatusData.isPositionHoldModeActive && fcStatusData.isPositionDataReliable) {
 		if ((fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) && fcStatusData.isPositionRefSet) {
-			controlPositionRateWithGains(dt, 1.0f, 1.0f, 1.0f);
+
+			if (fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING) {
+				positionMgrPosHoldRatePIDGain = POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
+				// During braking, we want more aggressive control to quickly reduce velocity
+			} else {
+				// Once locked, we can reduce the gains for smoother control
+				positionMgrPosHoldRatePIDGain -= (dt * POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN_DECAY_RATE);
+				if (positionMgrPosHoldRatePIDGain < 1.0f) {
+					positionMgrPosHoldRatePIDGain = 1.0f;
+				}
+			}
+
+			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f);
+
 			float pitchCommand, rollCommand;
 			float positionXControl = controlData.positionXControl;
 			float positionYControl = controlData.positionYControl;
@@ -139,11 +153,30 @@ void updatePositionRateCommand(float dt) {
 			positionCommandData.pitchCommand = constrainToRangeF(pitchCommand, -maxLimit, maxLimit);
 			positionCommandData.rollCommand = constrainToRangeF(rollCommand, -maxLimit, maxLimit);
 		} else {
+			positionMgrPosHoldRatePIDGain = 1.0f;
 			resetPositionCommands();
 		}
 	} else {
-		fcStatusData.isPositionRefSet = 0;
+		positionMgrPosHoldRatePIDGain = 1.0f;
 		resetPositionCommands();
+	}
+}
+
+__ATTR_ITCM_TEXT
+void estimatePositionRef() {
+	if (fcStatusData.canFly && fcStatusData.isPositionDataReliable && fcStatusData.isPositionHomeSet) {
+		fcStatusData.positionXRef = positionCordinateData.xPosition + (positionCordinateData.xVelocity * POSITION_MGR_POS_HOLD_BRAKE_REF_EST_VELOCITY_GAIN);
+		fcStatusData.positionYRef = positionCordinateData.yPosition + (positionCordinateData.yVelocity * POSITION_MGR_POS_HOLD_BRAKE_REF_EST_VELOCITY_GAIN);
+		fcStatusData.isPositionRefSet = 1;
+	}
+}
+
+__ATTR_ITCM_TEXT
+void updateDriftPositionRef(float gain,float dt) {
+	if (fcStatusData.canFly && fcStatusData.isPositionDataReliable && fcStatusData.isPositionHomeSet) {
+		fcStatusData.positionXRef = fcStatusData.positionXRef + (positionCordinateData.xVelocity * gain * dt);
+		fcStatusData.positionYRef = fcStatusData.positionYRef + (positionCordinateData.yVelocity * gain * dt);
+		fcStatusData.isPositionRefSet = 1;
 	}
 }
 
@@ -158,23 +191,28 @@ void updatePositionCordinateCommand(float dt) {
 	}
 	switch (fcStatusData.postionHoldState) {
 	case POS_HOLD_STATE_IDLE:
-		// Capture hold point exactly at stick release
-		fcStatusData.positionXRef = (positionCordinateData.xPositionRaw * POSITION_MGR_X_POS_OUTPUT_GAIN);
-		fcStatusData.positionYRef = (positionCordinateData.yPositionRaw * POSITION_MGR_Y_POS_OUTPUT_GAIN);
-		fcStatusData.isPositionRefSet = 1;
+		estimatePositionRef();
 		fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
 		positionMgrPosHoldElapseDtSum = 0.0f;
 		break;
 	case POS_HOLD_STATE_BRAKING:
 		positionMgrPosHoldElapseDtSum += dt;
-		// Time-domain braking model: Stronger braking for shorter desired stopping time
-		float brakeStrength = (POSITION_MGR_POS_HOLD_BRAKE_GAIN / POSITION_MGR_POS_HOLD_ELAPSE_TIME);
+		float progress = constrainToRangeF(positionMgrPosHoldElapseDtSum / POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD, 0.0f, 1.0f);
+
+		float brakeStrength = POSITION_MGR_POS_HOLD_BRAKE_STRENGTH * (1.0f - progress);
+
 		float vxCmd = (-positionCordinateData.xVelocity * brakeStrength);
 		float vyCmd = (-positionCordinateData.yVelocity * brakeStrength);
-		vxCmd = constrainToRangeF(vxCmd, -POSITION_MGR_POS_HOLD_MAX_VELOCITY, POSITION_MGR_POS_HOLD_MAX_VELOCITY) ;
-		vyCmd = constrainToRangeF(vyCmd, -POSITION_MGR_POS_HOLD_MAX_VELOCITY, POSITION_MGR_POS_HOLD_MAX_VELOCITY) ;
+		vxCmd = constrainToRangeF(vxCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+		vyCmd = constrainToRangeF(vyCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
 		setExpectedPositionVelocity(dt, vxCmd, vyCmd);
-		if (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_ELAPSE_TIME) {
+
+		float driftGain =  POSITION_MGR_POS_HOLD_BRAKE_REF_DRIFT_VELOCITY_GAIN *   (1.0f - progress);
+		updateDriftPositionRef(driftGain,dt);
+
+		uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED);
+		uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
+		if (lowGroundSpeed || timeoutReached) {
 			fcStatusData.postionHoldState = POS_HOLD_STATE_LOCKED;
 			positionMgrPosHoldElapseDtSum = 0.0f;
 		}
@@ -211,7 +249,7 @@ void managePositionTask(void) {
 	positionCordinateData.zAccelerationBias = x[8]; // Z Bias
 
 	// 2. Filtered Acceleration
-	upadatePositionAcceleration(axEarth - positionCordinateData.xAccelerationBias, ayEarth - positionCordinateData.yAccelerationBias, azEarth - positionCordinateData.zAccelerationBias, dt);
+	updatePositionAcceleration(axEarth - positionCordinateData.xAccelerationBias, ayEarth - positionCordinateData.yAccelerationBias, azEarth - positionCordinateData.zAccelerationBias, dt);
 
 	// 3. Filtered Velocity
 	upadatePositionVelocity(x[1], x[4], x[7], dt);
@@ -312,6 +350,7 @@ void resetPositionManager(void) {
 	fcStatusData.isPositionRefSet = 0;
 	fcStatusData.isPositionHomeSet = 0;
 	positionMgrPosHoldElapseDtSum = 0;
+	positionMgrPosHoldRatePIDGain = 1.0f;
 	fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 }
 

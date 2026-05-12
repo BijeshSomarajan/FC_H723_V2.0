@@ -15,5 +15,6 @@
 void updatePositionDataReliability(float dt);
 void convertGNSSToSICordinates( double latDeg, double longDeg, double latRef, double longRef, float *xCordinate, float *yCordinate);
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody);
+float getGroundSpeed(void) ;
 
 #endif /* SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_ */
