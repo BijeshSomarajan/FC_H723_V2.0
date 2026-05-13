@@ -39,9 +39,9 @@ void resetAltitudeManager(void);
 //Tilt compensation common settings
 #define ALT_MGR_TILT_COMP_ENABLED 1
 #define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.01f //Lower = faster response when tilting up
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.08f  //Higher = slower response when tilting back to hover
-#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT   100.0f
-#define ALT_MGR_TILT_COMP_TH_GAIN 2.0f
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.1f  //Higher = slower response when tilting back to hover
+#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT   120.0f
+#define ALT_MGR_TILT_COMP_TH_GAIN 2.5f
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.

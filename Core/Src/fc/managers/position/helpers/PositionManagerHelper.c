@@ -12,7 +12,7 @@ float posManagerGNSSStableTime = 0;
 __ATTR_ITCM_TEXT
 void updatePositionDataReliability(float dt) {
 	// 1. Basic threshold check
-	uint8_t valid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
+	uint8_t valid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.sAcc <= POSITION_GNSS_MIN_SACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
 	if (valid) {
 		posManagerGNSSStableTime += dt;
 	} else {
@@ -68,9 +68,8 @@ void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, flo
 
 __ATTR_ITCM_TEXT
 float getGroundSpeed(void) {
-    float vx = positionCordinateData.xVelocity;
-    float vy = positionCordinateData.yVelocity;
-    return fastSqrtf((vx * vx) + (vy * vy));
+	float vx = positionCordinateData.xVelocity;
+	float vy = positionCordinateData.yVelocity;
+	return fastSqrtf((vx * vx) + (vy * vy));
 }
-
 
