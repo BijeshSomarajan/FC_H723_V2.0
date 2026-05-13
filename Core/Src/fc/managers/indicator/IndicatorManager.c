@@ -5,8 +5,8 @@
 #include "../../status/FCStatus.h"
 
 #define ERROR_CRASH_THRESHOLD 4
-#define ERROR_TX_INACTIVE_THRESHOLD 16
-#define ERROR_POSITION_DATA_RELIABLE_THRESHOLD 20
+#define ERROR_TX_INACTIVE_THRESHOLD 30
+#define ERROR_POSITION_DATA_RELIABLE_THRESHOLD 15
 
 #define PROCESSING_CONFIG_THRESHOLD 2
 #define PROCESSING_STABILIZATION_THRESHOLD 4
@@ -47,6 +47,16 @@ uint8_t needIndicatorStateChange(uint16_t indicatorThreshold) {
 	return 0;
 }
 
+void checkPositionIndication() {
+	if (fcStatusData.isPositionDataReliable) {
+		if (needIndicatorStateChange(ERROR_POSITION_DATA_RELIABLE_THRESHOLD)) {
+			errorIndicatorBlink();
+		}
+	} else {
+		errorIndicatorOff();
+	}
+}
+
 void updateIndictors() {
 	if (!fcStatusData.hasInitialized) {
 		errorIndicatorOn();
@@ -66,21 +76,16 @@ void updateIndictors() {
 		if (needIndicatorStateChange(ERROR_TX_INACTIVE_THRESHOLD)) {
 			errorIndicatorBlink();
 		}
-	} else if (fcStatusData.isPositionDataReliable) {
-		if (needIndicatorStateChange(ERROR_POSITION_DATA_RELIABLE_THRESHOLD)) {
-			errorIndicatorBlink();
-		}
-		processingIndicatorOn();
 	} else if (fcStatusData.canFly) {
-		errorIndicatorOff();
+		checkPositionIndication();
 		processingIndicatorOn();
 	} else if (fcStatusData.canStabilize) {
-		errorIndicatorOff();
+		checkPositionIndication();
 		if (needIndicatorStateChange(PROCESSING_STABILIZATION_THRESHOLD)) {
 			processingIndicatorBlink();
 		}
 	} else if (fcStatusData.canStart) {
-		errorIndicatorOff();
+		checkPositionIndication();
 		if (needIndicatorStateChange(PROCESSING_RC_START_WAITING_THRESHOLD)) {
 			processingIndicatorBlink();
 		}

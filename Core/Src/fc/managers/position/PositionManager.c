@@ -208,6 +208,7 @@ void updatePositionCordinateCommand(float dt) {
 		uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED);
 		uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
 		if (lowGroundSpeed || timeoutReached) {
+
 			// Small reverse stabilization impulse
 			float nudgeGain = POSITION_MGR_POS_HOLD_SETTLE_NUDGE_GAIN;
 			float reverseVX = -positionCordinateData.xVelocity * nudgeGain;
@@ -215,7 +216,7 @@ void updatePositionCordinateCommand(float dt) {
 			reverseVX = constrainToRangeF(reverseVX, -POSITION_MGR_POS_HOLD_SETTLE_MAX_VEL, POSITION_MGR_POS_HOLD_SETTLE_MAX_VEL);
 			reverseVY = constrainToRangeF(reverseVY, -POSITION_MGR_POS_HOLD_SETTLE_MAX_VEL, POSITION_MGR_POS_HOLD_SETTLE_MAX_VEL);
 			setExpectedPositionVelocity(dt, reverseVX, reverseVY);
-			//resetPositionCommands();
+
 			updatePositionReference();
 			fcStatusData.postionHoldState = POS_HOLD_STATE_SETTLING;
 			positionMgrPosHoldElapseDtSum = 0.0f;

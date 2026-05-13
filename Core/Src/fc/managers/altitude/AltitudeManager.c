@@ -46,6 +46,7 @@ float altMgrPreviousThrottle = 0.0f;
 float altMgrAccDtAccumulation = 0.0f;
 float altMgrVelDtAccumulation = 0.0f;
 float altMgrAltDtAccumulation = 0.0f;
+float altMgrLowThDtAccumulation = 0.0f;
 
 float altMgrCurrentTiltCompThDelta = 0.0f;
 
@@ -156,12 +157,22 @@ void handleThrottleChange(float dt) {
 			nextThrottle = altMgrPreviousThrottle;
 		}
 	}
+
 	fcStatusData.currentThrottle = nextThrottle;
 	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
 
-	if (!fcStatusData.isFlying &&   fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
-	    fcStatusData.isFlying = 1;
+	if (!fcStatusData.isFlying && fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
+		fcStatusData.isFlying = 1;
+		altMgrLowThDtAccumulation = 0;
+	} else if (fcStatusData.isFlying && fminf(fcStatusData.throttleControlPercent, fcStatusData.throttlePercent) < (fcStatusData.liftOffThrottlePercent * 0.25f)) {
+		if (altMgrLowThDtAccumulation >= ALT_MGR_THROTTLE_THRESHOLD_PERIOD) {
+			fcStatusData.isFlying = 0;
+		} else {
+			altMgrLowThDtAccumulation += dt;
+		}
+	} else {
+		altMgrLowThDtAccumulation = 0;
 	}
 
 	altMgrPreviousThrottle = fcStatusData.currentThrottle;
@@ -267,6 +278,7 @@ void manageAltitude(float dt) {
 	}
 	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta;
 	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
+	fcStatusData.throttleControlPercent = controlData.throttleControl / MAX_PERMISSIBLE_THROTTLE_DELTA;
 	altMgrPreviousCurrentThrottle = fcStatusData.currentThrottle;
 	lowPassFilterUpdate(&altMgrThrottleControlLPF, controlData.throttleControl, dt);
 }
@@ -284,6 +296,7 @@ void resetAltMgrStates() {
 	altControlGains.rateDGain = 1.0f;
 	altControlGains.accPGain = 1.0f;
 	altControlGains.accDGain = 1.0f;
+	fcStatusData.throttleControlPercent = 0;
 
 	altMgrWasThrottleCentered = 0;
 	altMgrPreviousThrottleControl = 0;
@@ -292,6 +305,7 @@ void resetAltMgrStates() {
 	altMgrCurrentThrottleDelta = 0;
 	altMgrCurrentThrottleRateGain = 1.0f;
 	altMgrPreviousThrottle = 0.0f;
+	altMgrLowThDtAccumulation = 0;
 
 	lowPassFilterReset(&altMgrThrottleControlLPF);
 }

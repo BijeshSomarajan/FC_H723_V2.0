@@ -37,6 +37,7 @@ struct _FC_STATUS_DATA {
 	//Throttle reference values
 	float currentThrottle;
 	float throttlePercent;
+	float throttleControlPercent;
 	float liftOffThrottlePercent;
 
 	//The config mode

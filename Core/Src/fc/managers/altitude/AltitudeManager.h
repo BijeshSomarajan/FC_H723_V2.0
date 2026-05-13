@@ -55,6 +55,8 @@ void resetAltitudeManager(void);
 // Higher = more aggressive PID ducking on fast moves
 #define ALT_MGR_THROTTLE_RATE_ATTENUATION_GAIN 0.80f
 
+#define ALT_MGR_THROTTLE_THRESHOLD_PERIOD 0.80f
+
 /*
  * If the drone feels "mushy" for too long after centering: Reduce MP_TAU to 0.3s. This will make the drone "snap" into hover faster.
  * If the drone "bobs" up and down when you stop a climb: Increase RI_TAU to 1.2s.
