@@ -27,6 +27,6 @@ extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
 uint8_t deviceBaroInit(void);
 uint8_t deviceBaroRead(void);
 uint8_t deviceBaroLoadData(void);
-uint8_t deviceBaroReset(void);
+uint8_t deviceBaroReset(uint8_t hard);
 
 #endif

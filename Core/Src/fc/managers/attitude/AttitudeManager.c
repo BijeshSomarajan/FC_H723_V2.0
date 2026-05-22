@@ -134,7 +134,7 @@ void checkForCrash() {
 }
 
 __ATTR_ITCM_TEXT
-void handleAttitudeSensorUpdates() {
+void doAttitudeManagement() {
 	if (!fcStatusData.isConfigMode) {
 		if (fcStatusData.canStabilize) {
 			fcStatusData.headingHomeRef = sensorAttitudeData.heading;
@@ -167,11 +167,6 @@ void handleAttitudeSensorUpdates() {
 			resetAttitudeManager();
 		}
 	}
-}
-
-__ATTR_ITCM_TEXT
-void doAttitudeManagement() {
-	handleAttitudeSensorUpdates();
 }
 
 uint8_t initAttitudeManager() {

@@ -42,18 +42,7 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 }
 
 void positionEKFSetMode(POSITION_EKF *ekf, uint8_t stabilize) {
-	/*
-	 if (stabilize) {
-	 for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
-	 ekf->R[axis] = ekf->R[axis] / 10.0f;
-	 }
-	 } else {
-	 for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
-	 ekf->R[axis] = ekf->R[axis] * 10.0f;
-	 }
-	 }
-	 */
-	const float baseR[3] = { POS_EKF_X_R_MEAS, POS_EKF_Y_R_MEAS, POS_EKF_Z_R_MEAS };
+	float baseR[3] = { POS_EKF_X_R_MEAS, POS_EKF_Y_R_MEAS, POS_EKF_Z_R_MEAS };
 	for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
 		ekf->R[axis] = stabilize ? (baseR[axis] * 0.1f) : baseR[axis];
 	}
@@ -135,54 +124,6 @@ void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float d
 				if (ekf->P[r][r] < POS_EKF_P_MIN) {
 					ekf->P[r][r] = POS_EKF_P_MIN;
 				}
-			} else {
-				float avg = 0.5f * (ekf->P[r][c] + ekf->P[c][r]);
-				ekf->P[r][c] = ekf->P[c][r] = avg;
-			}
-		}
-	}
-}
-__ATTR_ITCM_TEXT
-void positionEKFPredictOld(POSITION_EKF *ekf, float ax, float ay, float az, float dt) {
-	float acc[3] = { ax, ay, az };
-	float hdt2 = 0.5f * dt * dt;
-
-	for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
-		int i = axis * POS_EKF_AXIS_DIM;
-		float a = acc[axis] - ekf->x[i + POS_EKF_STATE_B];
-
-		// State update
-		ekf->x[i + POS_EKF_STATE_P] += (ekf->x[i + POS_EKF_STATE_V] * dt) + (hdt2 * a);
-		ekf->x[i + POS_EKF_STATE_V] += (a * dt);
-
-		// Covariance prediction
-		float p00 = ekf->P[i + 0][i + 0], p01 = ekf->P[i + 0][i + 1], p02 = ekf->P[i + 0][i + 2];
-		float p10 = ekf->P[i + 1][i + 0], p11 = ekf->P[i + 1][i + 1], p12 = ekf->P[i + 1][i + 2];
-		float p20 = ekf->P[i + 2][i + 0], p21 = ekf->P[i + 2][i + 1], p22 = ekf->P[i + 2][i + 2];
-
-		float fp00 = p00 + dt * p10 - hdt2 * p20;
-		float fp01 = p01 + dt * p11 - hdt2 * p21;
-		float fp02 = p02 + dt * p12 - hdt2 * p22;
-		float fp10 = p10 - dt * p20;
-		float fp11 = p11 - dt * p21;
-		float fp12 = p12 - dt * p22;
-
-		ekf->P[i + 0][i + 0] = fp00 + dt * fp01 - hdt2 * fp02 + ekf->Q[i + 0][i + 0];
-		ekf->P[i + 0][i + 1] = fp01 - dt * fp02;
-		ekf->P[i + 0][i + 2] = fp02;
-		ekf->P[i + 1][i + 0] = fp10 + dt * fp11 - dt * fp12;
-		ekf->P[i + 1][i + 1] = fp11 - dt * fp12 + ekf->Q[i + 1][i + 1];
-		ekf->P[i + 1][i + 2] = fp12;
-		ekf->P[i + 2][i + 0] = p20 + dt * p21 - hdt2 * p22;
-		ekf->P[i + 2][i + 1] = p21 - dt * p22;
-		ekf->P[i + 2][i + 2] = p22 + ekf->Q[i + 2][i + 2];
-	}
-
-	// Symmetry & positivity
-	for (int r = 0; r < POS_EKF_STATE_DIM; r++) {
-		for (int c = r; c < POS_EKF_STATE_DIM; c++) {
-			if (r == c) {
-				if (ekf->P[r][r] < POS_EKF_P_MIN) ekf->P[r][r] = POS_EKF_P_MIN;
 			} else {
 				float avg = 0.5f * (ekf->P[r][c] + ekf->P[c][r]);
 				ekf->P[r][c] = ekf->P[c][r] = avg;

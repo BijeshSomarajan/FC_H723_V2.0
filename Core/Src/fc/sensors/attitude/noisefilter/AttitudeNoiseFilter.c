@@ -232,6 +232,10 @@ uint8_t initAttitudeNoiseFilter(float accSampleFrequency, float gyroSampleFreque
 		biQuadFilterSetCenterFreq(&noiseFilterFftNtfGyroX[freqIndx], SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY);
 		biQuadFilterSetCenterFreq(&noiseFilterFftNtfGyroY[freqIndx], SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY);
 		biQuadFilterSetCenterFreq(&noiseFilterFftNtfGyroZ[freqIndx], SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY);
+
+		noiseFilterXAdaptive[freqIndx].smoothedQ = SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY;
+		noiseFilterYAdaptive[freqIndx].smoothedQ = SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY;
+		noiseFilterZAdaptive[freqIndx].smoothedQ = SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY;
 	}
 
 #endif
@@ -259,11 +263,29 @@ void resetNoiseFilter() {
 		biQuadFilterReset(&noiseFilterFftNtfGyroY[freqIndx]);
 		biQuadFilterReset(&noiseFilterFftNtfGyroZ[freqIndx]);
 
-		noiseFilterXAdaptive[freqIndx].smoothedQ = 1;
-		noiseFilterXAdaptive[freqIndx].smoothedGain = -12;
+		noiseFilterXAdaptive[freqIndx].smoothedQ = ADAPTIVE_NOTCH_Q_MIN;
+		noiseFilterXAdaptive[freqIndx].smoothedGain = SENSOR_FFT_NTF_GYRO_GAIN;
 		noiseFilterXAdaptive[freqIndx].lastAppliedFreq = 0;
 		noiseFilterXAdaptive[freqIndx].lastAppliedGain = 0;
 		noiseFilterXAdaptive[freqIndx].lastAppliedQ = 0;
+		noiseFilterXAdaptive[freqIndx].snr = 0;
+		noiseFilterXAdaptive[freqIndx].peakMag = 0;
+
+		noiseFilterYAdaptive[freqIndx].smoothedQ = ADAPTIVE_NOTCH_Q_MIN;
+		noiseFilterYAdaptive[freqIndx].smoothedGain = SENSOR_FFT_NTF_GYRO_GAIN;
+		noiseFilterYAdaptive[freqIndx].lastAppliedFreq = 0;
+		noiseFilterYAdaptive[freqIndx].lastAppliedGain = 0;
+		noiseFilterYAdaptive[freqIndx].lastAppliedQ = 0;
+		noiseFilterYAdaptive[freqIndx].snr = 0;
+		noiseFilterYAdaptive[freqIndx].peakMag = 0;
+
+		noiseFilterZAdaptive[freqIndx].smoothedQ = ADAPTIVE_NOTCH_Q_MIN;
+		noiseFilterZAdaptive[freqIndx].smoothedGain = SENSOR_FFT_NTF_GYRO_GAIN;
+		noiseFilterZAdaptive[freqIndx].lastAppliedFreq = 0;
+		noiseFilterZAdaptive[freqIndx].lastAppliedGain = 0;
+		noiseFilterZAdaptive[freqIndx].lastAppliedQ = 0;
+		noiseFilterZAdaptive[freqIndx].snr = 0;
+		noiseFilterZAdaptive[freqIndx].peakMag = 0;
 	}
 
 }

@@ -261,13 +261,11 @@ void manageAltitude(float dt) {
 				altMgrAltDtAccumulation -= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD;
 			}
 		}
-
 #if ALT_MGR_TILT_COMP_ENABLED ==1
 		calculateTiltCompThrottle(dt);
 #else
 		controlData.tiltCompThDelta = 0;
 #endif
-
 	} else {
 		updateAltitudeReferences();
 		resetAltitudeControl(1);
@@ -317,6 +315,8 @@ void manageAltitudeTask(void) {
 	sensorAltitudeData.altProcessDt = dt;
 	if (fcStatusData.canFly) {
 		manageAltitude(dt);
+	} else if (fcStatusData.hasCrashed) {
+		resetAltitudeManager();
 	} else {
 		resetAltitudeControl(1);
 		updateAltitudeReferences();
@@ -338,6 +338,9 @@ void doAltitudeManagement(void) {
 			sensorAltitudeData.altUpdateDt = dt;
 			updateAltitudeSensorData(dt);
 			updatePositionManagerZPosition(sensorAltitudeData.altitudeSLFiltered, dt);
+		}
+		if (fcStatusData.hasCrashed) {
+			resetAltitudeManager();
 		}
 	}
 }

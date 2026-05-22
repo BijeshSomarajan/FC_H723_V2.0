@@ -7,22 +7,16 @@
 /* --- Gyro FFT Configurations --- */
 // Enable FFT-based analysis on gyro data for noise detection and adaptive filtering
 #define SENSOR_FFT_GYRO_ENABLED                 1
-
 // Number of FFT frequency bins considered for gyro processing (limits top analysis frequency)
 #define SENSOR_FFT_GYRO_FREQUENCY_N             FFT_TOP_FREQ_N
-
 // Start applying adaptive notch from harmonics first, then fundamental if enabled
 #define SENSOR_FFT_GYRO_FILTER_HARMONICS_FIRST  0   // Filtration starts from harmonics to fundamental
-
 // Minimum frequency (Hz) allowed for gyro adaptive notch filtering
 #define SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY  40.0f
-
 // Maximum frequency (Hz) allowed for gyro adaptive notch filtering
 #define SENSOR_FFT_NTF_GYRO_MAX_CUTOFF_FREQUENCY  600.0f
-
 // Overall gain scaling applied to the gyro notch filter output
 #define SENSOR_FFT_NTF_GYRO_GAIN                1.0f
-
 // Maximum FFT processing budget per control loop (limits CPU usage)
 #define FFT_PROCESSING_BUDGET                   64
 

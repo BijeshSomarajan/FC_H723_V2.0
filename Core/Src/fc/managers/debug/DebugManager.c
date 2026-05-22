@@ -27,7 +27,7 @@
 #include "../../util/CommonUtil.h"
 #include "../motor/MotorManager.h"
 
-int32_t DEBUG_DATA_BUFFER[8];
+int32_t DEBUG_DATA_BUFFER[16];
 extern LOWPASSFILTER thControlRefLPF;
 extern uint8_t altControlAccEnabled;
 
@@ -193,14 +193,31 @@ void debugPositionAlign(float dt) {
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
-void debugTilt() {
-	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.roll;
-	DEBUG_DATA_BUFFER[2] = controlData.tiltCompThDelta ;
-	DEBUG_DATA_BUFFER[3] = controlData.throttleControl * 10;
-	DEBUG_DATA_BUFFER[4] = controlData.pitchControl;
-	DEBUG_DATA_BUFFER[5] = controlData.rollControl;
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+void debugOSD() {
+	DEBUG_DATA_BUFFER[0] = fcStatusData.canStart | fcStatusData.canStabilize << 8 | fcStatusData.canFly << 16 | fcStatusData.hasCrashed << 24;
+	DEBUG_DATA_BUFFER[1] = fcStatusData.isTxOn | fcStatusData.isPositionDataReliable << 8 | fcStatusData.isPositionHoldModeActive << 16 | fcStatusData.isRTHModeActive << 24;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.throttleControlPercent * 100;
+
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.pitch * 10;
+	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.roll * 10;
+	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.heading * 10;
+
+	DEBUG_DATA_BUFFER[6] = positionCordinateData.xPosition * 10;
+	DEBUG_DATA_BUFFER[7] = positionCordinateData.xVelocity * 10;
+
+	DEBUG_DATA_BUFFER[8] = positionCordinateData.yPosition * 10;
+	DEBUG_DATA_BUFFER[9] = positionCordinateData.yVelocity * 10;
+
+	DEBUG_DATA_BUFFER[10] = positionCordinateData.zPosition ;
+	DEBUG_DATA_BUFFER[11] = positionCordinateData.zVelocity ;
+
+	DEBUG_DATA_BUFFER[12] = gnssData.satCount;
+	DEBUG_DATA_BUFFER[13] = gnssData.fixStatus;
+
+	DEBUG_DATA_BUFFER[14] = gnssData.latitude * 1000000;
+	DEBUG_DATA_BUFFER[15] = gnssData.longitude * 1000000;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 16, CMD_FC_DATA);
 }
 
 void debugTask() {
@@ -208,7 +225,7 @@ void debugTask() {
 		return;
 	}
 	float dt = 0.001f;	//getDeltaTime(DEBUG_TIMER_CHANNEL);
-	debugTilt();
+	debugOSD();
 	//debugPositionAlign(dt);
 	//debugPosition(dt);
 	//debugAltThrottle(dt);

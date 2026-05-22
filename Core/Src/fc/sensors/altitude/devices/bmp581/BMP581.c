@@ -81,13 +81,18 @@ static void deviceBaroReadIntStatus(void) {
 	delayMs(5);
 }
 
-uint8_t deviceBaroReset(void) {
-	deviceAltitudeData.buffer[0] = BMP581_SOFT_RESET_CMD;
-	if (!spi4WriteRegister(BMP581_REG_CMD, deviceAltitudeData.buffer, 1, BMP581_DEVICE)) {
-		return 0;
+uint8_t deviceBaroReset(uint8_t hard) {
+	if (hard) {
+		deviceAltitudeData.buffer[0] = BMP581_SOFT_RESET_CMD;
+		if (!spi4WriteRegister(BMP581_REG_CMD, deviceAltitudeData.buffer, 1, BMP581_DEVICE)) {
+			return 0;
+		}
+		delayMs(5);
+		deviceBaroReadIntStatus();
 	}
-	delayMs(5);
-	deviceBaroReadIntStatus();
+	bmp581CalibPSum = 0.0f;
+	bmp581CalibCount = 0;
+	bmp581IsCalibrated = 0;
 	return 1;
 }
 
@@ -99,7 +104,7 @@ uint8_t deviceBaroInit(void) {
 		logString("[bmp581] SPI init failed\n");
 		return 0;
 	}
-	if (!deviceBaroReset()) {
+	if (!deviceBaroReset(1)) {
 		logString("[bmp581] Reset failed\n");
 		return 0;
 	}
