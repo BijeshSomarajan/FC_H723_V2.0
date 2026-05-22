@@ -74,4 +74,9 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_CONTROL_SETTING_ACC_P_GAIN     0.1f // Zero fighting
 #define ALT_MGR_ALT_CONTROL_SETTING_AP_TAU         0.01f
 
+/* Autolanding configuration */
+#define ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD       0.75f
+#define ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD         0.75f
+#define ALT_MGR_ALT_LANDING_STICK_COMMAND               250
+
 #endif
