@@ -34,7 +34,7 @@ uint8_t circularQueueWrite(CircularQueue *q, uint8_t *data, uint16_t len) {
 		return 0;
 	}
 	uint8_t writtenCount = 0;
-	for (uint8_t i = 0; i < len; i++) {
+	for (uint16_t i = 0; i < len; i++) {
 		if (q->count == q->size) {
 			break; // Queue full
 		}
@@ -51,7 +51,7 @@ uint8_t circularQueueRead(CircularQueue *q, uint8_t *data, uint16_t len) {
 		return 0;
 	}
 	uint8_t readCount = 0;
-	for (uint8_t i = 0; i < len; i++) {
+	for (uint16_t i = 0; i < len; i++) {
 		if (q->count == 0) {
 			break; // Queue empty
 		}

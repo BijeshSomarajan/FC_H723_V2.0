@@ -80,6 +80,7 @@ uint8_t hasNewConfiguration() {
 void manageConfigDataPacket() {
 	ConfigDataPacket dataPacket = getConfigDataPacket();
 	fcStatusData.isDebugEnabled = 0;
+	fcStatusData.isOSDEnabled = 0;
 	fcStatusData.isConfigMode = 1;
 	if (dataPacket.cmd == CMD_START_FC_DATA) {
 		sendConfigData(FC_CONFIG_DATA_BUFFER, 0, CMD_ACK_START_FC_DATA);

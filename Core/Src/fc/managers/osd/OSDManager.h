@@ -1,0 +1,38 @@
+#ifndef SRC_FC_MANAGERS_OSD_OSDMANAGER_H_
+#define SRC_FC_MANAGERS_OSD_OSDMANAGER_H_
+
+#define OSD_TASK_FREQUENCY 20.0f
+
+#define OSD_INPUT_FC_STATUS_POWERED 0
+#define OSD_INPUT_FC_STATUS_INIT 1
+#define OSD_INPUT_FC_STATUS_LOITER 2
+#define OSD_INPUT_FC_STATUS_POS_HOLD 3
+#define OSD_INPUT_FC_STATUS_RTH 4
+#define OSD_INPUT_FC_STATUS_CRASHED 5
+
+//Status Data
+#define OSD_INPUT_FC_STATUS_INDEX  0
+#define OSD_INPUT_GPS_STATUS_INDEX  1
+
+//Global Data
+#define OSD_INPUT_LAT_INDEX  0
+#define OSD_INPUT_LON_INDEX  1
+
+//BodyFrame
+#define OSD_INPUT_SEALEVEL_ALT_INDEX  0
+#define OSD_INPUT_TERRAIN_ALT_INDEX  1
+#define OSD_INPUT_HEADING_INDEX  2
+#define OSD_INPUT_PITCH_INDEX  3
+#define OSD_INPUT_ROLL_INDEX  4
+
+#define OSD_COMMAND_FC_STATUS  0
+#define OSD_COMMAND_BODY_FRAME_DATA  1
+#define OSD_COMMAND_GLOBAL_FRAME_DATA  2
+
+
+uint8_t initOSDManager(void);
+void updateOSDFCStatus(void);
+void updateOSDBodyFrameData(void);
+void updateOSDGlobalFrameData(void);
+
+#endif /* SRC_FC_MANAGERS_OSD_OSDMANAGER_H_ */

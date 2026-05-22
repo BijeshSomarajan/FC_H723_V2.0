@@ -1,5 +1,5 @@
-#ifndef SRC_FC_MANAGERS_OUTPUT_OUTPUTMANAGER_H_
-#define SRC_FC_MANAGERS_OUTPUT_OUTPUTMANAGER_H_
+#ifndef SRC_FC_MANAGERS_MOTOR_MOTORMANAGER_H_
+#define SRC_FC_MANAGERS_MOTOR_MOTORMANAGER_H_
 
 #include <sys/_stdint.h>
 #include "../attitude/AttitudeManager.h"
@@ -13,10 +13,10 @@ struct _PWM_DATA {
 
 extern PWM_DATA pwmData;
 
-#define OUTPUT_CONTROL_FREQUENCY ATTITUDE_SENSOR_AGT_READ_FREQUENCY
-#define OUTPUT_PWM_PRESET RC_CHANNEL_MIN_VALUE
+#define MOTOR_CONTROL_FREQUENCY ATTITUDE_SENSOR_AGT_READ_FREQUENCY
+#define MOTOR_PWM_PRESET RC_CHANNEL_MIN_VALUE
 
-uint8_t initOutputManager(void);
+uint8_t initMotorManager(void);
 void stopOutputs(void);
 
 #endif

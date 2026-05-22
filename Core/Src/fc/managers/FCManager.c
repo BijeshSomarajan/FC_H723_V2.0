@@ -8,7 +8,8 @@
 #include "../managers/attitude/AttitudeManager.h"
 #include "../managers/altitude/AltitudeManager.h"
 #include "../managers/position/PositionManager.h"
-#include "../managers/output/OutputManager.h"
+#include "../managers/motor/MotorManager.h"
+#include "../managers/osd/OSDManager.h"
 #include "../managers/debug/DebugManager.h"
 #include "../managers/rc/RCManager.h"
 #include "../timers/DelayTimer.h"
@@ -18,6 +19,7 @@
 #include "../timers/Scheduler.h"
 #include "../timers/GPTimer.h"
 #include "../status/FCStatus.h"
+
 
 void dispatchManagers() {
 	if (fcStatusData.hasInitialized) {
@@ -101,7 +103,16 @@ uint8_t initManagers() {
 		}
 	}
 
-
+# if OSD_ENABLED == 1
+	if (status) {
+		status = initOSDManager();
+		if (status) {
+			logString("[FC Manager] >> initManagers >> initOSDManager > Success\n");
+		} else {
+			logString("[FC Manager] >> initManagers >> initOSDManager > Failed\n"); // Corrected log message
+		}
+	}
+#endif
 
 # if DEBUG_ENABLED == 1
 	if (status) {
@@ -115,7 +126,7 @@ uint8_t initManagers() {
 #endif
 
 	if (status) {
-		status = initOutputManager();
+		status = initMotorManager();
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initOutputManager > Success\n");
 		} else {

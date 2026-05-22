@@ -7,7 +7,7 @@
  * @brief Logic to update a single Filter state and its Biquad coefficients
  */
 void processAdaptiveNotchFilter(BIQUADFILTER *filter, AdaptiveNotchFilterState *state, float targetFreq, int peakBin, float *magnitudes) {
-	if (peakBin < FFT_BIN_GUARD || peakBin > (FFT_HALF_N - FFT_BIN_GUARD)){
+	if (peakBin < FFT_BIN_GUARD || peakBin > (FFT_HALF_N - FFT_BIN_GUARD)) {
 		return;
 	}
 	// 1. SNR Calculation (Density)
@@ -17,8 +17,14 @@ void processAdaptiveNotchFilter(BIQUADFILTER *filter, AdaptiveNotchFilterState *
 	state->snr = snr;
 	state->peakMag = peakMag;
 
+	// 1.1. Smooth Center Frequency
+	state->smoothedCF += ADAPTIVE_NOTCH_ALPHA_CF_GAIN * (targetFreq - state->smoothedCF);
+
 	// 2. Calculate Target Q (Frequency Compensated)
-	float freqComp = 1.0f + (targetFreq / 1200.0f);
+	//float freqComp = 1.0f + (targetFreq / 1200.0f);
+
+	float freqComp = 1.0f + (state->smoothedCF  / 1200.0f);
+
 	float targetQ = ADAPTIVE_NOTCH_Q_MIN + ((snr * freqComp) - ADAPTIVE_NOTCH_SNR_LOW) * ((ADAPTIVE_NOTCH_Q_MAX - ADAPTIVE_NOTCH_Q_MIN) / (ADAPTIVE_NOTCH_SNR_HIGH - ADAPTIVE_NOTCH_SNR_LOW));
 	targetQ = constrainToRangeF(targetQ, ADAPTIVE_NOTCH_Q_MIN, ADAPTIVE_NOTCH_Q_MAX);
 
@@ -32,12 +38,14 @@ void processAdaptiveNotchFilter(BIQUADFILTER *filter, AdaptiveNotchFilterState *
 	state->smoothedGain += ADAPTIVE_NOTCH_ALPHA_GAIN * (targetGain - state->smoothedGain);
 
 	// 5. Thresholded Update (Save CPU)
-	uint8_t freqChanged = fabsf(targetFreq - state->lastAppliedFreq) > 2.0f;
+	//uint8_t freqChanged = fabsf(targetFreq - state->lastAppliedFreq) > 2.0f;
+	uint8_t freqChanged = fabsf(state->smoothedCF - state->lastAppliedFreq) > 2.0f;
 	uint8_t qChanged = fabsf(state->smoothedQ - state->lastAppliedQ) > 0.05f;
 	uint8_t gainChanged = fabsf(state->smoothedGain - state->lastAppliedGain) > 1.0f;
 
 	if (freqChanged || qChanged || gainChanged) {
-		filter->center_freq = targetFreq;
+		//filter->center_freq = targetFreq;
+		filter->center_freq = state->smoothedCF;
 		filter->Q = state->smoothedQ;
 		filter->gainDB = state->smoothedGain;
 
@@ -50,7 +58,8 @@ void processAdaptiveNotchFilter(BIQUADFILTER *filter, AdaptiveNotchFilterState *
 
 		biQuadCalculateCoeffs(filter); // Recalculate coefficients without resetting state memory
 
-		state->lastAppliedFreq = targetFreq;
+		//state->lastAppliedFreq = targetFreq;
+		state->lastAppliedFreq = state->smoothedCF;
 		state->lastAppliedQ = state->smoothedQ;
 		state->lastAppliedGain = state->smoothedGain;
 	}

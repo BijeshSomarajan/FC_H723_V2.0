@@ -64,7 +64,7 @@ void resetAltitudeSensors(uint8_t hard) {
 	sensorAltitudeData.altitudeSLScaled = 0;
 	sensorAltitudeData.altitudeSLScaled = 0;
 	if (hard) {
-		deviceBaroReset();
+		deviceBaroReset(hard);
 	}
 }
 

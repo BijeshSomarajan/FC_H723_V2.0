@@ -43,6 +43,13 @@ float altMgrCurrentThrottleRate = 0;
 float altMgrCurrentThrottleRateGain = 1.0f;
 float altMgrPreviousThrottle = 0.0f;
 
+float altMgrAccDtAccumulation = 0.0f;
+float altMgrVelDtAccumulation = 0.0f;
+float altMgrAltDtAccumulation = 0.0f;
+float altMgrLowThDtAccumulation = 0.0f;
+
+float altMgrCurrentTiltCompThDelta = 0.0f;
+
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
 
@@ -64,11 +71,11 @@ uint8_t initAltitudeManager(void) {
 		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
 
 		altControlGains.masterPGain = 1.0f;
-		altControlGains.ratePGain   = 1.0f;
-		altControlGains.rateIGain   = 1.0f;
-		altControlGains.rateDGain   = 1.0f;
-		altControlGains.accPGain    = 1.0f;
-		altControlGains.accDGain    = 1.0f;
+		altControlGains.ratePGain = 1.0f;
+		altControlGains.rateIGain = 1.0f;
+		altControlGains.rateDGain = 1.0f;
+		altControlGains.accPGain = 1.0f;
+		altControlGains.accDGain = 1.0f;
 
 		initAltitudeControl();
 	} else {
@@ -127,24 +134,6 @@ void manageAltControlSettings(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void handleThrottleChangeOld(float dt) {
-	float gain = rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX] * ALT_MGR_ALT_AGGREGATION_GAIN * dt;
-	if (altMgrWasThrottleCentered != 0) {
-		fcStatusData.currentThrottle = altMgrThrottleControlLPF.output;
-	}
-	fcStatusData.currentThrottle += gain;
-	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
-	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
-	if (fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
-		fcStatusData.isFlying = 1;
-	} else {
-		fcStatusData.isFlying = 0;
-	}
-}
-
-
-
-__ATTR_ITCM_TEXT
 void handleThrottleChange(float dt) {
 	float currentStick = rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX];
 	float gain = currentStick * ALT_MGR_ALT_AGGREGATION_GAIN * dt;
@@ -152,11 +141,9 @@ void handleThrottleChange(float dt) {
 		float lpfValue = altMgrThrottleControlLPF.output;
 		if (currentStick < 0.0f && lpfValue > altMgrPreviousThrottle) {
 			fcStatusData.currentThrottle = altMgrPreviousThrottle;
-		}
-		else if (currentStick > 0.0f && lpfValue < altMgrPreviousThrottle) {
+		} else if (currentStick > 0.0f && lpfValue < altMgrPreviousThrottle) {
 			fcStatusData.currentThrottle = altMgrPreviousThrottle;
-		}
-		else {
+		} else {
 			fcStatusData.currentThrottle = lpfValue;
 		}
 	}
@@ -165,24 +152,37 @@ void handleThrottleChange(float dt) {
 		if (nextThrottle > altMgrPreviousThrottle) {
 			nextThrottle = altMgrPreviousThrottle;
 		}
-	}
-	else if (currentStick > 0.0f) { // Moving Up
+	} else if (currentStick > 0.0f) { // Moving Up
 		if (nextThrottle < altMgrPreviousThrottle) {
 			nextThrottle = altMgrPreviousThrottle;
 		}
 	}
+
 	fcStatusData.currentThrottle = nextThrottle;
 	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
-	fcStatusData.isFlying = (fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent);
+
+	if (!fcStatusData.isFlying && fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
+		fcStatusData.isFlying = 1;
+		altMgrLowThDtAccumulation = 0;
+	} else if (fcStatusData.isFlying && fminf(fcStatusData.throttleControlPercent, fcStatusData.throttlePercent) < (fcStatusData.liftOffThrottlePercent * 0.25f)) {
+		if (altMgrLowThDtAccumulation >= ALT_MGR_THROTTLE_THRESHOLD_PERIOD) {
+			fcStatusData.isFlying = 0;
+		} else {
+			altMgrLowThDtAccumulation += dt;
+		}
+	} else {
+		altMgrLowThDtAccumulation = 0;
+	}
+
 	altMgrPreviousThrottle = fcStatusData.currentThrottle;
 }
 
 __ATTR_ITCM_TEXT
-void updateAltitudeRefernces() {
-	fcStatusData.altitudeSLRef  = positionCordinateData.zPosition;//sensorAltitudeData.altitudeSLMaxFiltered;
+void updateAltitudeReferences() {
+	fcStatusData.altitudeSLRef = positionCordinateData.zPosition; //sensorAltitudeData.altitudeSLMaxFiltered;
 	fcStatusData.altitudeSLHome = fcStatusData.altitudeSLRef;
-	fcStatusData.altitudeSLMax  = fcStatusData.altitudeSLHome + altMgrMaxSLAlt;
+	fcStatusData.altitudeSLMax = fcStatusData.altitudeSLHome + altMgrMaxSLAlt;
 	fcStatusData.altitudeGndMax = altMgrMaxGndAlt;
 }
 
@@ -191,6 +191,41 @@ float getClampedCurrentAltitude() {
 	float altitudeDelta = positionCordinateData.zPosition - fcStatusData.altitudeSLRef;
 	altitudeDelta = constrainToRangeF(altitudeDelta, -ALT_MGR_MAX_ALT_DELTA, ALT_MGR_MAX_ALT_DELTA);
 	return fcStatusData.altitudeSLRef + altitudeDelta;
+}
+
+__ATTR_ITCM_TEXT
+void calculateTiltCompThrottle(float dt) {
+	float target = 0.0f;
+	// --- Get attitude ---
+	float pitch = sensorAttitudeData.pitch;   // degrees
+	float roll = sensorAttitudeData.roll;    // degrees
+	// --- Convert to radians ---
+	float pitchRad = convertDegToRadF(pitch);
+	float rollRad = convertDegToRadF(roll);
+	// --- Compute lift component ---
+	float cosP = cosApproxF(pitchRad);
+	float cosR = cosApproxF(rollRad);
+	float liftComponent = cosP * cosR;
+	// --- Clamp tilt effect using max tilt angle ---
+	float minComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_TH_MAX_ANGLE));
+	liftComponent = fmaxf(liftComponent, minComponent);
+	// --- Apply only if meaningful tilt ---
+	if (liftComponent < 0.999f) {
+		// % thrust loss due to tilt
+		float tiltCompFactor = (1.0f / liftComponent) - 1.0f;
+		// Convert hover throttle (0–1) → throttle units
+		float hoverThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
+		// --- Final compensation ---
+		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_TH_GAIN;
+		// --- Safety clamp (throttle units) ---
+		target = fminf(target, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
+	}
+	// --- Smooth response (your original logic retained) ---
+	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
+	float alpha = dt / (activeTau + dt);
+	target = constrainToRangeF(target, 0, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
+	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
+	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
 
 __ATTR_ITCM_TEXT
@@ -209,14 +244,39 @@ void manageAltitude(float dt) {
 	}
 	manageAltControlSettings(dt);
 	if (fcStatusData.isFlying) {
-		controlAltitudeWithGains(dt, fcStatusData.altitudeSLRef, getClampedCurrentAltitude() , altControlGains);
+		altMgrAccDtAccumulation += dt;
+		altMgrVelDtAccumulation += dt;
+		altMgrAltDtAccumulation += dt;
+		while ( altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD || altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD || altMgrAccDtAccumulation >= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD ) {
+			if (altMgrAccDtAccumulation >= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD) {
+				controlAltitudeAccWithGains(ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD, altControlGains);
+				altMgrAccDtAccumulation -= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD;
+			}
+			if (altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD) {
+				controlAltitudeVelWithGains(ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD, altControlGains);
+				altMgrVelDtAccumulation -= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD;
+			}
+			if (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD) {
+				controlAltitudeAltWithGains(ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD, fcStatusData.altitudeSLRef, getClampedCurrentAltitude(), altControlGains);
+				altMgrAltDtAccumulation -= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD;
+			}
+		}
+#if ALT_MGR_TILT_COMP_ENABLED ==1
+		calculateTiltCompThrottle(dt);
+#else
+		controlData.tiltCompThDelta = 0;
+#endif
 	} else {
-		updateAltitudeRefernces();
+		updateAltitudeReferences();
 		resetAltitudeControl(1);
 		controlData.tiltCompThDelta = 0;
+		altMgrAccDtAccumulation = 0;
+		altMgrVelDtAccumulation = 0;
+		altMgrAltDtAccumulation = 0;
 	}
 	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta;
 	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
+	fcStatusData.throttleControlPercent = controlData.throttleControl / MAX_PERMISSIBLE_THROTTLE_DELTA;
 	altMgrPreviousCurrentThrottle = fcStatusData.currentThrottle;
 	lowPassFilterUpdate(&altMgrThrottleControlLPF, controlData.throttleControl, dt);
 }
@@ -234,6 +294,7 @@ void resetAltMgrStates() {
 	altControlGains.rateDGain = 1.0f;
 	altControlGains.accPGain = 1.0f;
 	altControlGains.accDGain = 1.0f;
+	fcStatusData.throttleControlPercent = 0;
 
 	altMgrWasThrottleCentered = 0;
 	altMgrPreviousThrottleControl = 0;
@@ -242,6 +303,7 @@ void resetAltMgrStates() {
 	altMgrCurrentThrottleDelta = 0;
 	altMgrCurrentThrottleRateGain = 1.0f;
 	altMgrPreviousThrottle = 0.0f;
+	altMgrLowThDtAccumulation = 0;
 
 	lowPassFilterReset(&altMgrThrottleControlLPF);
 }
@@ -249,12 +311,15 @@ void resetAltMgrStates() {
 __ATTR_ITCM_TEXT
 void manageAltitudeTask(void) {
 	float dt = getDeltaTime(ALT_MANAGER_TIMER_CHANNEL);
+	dt = constrainToRangeF(dt, ALTITUDE_MANAGEMENT_TASK_PERIOD * 0.001f, ALTITUDE_MANAGEMENT_TASK_PERIOD * 4.0f);
 	sensorAltitudeData.altProcessDt = dt;
 	if (fcStatusData.canFly) {
 		manageAltitude(dt);
+	} else if (fcStatusData.hasCrashed) {
+		resetAltitudeManager();
 	} else {
 		resetAltitudeControl(1);
-		updateAltitudeRefernces();
+		updateAltitudeReferences();
 		resetAltMgrStates();
 	}
 }
@@ -269,10 +334,13 @@ void doAltitudeManagement(void) {
 		}
 		if (loadAltitudeSensorsData()) {
 			float dt = getDeltaTime(SENSOR_BARO_READ_TIMER_CHANNEL);
+			dt = constrainToRangeF(dt, BARO_SENSOR_READ_PERIOD * 0.001f, BARO_SENSOR_READ_PERIOD * 4.0f);
 			sensorAltitudeData.altUpdateDt = dt;
 			updateAltitudeSensorData(dt);
-			//updatePositionManagerZPosition(sensorAltitudeData.altitudeSLScaled, dt);
 			updatePositionManagerZPosition(sensorAltitudeData.altitudeSLFiltered, dt);
+		}
+		if (fcStatusData.hasCrashed) {
+			resetAltitudeManager();
 		}
 	}
 }

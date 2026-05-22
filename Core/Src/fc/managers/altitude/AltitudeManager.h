@@ -9,7 +9,18 @@ void resetAltitudeManager(void);
 
 //Baro reading frequency
 #define ALTITUDE_SENSOR_BARO_READ_FREQUENCY BARO_SENSOR_READ_FREQUENCY
+
 #define ALTITUDE_MANAGEMENT_TASK_FREQUENCY 1000
+#define ALTITUDE_MANAGEMENT_TASK_PERIOD 1.0f/ALTITUDE_MANAGEMENT_TASK_FREQUENCY
+
+#define ALTITUDE_MANAGEMENT_ACC_TASK_FREQUENCY 600
+#define ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD 1.0f/ALTITUDE_MANAGEMENT_ACC_TASK_FREQUENCY
+
+#define ALTITUDE_MANAGEMENT_VEL_TASK_FREQUENCY 300
+#define ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD 1.0f/ALTITUDE_MANAGEMENT_VEL_TASK_FREQUENCY
+
+#define ALTITUDE_MANAGEMENT_ALT_TASK_FREQUENCY 75
+#define ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD 1.0f/ALTITUDE_MANAGEMENT_ALT_TASK_FREQUENCY
 
 //Lift Off throttle and Throttle LPF settings
 #define ALT_MGR_DEFAULT_LIFTOFF_THROTTLE 300
@@ -23,13 +34,14 @@ void resetAltitudeManager(void);
 
 //Altitude estimate Complementary filter alpha
 #define ALT_MGR_TILT_TH_MIN_ANGLE 1.0f
-#define ALT_MGR_TILT_TH_MAX_ANGLE 45.0f
+#define ALT_MGR_TILT_TH_MAX_ANGLE 30.0f
 
 //Tilt compensation common settings
-#define ALT_MGR_TILT_COMP_TH_ADJUST_GAIN 500.0f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.1f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.5f
-#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT 60.0f
+#define ALT_MGR_TILT_COMP_ENABLED 1
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.01f //Lower = faster response when tilting up
+#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.1f  //Higher = slower response when tilting back to hover
+#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT   120.0f
+#define ALT_MGR_TILT_COMP_TH_GAIN 2.5f
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.
@@ -42,6 +54,8 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_CONTROL_STICK_ATTENUATION_GAIN 1.0f
 // Higher = more aggressive PID ducking on fast moves
 #define ALT_MGR_THROTTLE_RATE_ATTENUATION_GAIN 0.80f
+
+#define ALT_MGR_THROTTLE_THRESHOLD_PERIOD 0.80f
 
 /*
  * If the drone feels "mushy" for too long after centering: Reduce MP_TAU to 0.3s. This will make the drone "snap" into hover faster.

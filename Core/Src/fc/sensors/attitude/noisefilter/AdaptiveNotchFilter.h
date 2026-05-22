@@ -4,11 +4,11 @@
 #include "../../../dsp/BiQuadFilter.h"
 
 // Minimum notch Q (widest bandwidth) used for smeared or unstable noise.
-#define ADAPTIVE_NOTCH_Q_MIN 0.75f
+#define ADAPTIVE_NOTCH_Q_MIN 1.2f//0.75f
 // Maximum notch Q (narrowest bandwidth) used for clean tonal peaks.
-#define ADAPTIVE_NOTCH_Q_MAX 1.5f
+#define ADAPTIVE_NOTCH_Q_MAX 3.0f//1.5f
 // Gain (dB) below which the filter switches from PEAK to full NOTCH.
-#define ADAPTIVE_NOTCH_GAIN_THRESHOLD_DEEP -30.0f //25.0f
+#define ADAPTIVE_NOTCH_GAIN_THRESHOLD_DEEP -35.0f //-30.0f
 // SNR below which detected peaks are considered noisy or unreliable.
 #define ADAPTIVE_NOTCH_SNR_LOW 2.5f
 // SNR above which detected peaks are considered clean and well-defined.
@@ -18,18 +18,23 @@
 // FFT magnitude above which maximum attenuation is applied.
 #define ADAPTIVE_NOTCH_MAG_MAX 15.0f//400.0f
 // EMA smoothing factor for notch Q (lower = smoother bandwidth changes).
-#define ADAPTIVE_NOTCH_ALPHA_Q 0.5f//0.10f
+#define ADAPTIVE_NOTCH_ALPHA_Q 0.15f //0.5f
 // EMA smoothing factor for notch depth/gain (lower = smoother depth changes).
-#define ADAPTIVE_NOTCH_ALPHA_GAIN 0.2f//0.08f
+#define ADAPTIVE_NOTCH_ALPHA_GAIN 0.15f//0.2f
+// EMA smoothing factor for CF  (lower = smoother depth changes).
+#define ADAPTIVE_NOTCH_ALPHA_CF_GAIN 0.2f//0.15f
 
 typedef struct {
 	float smoothedQ;
 	float smoothedGain;
+	float smoothedCF;
+
 	float lastAppliedFreq;
 	float lastAppliedQ;
 	float lastAppliedGain;
 	float snr;
 	float peakMag;
+
 } AdaptiveNotchFilterState;
 
 void processAdaptiveNotchFilter(BIQUADFILTER *filter, AdaptiveNotchFilterState *state, float targetFreq, int peakBin, float *magnitudes) ;

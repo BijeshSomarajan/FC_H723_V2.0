@@ -135,7 +135,7 @@ uint8_t bmpReadCalib() {
 	return status;
 }
 
-uint8_t bmp390SoftReset() {
+uint8_t deviceBaroReset(uint8_t hard) {
 	bmp390IsBaroCalibrated = 0;
 	deviceAltitudeData.buffer[1] = BMP390_PWR_SOFT_RESET;
 	uint8_t status = spi4WriteRegister(BMP390_CMD_ADDR, deviceAltitudeData.buffer, 1, BMP390_SPI4_DEVICE);

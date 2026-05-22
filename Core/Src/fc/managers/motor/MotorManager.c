@@ -1,4 +1,4 @@
-#include "OutputManager.h"
+#include "MotorManager.h"
 
 #include <sys/_stdint.h>
 
@@ -15,26 +15,26 @@
 
 void setPWMChannelValue(uint8_t channel, int value);
 void idlePWMs(void);
-void outputControlTask(void);
+void motorControlTask(void);
 
 PWM_DATA __ATTR_DTCM_BSS pwmData;
-uint8_t outputControlInitStatus = 0;
+uint8_t motorControlInitStatus = 0;
 
-uint8_t initOutputManager(void) {
+uint8_t initMotorManager(void) {
 	uint8_t status = 1;
 	status = initPWM(PWM_MODE_ONESHOT);
 	if (!status) {
-		logString("[Output Manager] >> IO >> PWM > Failed\n");
+		logString("[Motor Manager] >> IO >> PWM > Failed\n");
 	} else {
-		logString("[Output Manager] >> IO >> PWM > Success\n");
+		logString("[Motor Manager] >> IO >> PWM > Success\n");
 	}
 	if (status) {
-		initGPTimer6(OUTPUT_CONTROL_FREQUENCY, outputControlTask, 5);
+		initGPTimer6(MOTOR_CONTROL_FREQUENCY, motorControlTask, 5);
 		startGPTimer6();
-		outputControlInitStatus = status;
-		logString("[Output Manager] >> Init > Success\n");
+		motorControlInitStatus = status;
+		logString("[Motor Manager] >> Init > Success\n");
 	} else {
-		logString("[Output Manager] >> Init > Failed\n");
+		logString("[Motor Manager] >> Init > Failed\n");
 	}
 	stopOutputs();
 	return status;
@@ -44,14 +44,14 @@ __ATTR_ITCM_TEXT
 void updatePWMValues() {
 	for (uint8_t indx = 0; indx < PWM_CHANNEL_COUNT; indx++) {
 		pwmData.PWM_VALUES[indx] = constrainToRange(pwmData.PWM_VALUES[indx], 0, RC_CHANNEL_DELTA_VALUE);
-		setPWMChannelValue(indx, pwmData.PWM_VALUES[indx] + OUTPUT_PWM_PRESET);
+		setPWMChannelValue(indx, pwmData.PWM_VALUES[indx] + MOTOR_PWM_PRESET);
 	}
 }
 
 __ATTR_ITCM_TEXT
-void outputControlTask() {
+void motorControlTask() {
 # if DEBUG_ENABLED == 1
-	float dt = getDeltaTime(OUTPUT_CONTROL_TIMER_CHANNEL);
+	float dt = getDeltaTime(MOTOR_CONTROL_TIMER_CHANNEL);
 	pwmData.updateDt = dt;
 #endif
 	if (fcStatusData.canFly) {
@@ -72,7 +72,7 @@ void outputControlTask() {
 
 __ATTR_ITCM_TEXT
 void idlePWMs() {
-	if (outputControlInitStatus) {
+	if (motorControlInitStatus) {
 		for (uint8_t indx = 0; indx < PWM_CHANNEL_COUNT; indx++) {
 			pwmData.PWM_VALUES[indx] = 0;
 		}

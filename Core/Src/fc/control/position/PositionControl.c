@@ -2,16 +2,19 @@
 
 #include "../../calibration/Calibration.h"
 #include "../../managers/position/common/PositionCommon.h"
+#include "../../dsp/Interpolator.h"
 #include "../../memory/Memory.h"
 #include "../ControlData.h"
 #include "../Pid.h"
 
 PID positionXPID, positionYPID, positionXRatePID, positionYRatePID;
+float positionControlXVelDist = 0.0f, positionControlYVelDist = 0.0f;
+float positionControlXAccDist = 0.0f, positionControlYAccDist = 0.0f;
 
 /**
  * Initializes the attitude control
  */
-uint8_t initPositionControl() {
+uint8_t initPositionControl(float masterControlFrequency, float rateControlFrequency) {
 	/* Attitude Master PID initiation*/
 	pidInit(&positionXPID, getScaledCalibrationValue(CALIB_PROP_POS_HOLD_PID_KP_ADDR), 0, 0, 0);
 	pidInit(&positionYPID, getScaledCalibrationValue(CALIB_PROP_POS_HOLD_PID_KP_ADDR), 0, 0, 0);
@@ -42,6 +45,7 @@ uint8_t initPositionControl() {
 	return 1;
 }
 
+__ATTR_ITCM_TEXT
 void resetPositionControl(uint8_t hard) {
 	if (hard) {
 		pidReset(&positionXPID);
@@ -53,76 +57,120 @@ void resetPositionControl(uint8_t hard) {
 	}
 	pidResetI(&positionXRatePID);
 	pidResetI(&positionYRatePID);
+	positionControlXVelDist = 0.0f;
+	positionControlYVelDist = 0.0f;
+	positionControlXAccDist = 0.0f;
+	positionControlYAccDist = 0.0f;
 }
 
 __ATTR_ITCM_TEXT
-void controlPositionWithGains(float dt, float expectedX, float expectedY, float masterPGain, float ratePGain, float rateIGain, float rateDGain) {
-	/*
-	 positionCordinateData.xPosition = +100;
-	 positionCordinateData.xVelocity = +100;
-	 positionCordinateData.yPosition = 0;
-	 positionCordinateData.yVelocity = 0;
-	 */
-	pidUpdateWithGains(&positionXPID, positionCordinateData.xPosition, expectedX, dt, masterPGain, 0.0f, 0.0f);
-	pidUpdateWithGains(&positionXRatePID, positionCordinateData.xVelocity, positionXPID.pid, dt, ratePGain, rateIGain, rateDGain);
+void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, float rateDGain) {
+	/*---------------- Position → Velocity target ----------------*/
+	float velocityTargetX = positionXPID.pid;
+	float velocityTargetY = positionYPID.pid;
 
-	pidUpdateWithGains(&positionYPID, positionCordinateData.yPosition, expectedY, dt, masterPGain, 0.0f, 0.0f);
-	pidUpdateWithGains(&positionYRatePID, positionCordinateData.yVelocity, positionYPID.pid, dt, ratePGain, rateIGain, rateDGain);
+#if POSITION_CONTROL_VEL_FF_ENABLED == 1
+	float velFFX = (-positionCordinateData.xVelocity * POSITION_CONTROL_VEL_FF_GAIN);
+	float velFFY = (-positionCordinateData.yVelocity * POSITION_CONTROL_VEL_FF_GAIN);
+#endif
+	/*---------------- Velocity PID ----------------*/
+	pidUpdateWithGains(&positionXRatePID, positionCordinateData.xVelocity, velocityTargetX, dt, ratePGain, rateIGain, rateDGain);
+	pidUpdateWithGains(&positionYRatePID, positionCordinateData.yVelocity, velocityTargetY, dt, ratePGain, rateIGain, rateDGain);
 
-	controlData.positionXControl = positionXRatePID.pid;
-	controlData.positionYControl = positionYRatePID.pid;
+	float outputX = positionXRatePID.pid;
+	float outputY = positionYRatePID.pid;
+
+#if POSITION_CONTROL_DOB_ENABLED == 1
+
+	/*---------------- Velocity disturbance (LOW frequency) ----------------*/
+	float velErrX = positionCordinateData.xVelocity - velocityTargetX;
+	float velErrY = positionCordinateData.yVelocity - velocityTargetY;
+
+	float alphaVel = dt / (POSITION_CONTROL_DOB_VEL_TAU + dt);
+
+	positionControlXVelDist += alphaVel * (velErrX - positionControlXVelDist);
+	positionControlYVelDist += alphaVel * (velErrY - positionControlYVelDist);
+
+	positionControlXVelDist = constrainToRangeF(positionControlXVelDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
+	positionControlYVelDist = constrainToRangeF(positionControlYVelDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
+
+	/*---------------- Acceleration disturbance (HIGH frequency) ----------------*/
+	float expectedAccX = outputX * POSITION_CONTROL_DOB_ACCEL_MODEL_K;
+	float expectedAccY = outputY * POSITION_CONTROL_DOB_ACCEL_MODEL_K;
+
+	float distAccX = positionCordinateData.xAcceleration - expectedAccX;
+	float distAccY = positionCordinateData.yAcceleration - expectedAccY;
+
+	distAccX = constrainToRangeF(distAccX, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
+	distAccY = constrainToRangeF(distAccY, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
+
+	float alphaAcc = dt / (POSITION_CONTROL_DOB_ACC_TAU + dt);
+
+	positionControlXAccDist += alphaAcc * (distAccX - positionControlXAccDist);
+	positionControlYAccDist += alphaAcc * (distAccY - positionControlYAccDist);
+
+	positionControlXAccDist = constrainToRangeF(positionControlXAccDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
+	positionControlYAccDist = constrainToRangeF(positionControlYAccDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
+
+	/*---------------- Combine disturbance estimate ----------------*/
+	float xComp = positionControlXVelDist * POSITION_CONTROL_DOB_VEL_GAIN + positionControlXAccDist * POSITION_CONTROL_DOB_ACC_GAIN;
+	float yComp = positionControlYVelDist * POSITION_CONTROL_DOB_VEL_GAIN + positionControlYAccDist * POSITION_CONTROL_DOB_ACC_GAIN;
+
+	xComp = constrainToRangeF(xComp, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
+	yComp = constrainToRangeF(yComp, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
+
+	/*---------------- Apply DOB correction ----------------*/
+	outputX -= xComp;
+	outputY -= yComp;
+#endif
+
+	/*---------------- Feedforward (applied LAST, not inside DOB loop) ----------------*/
+#if POSITION_CONTROL_VEL_FF_ENABLED == 1
+	outputX += velFFX;
+	outputY += velFFY;
+#endif
+
+	/*---------------- Final clamp ----------------*/
+	float rateLimit = getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR);
+	outputX = constrainToRangeF(outputX, -rateLimit, rateLimit);
+	outputY = constrainToRangeF(outputY, -rateLimit, rateLimit);
+	controlData.positionXControl = outputX;
+	controlData.positionYControl = outputY;
 }
 
-#define POSITION_MGR_KVFF            0.08f
-#define POSITION_MGR_KAFF            0.0f
-
-#define POSITION_MGR_ACC_FF_MAX      3.5f
-#define POSITION_MGR_ACC_ALPHA       0.33f   // slightly faster response
-
-#define POSITION_MGR_VEL_MAX         3.0f   // m/s
-#define POSITION_MGR_VEL_RATE_LIMIT  4.0f   // m/s²
-
-void controlPositionWithGainsOld(float dt, float expectedX, float expectedY, float masterPGain, float ratePGain, float rateIGain, float rateDGain) {
-	static float lastVelTargetX = 0.0f;
-	static float lastVelTargetY = 0.0f;
-	static float filteredAccX = 0.0f;
-	static float filteredAccY = 0.0f;
-	// Use actual dt. 1e-6f is plenty to prevent divide-by-zero
-	float safeDt = fmaxf(dt, 1e-6f);
-	// ===================== X AXIS =====================
-	// 1. Position -> Velocity target
-	pidUpdateWithGains(&positionXPID, positionCordinateData.xPosition, expectedX, dt, masterPGain, 0.0f, 0.0f);
-	float velTargetX = positionXPID.pid;
-	// 2. Clamp velocity target (Saturation)
-	velTargetX = constrainToRangeF(velTargetX, -POSITION_MGR_VEL_MAX, POSITION_MGR_VEL_MAX);
-	// 3. Slew Rate Limit (The "Smoothness" Engine)
-	float deltaVelX = (velTargetX - lastVelTargetX);
-	float maxDeltaVel = POSITION_MGR_VEL_RATE_LIMIT * dt;
-	deltaVelX = constrainToRangeF(deltaVelX, -maxDeltaVel, maxDeltaVel);
-	velTargetX = lastVelTargetX + deltaVelX;
-	// 4. Rate PID (Inner Loop)
-	pidUpdateWithGains(&positionXRatePID, positionCordinateData.xVelocity, velTargetX, dt, ratePGain, rateIGain, rateDGain);
-	// 5. Acceleration FF (Derivative)
-	float rawAccX = (velTargetX - lastVelTargetX) / safeDt;
-	lastVelTargetX = velTargetX; // Update last target AFTER calculation
-	// LPF (Derivative Filtering)
-	filteredAccX = (POSITION_MGR_ACC_ALPHA * rawAccX) + ((1.0f - POSITION_MGR_ACC_ALPHA) * filteredAccX);
-	float accFFX = constrainToRangeF(filteredAccX, -POSITION_MGR_ACC_FF_MAX, POSITION_MGR_ACC_FF_MAX);
-	// 6. Combined Output
-	controlData.positionXControl = positionXRatePID.pid + (POSITION_MGR_KVFF * velTargetX) + (POSITION_MGR_KAFF * accFFX);
-	// ===================== Y AXIS (Same Logic) =====================
-	pidUpdateWithGains(&positionYPID, positionCordinateData.yPosition, expectedY, dt, masterPGain, 0.0f, 0.0f);
-	float velTargetY = positionYPID.pid;
-	velTargetY = constrainToRangeF(velTargetY, -POSITION_MGR_VEL_MAX, POSITION_MGR_VEL_MAX);
-	float deltaVelY = (velTargetY - lastVelTargetY);
-	float maxDeltaVelY = POSITION_MGR_VEL_RATE_LIMIT * dt;
-	deltaVelY = constrainToRangeF(deltaVelY, -maxDeltaVelY, maxDeltaVelY);
-	velTargetY = lastVelTargetY + deltaVelY;
-	pidUpdateWithGains(&positionYRatePID, positionCordinateData.yVelocity, velTargetY, dt, ratePGain, rateIGain, rateDGain);
-	float rawAccY = (velTargetY - lastVelTargetY) / safeDt;
-	lastVelTargetY = velTargetY;
-	filteredAccY = (POSITION_MGR_ACC_ALPHA * rawAccY) + ((1.0f - POSITION_MGR_ACC_ALPHA) * filteredAccY);
-	float accFFY = constrainToRangeF(filteredAccY, -POSITION_MGR_ACC_FF_MAX, POSITION_MGR_ACC_FF_MAX);
-	controlData.positionYControl = positionYRatePID.pid + (POSITION_MGR_KVFF * velTargetY) + (POSITION_MGR_KAFF * accFFY);
+__ATTR_ITCM_TEXT
+void setExpectedPositionVelocity(float dt, float expectedVelX, float expectedVelY) {
+	positionXPID.pid = constrainToRangeF(expectedVelX, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
+	positionYPID.pid = constrainToRangeF(expectedVelY, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
 }
 
+__ATTR_ITCM_TEXT
+void controlPositionCordinatesWithGains(float dt, float expectedX, float expectedY, float masterPGain) {
+#if POSITION_CONTROL_NONLINEAR_BOOST_ENABLED == 1
+	float errorX = expectedX - positionCordinateData.xPosition;
+	float errorY = expectedY - positionCordinateData.yPosition;
+	if (fabsf(errorX) < POSITION_CONTROL_NONLINEAR_BOOST_DEADBAND) {
+		errorX = 0.0f;
+	}
+	if (fabsf(errorY) < POSITION_CONTROL_NONLINEAR_BOOST_DEADBAND) {
+		errorY = 0.0f;
+	}
+	float boostX = 0.0f;
+	float boostY = 0.0f;
+	float absErrX = fabsf(errorX);
+	float absErrY = fabsf(errorY);
+	if (absErrX > POSITION_CONTROL_NONLINEAR_BOOST_START) {
+		boostX = POSITION_CONTROL_NONLINEAR_BOOST_GAIN * fastSqrtf(absErrX - POSITION_CONTROL_NONLINEAR_BOOST_START);
+		boostX = copysignf(boostX, errorX);
+	}
+	if (absErrY > POSITION_CONTROL_NONLINEAR_BOOST_START) {
+		boostY = POSITION_CONTROL_NONLINEAR_BOOST_GAIN * fastSqrtf(absErrY - POSITION_CONTROL_NONLINEAR_BOOST_START);
+		boostY = copysignf(boostY, errorY);
+	}
+	positionXPID.pid = constrainToRangeF((masterPGain * errorX) + boostX, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
+	positionYPID.pid = constrainToRangeF((masterPGain * errorY) + boostY, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
+#else
+	pidUpdateWithGains(&positionXPID, positionCordinateData.xPosition, expectedX, dt, masterPGain, 0.0f, 0.0f);
+	pidUpdateWithGains(&positionYPID, positionCordinateData.yPosition, expectedY, dt, masterPGain, 0.0f, 0.0f);
+#endif
+}

@@ -17,28 +17,27 @@ struct _FC_STATUS_DATA {
 	uint8_t isLandingModeActive, isLandingModeActiveAfterRTH, isFailSafeLandingMode;
 	//Flight debug status enabled
 	uint8_t isDebugEnabled;
-
+	uint8_t isOSDEnabled;
 	//The position references
 	double positionXRef, positionYRef;
 	//The home position
 	double positionLatHome, positionLongHome;
 	uint8_t isPositionHomeSet,isPositionRefSet;
-
+	uint8_t postionHoldState;
 	//Flight reference values
 	float headingRef, headingHomeRef, headingDelta;
-
 	float altitudeSLHome;
 	float altitudeSLRef;
 	float altitudeSLMax;
 	float altitudeGndMax;
-
 	//Throttle reference values
 	float currentThrottle;
 	float throttlePercent;
+	float throttleControlPercent;
 	float liftOffThrottlePercent;
-
 	//The config mode
 	uint8_t isConfigMode;
+	float batteryVolt;
 };
 
 extern FC_STATUS_DATA fcStatusData;

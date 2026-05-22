@@ -21,10 +21,12 @@ extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
 
 #define DEVICE_BARO_READ_FREQUENCY 100
 #define BARO_SENSOR_READ_FREQUENCY DEVICE_BARO_READ_FREQUENCY
+#define BARO_SENSOR_READ_PERIOD 1.0f/BARO_SENSOR_READ_FREQUENCY
+
 
 uint8_t deviceBaroInit(void);
 uint8_t deviceBaroRead(void);
 uint8_t deviceBaroLoadData(void);
-uint8_t deviceBaroReset(void);
+uint8_t deviceBaroReset(uint8_t hard);
 
 #endif
