@@ -50,6 +50,10 @@ float altMgrLowThDtAccumulation = 0.0f;
 
 float altMgrCurrentTiltCompThDelta = 0.0f;
 
+uint8_t altMgrLandingPulseActive = 0;
+float altMgrLandingPulseDt = 0;
+float altMgrLandingCommand = 0;
+
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
 
@@ -96,7 +100,7 @@ void startAltitudeSensorsRead() {
 
 __ATTR_ITCM_TEXT
 void manageAltControlSettings(float dt) {
-	if (!rcData.throttleCentered) {
+	if (!rcData.throttleCentered || altMgrLandingPulseActive) {
 		float deflectionGain = 1.0f;
 		if (altMgrPreviousCurrentThrottle != 0) {
 			altMgrCurrentThrottleDelta = fabsf(fcStatusData.currentThrottle - altMgrPreviousCurrentThrottle);
@@ -106,7 +110,7 @@ void manageAltControlSettings(float dt) {
 				altMgrCurrentThrottleRateGain = 1.0f - (altMgrCurrentThrottleRate * ALT_MGR_THROTTLE_RATE_ATTENUATION_GAIN);
 			}
 		}
-		float currentStickDeflection = fabsf(rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX]);
+		float currentStickDeflection = fabsf(altMgrLandingPulseActive ? -altMgrLandingCommand : rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX]);
 		float deflectionRatio = constrainToRangeF(currentStickDeflection / (float) MAX_PERMISSIBLE_THROTTLE_DELTA, 0.0f, 1.0f);
 		deflectionGain = 1.0f - (deflectionRatio * ALT_MGR_ALT_CONTROL_STICK_ATTENUATION_GAIN);
 		float totalAttenuation = altMgrCurrentThrottleRateGain * deflectionGain;
@@ -135,7 +139,7 @@ void manageAltControlSettings(float dt) {
 
 __ATTR_ITCM_TEXT
 void handleThrottleChange(float dt) {
-	float currentStick = rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX];
+	float currentStick = altMgrLandingPulseActive ? -altMgrLandingCommand : rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX];
 	float gain = currentStick * ALT_MGR_ALT_AGGREGATION_GAIN * dt;
 	if (altMgrWasThrottleCentered != 0) {
 		float lpfValue = altMgrThrottleControlLPF.output;
@@ -176,6 +180,33 @@ void handleThrottleChange(float dt) {
 	}
 
 	altMgrPreviousThrottle = fcStatusData.currentThrottle;
+}
+
+__ATTR_ITCM_TEXT
+void handleLanding(float dt) {
+	if ((fcStatusData.isLandingModeActive || fcStatusData.isLandingModeActiveAfterRTH) && rcData.throttleCentered) {
+		altMgrLandingPulseDt += dt;
+		if (altMgrLandingPulseActive) {
+			if (altMgrLandingPulseDt >= ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD) {
+				altMgrLandingCommand = 0;
+				altMgrLandingPulseActive = 0;
+				altMgrLandingPulseDt = 0;
+			} else {
+				altMgrLandingCommand = ALT_MGR_ALT_LANDING_STICK_COMMAND;
+			}
+		} else {
+			if (altMgrLandingPulseDt >= ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD) {
+				altMgrLandingPulseActive = 1;
+				altMgrLandingPulseDt = 0;
+			} else {
+				altMgrLandingCommand = 0;
+			}
+		}
+	} else {
+		altMgrLandingPulseActive = 0;
+		altMgrLandingPulseDt = 0;
+		altMgrLandingCommand = 0;
+	}
 }
 
 __ATTR_ITCM_TEXT
@@ -230,7 +261,8 @@ void calculateTiltCompThrottle(float dt) {
 
 __ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
-	if (!rcData.throttleCentered) {
+	handleLanding(dt);
+	if (!rcData.throttleCentered || altMgrLandingPulseActive) {
 		handleThrottleChange(dt);
 		altMgrWasThrottleCentered = 0;
 	} else {
@@ -304,6 +336,10 @@ void resetAltMgrStates() {
 	altMgrCurrentThrottleRateGain = 1.0f;
 	altMgrPreviousThrottle = 0.0f;
 	altMgrLowThDtAccumulation = 0;
+
+	altMgrLandingPulseActive = 0;
+	altMgrLandingPulseDt = 0;
+	altMgrLandingCommand = 0;
 
 	lowPassFilterReset(&altMgrThrottleControlLPF);
 }

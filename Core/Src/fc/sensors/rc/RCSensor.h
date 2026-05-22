@@ -14,9 +14,9 @@
 #define RC_ROLL_CHANNEL_INDEX        3 // Channel 3
 
 #define RC_FLIGHT_MODE_CHANNEL_INDEX 4 //Channel 5 //Reserved
-#define RC_LAND_CHANNEL_INDEX        5 //Channel 6 //Used for FAILSafe
 
-#define RC_START_CHANNEL_INDEX       6 //Channel 7 //swa
+#define RC_LAND_CHANNEL_INDEX        5 //Channel 6  //swd
+#define RC_START_CHANNEL_INDEX       6 //Channel 7  //swa
 #define RC_POS_CHANNEL_INDEX         7 //Channel 8  //swb
 #define RC_HEADING_CHANNEL_INDEX     8 //Channel 9  //swc
 #define RC_ALT_MODE_CHANNEL_INDEX    9 //Channel 10 //Land
