@@ -11,25 +11,30 @@ float posManagerGNSSStableTime = 0;
 
 __ATTR_ITCM_TEXT
 void updatePositionDataReliability(float dt) {
-	// 1. Basic threshold check
+	// 1. Basic threshold check (Must be a 3D fix or higher)
 	uint8_t valid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.sAcc <= POSITION_GNSS_MIN_SACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
 	if (valid) {
+		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
 		posManagerGNSSStableTime += dt;
 	} else {
-		// Faster decay: 2 seconds of "lost" time for every 1 second of real time
+		// Decay trust aggressively (1.0s of real time = 2.0s of trust loss)
 		posManagerGNSSStableTime -= POSITION_GNSS_STABILITY_INVALID_GAIN * dt;
 	}
-	// Clamp to [0, 2.0]
-	posManagerGNSSStableTime = constrainToRangeF(posManagerGNSSStableTime, 0.0f, POSITION_GNSS_STABILITY_INVALID_GAIN);
-	// 2. Hysteresis Logic
+
+	// Clamp securely to [0.0, POSITION_GNSS_STABILITY_MAX_WINDOW]
+	posManagerGNSSStableTime = constrainToRangeF(posManagerGNSSStableTime, 0.0f, POSITION_GNSS_STABILITY_MAX_WINDOW);
+
+	// 2. Clear, Explicit Hysteresis Logic
 	if (fcStatusData.isPositionDataReliable) {
-		// If already reliable, requires more than 0.5s of bad data to drop
-		if (posManagerGNSSStableTime < POSITION_GNSS_STABILITY_MIN_INVALID_DT) {
+		// If currently trusted, it must drop below 1.0s to lose trust.
+		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
+		if (posManagerGNSSStableTime < POSITION_GNSS_TRUST_THRESHOLD) {
 			fcStatusData.isPositionDataReliable = 0;
 		}
 	} else {
-		// If unreliable, requires 1.0s of consistent good data to gain trust
-		if (posManagerGNSSStableTime > POSITION_GNSS_STABILITY_MIN_VALID_DT) {
+		// If not trusted, it must climb above 1.0s to gain trust.
+		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
+		if (posManagerGNSSStableTime > POSITION_GNSS_TRUST_THRESHOLD) {
 			fcStatusData.isPositionDataReliable = 1;
 		}
 	}

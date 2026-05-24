@@ -42,7 +42,7 @@ void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 #define ALT_CONTROL_ACC_PID_D_LIMIT_RATIO 1.0f
 
 #define ALT_CONTROL_VEL_FEED_FWD_ENABLED  1
-#define ALT_CONTROL_VEL_FEED_FWD_GAIN 0.18f // Increase only in the steps of 0.02
+#define ALT_CONTROL_VEL_FEED_FWD_GAIN 0.2f // Increase only in the steps of 0.02
 
 #define ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED  1
 

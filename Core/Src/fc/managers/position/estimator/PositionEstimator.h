@@ -48,25 +48,25 @@
  Number of consecutive rejected measurements before the filter "gives up" and snaps to sensor.
  */
 #define POS_EKF_X_Q_POS   0.01f
-#define POS_EKF_X_Q_VEL   0.4f //0.15f
-#define POS_EKF_X_Q_BIAS  0.0015f
+#define POS_EKF_X_Q_VEL   0.12f //0.15f
+#define POS_EKF_X_Q_BIAS  0.00001f//0.0015f
 #define POS_EKF_X_R_MEAS  1.0f//Overridden by positionEKFSetDymamicPosR() function based on GPS SAcc
-#define POS_EKF_X_GATE    5.0f//9.0f
+#define POS_EKF_X_GATE    6.0f//9.0f
 #define POS_EKF_X_PANIC   8
 
 #define POS_EKF_Y_Q_POS   0.01f
-#define POS_EKF_Y_Q_VEL   0.4f //0.15f
-#define POS_EKF_Y_Q_BIAS  0.0015f
+#define POS_EKF_Y_Q_VEL   0.12f //0.15f
+#define POS_EKF_Y_Q_BIAS  0.00001f//0.0015f
 #define POS_EKF_Y_R_MEAS  1.0f//Overridden by positionEKFSetDymamicPosR() function based on GPS SAcc
-#define POS_EKF_Y_GATE    5//9.0f
+#define POS_EKF_Y_GATE    6//9.0f
 #define POS_EKF_Y_PANIC   8
 
 /*----------------------------------------- Z Axis ---------------------------------------------*/
 #define POS_EKF_Z_Q_POS   0.0002f //0.00005f
 #define POS_EKF_Z_Q_VEL   0.003f  //0.001f
-#define POS_EKF_Z_Q_BIAS  0.0005f
+#define POS_EKF_Z_Q_BIAS  0.00001f//0.0005f
 #define POS_EKF_Z_R_MEAS  6000.0f //2500.0f
-#define POS_EKF_Z_GATE    5//9.0f
+#define POS_EKF_Z_GATE    6//9.0f
 #define POS_EKF_Z_PANIC   8//10
 
 /// Dynamic R configuration for Z-axis based on vertical velocity and acceleration

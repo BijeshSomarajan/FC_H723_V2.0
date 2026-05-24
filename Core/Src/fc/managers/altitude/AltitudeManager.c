@@ -26,8 +26,7 @@ float altitudeUpdateDt = 0;
 float altMgrAltHoldActivationDt = 0;
 float altStabilizationDt = 0;
 
-float altMgrMaxSLAlt = 0;
-float altMgrMaxGndAlt = 0;
+float altMgrMaxHeight = 0;
 
 uint8_t altMgrWasInStabMode = 0;
 float altMgrMaxLiftComponent = 0;
@@ -68,8 +67,7 @@ uint8_t initAltitudeManager(void) {
 
 		fcStatusData.liftOffThrottlePercent = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR) / (float) MAX_PERMISSIBLE_THROTTLE_DELTA;
 
-		altMgrMaxSLAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_ASL_HEIGHT_ADDR);
-		altMgrMaxGndAlt = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_TERRAIN_HEIGHT_ADDR);
+		altMgrMaxHeight = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_HEIGHT_ADDR);
 		altMgrMaxLiftComponent = cosf(convertDegToRadF(ALT_MGR_TILT_TH_MAX_ANGLE));
 
 		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
@@ -184,7 +182,7 @@ void handleThrottleChange(float dt) {
 
 __ATTR_ITCM_TEXT
 void handleLanding(float dt) {
-	if ((fcStatusData.isLandingModeActive || fcStatusData.isLandingModeActiveAfterRTH) && rcData.throttleCentered) {
+	if ((fcStatusData.isLandingModeActive) && rcData.throttleCentered) {
 		altMgrLandingPulseDt += dt;
 		if (altMgrLandingPulseActive) {
 			if (altMgrLandingPulseDt >= ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD) {
@@ -213,8 +211,7 @@ __ATTR_ITCM_TEXT
 void updateAltitudeReferences() {
 	fcStatusData.altitudeSLRef = positionCordinateData.zPosition; //sensorAltitudeData.altitudeSLMaxFiltered;
 	fcStatusData.altitudeSLHome = fcStatusData.altitudeSLRef;
-	fcStatusData.altitudeSLMax = fcStatusData.altitudeSLHome + altMgrMaxSLAlt;
-	fcStatusData.altitudeGndMax = altMgrMaxGndAlt;
+	fcStatusData.altitudeSLMax = fcStatusData.altitudeSLHome + altMgrMaxHeight;
 }
 
 __ATTR_ITCM_TEXT

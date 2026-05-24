@@ -146,31 +146,6 @@ void setExpectedPositionVelocity(float dt, float expectedVelX, float expectedVel
 
 __ATTR_ITCM_TEXT
 void controlPositionCordinatesWithGains(float dt, float expectedX, float expectedY, float masterPGain) {
-#if POSITION_CONTROL_NONLINEAR_BOOST_ENABLED == 1
-	float errorX = expectedX - positionCordinateData.xPosition;
-	float errorY = expectedY - positionCordinateData.yPosition;
-	if (fabsf(errorX) < POSITION_CONTROL_NONLINEAR_BOOST_DEADBAND) {
-		errorX = 0.0f;
-	}
-	if (fabsf(errorY) < POSITION_CONTROL_NONLINEAR_BOOST_DEADBAND) {
-		errorY = 0.0f;
-	}
-	float boostX = 0.0f;
-	float boostY = 0.0f;
-	float absErrX = fabsf(errorX);
-	float absErrY = fabsf(errorY);
-	if (absErrX > POSITION_CONTROL_NONLINEAR_BOOST_START) {
-		boostX = POSITION_CONTROL_NONLINEAR_BOOST_GAIN * fastSqrtf(absErrX - POSITION_CONTROL_NONLINEAR_BOOST_START);
-		boostX = copysignf(boostX, errorX);
-	}
-	if (absErrY > POSITION_CONTROL_NONLINEAR_BOOST_START) {
-		boostY = POSITION_CONTROL_NONLINEAR_BOOST_GAIN * fastSqrtf(absErrY - POSITION_CONTROL_NONLINEAR_BOOST_START);
-		boostY = copysignf(boostY, errorY);
-	}
-	positionXPID.pid = constrainToRangeF((masterPGain * errorX) + boostX, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
-	positionYPID.pid = constrainToRangeF((masterPGain * errorY) + boostY, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
-#else
 	pidUpdateWithGains(&positionXPID, positionCordinateData.xPosition, expectedX, dt, masterPGain, 0.0f, 0.0f);
 	pidUpdateWithGains(&positionYPID, positionCordinateData.yPosition, expectedY, dt, masterPGain, 0.0f, 0.0f);
-#endif
 }
