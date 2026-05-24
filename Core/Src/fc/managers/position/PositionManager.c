@@ -58,12 +58,15 @@ uint8_t initPositionManager(void) {
 		lowPassFilterInit(&positionMgrVelYLPF, POSITION_MGR_Y_VEL_LPF_FREQ);
 		lowPassFilterInit(&positionMgrVelZLPF, POSITION_MGR_Z_VEL_LPF_FREQ);
 
-		posRatePitchRollRatio = getScaledCalibrationValue(CALIB_PROP_POS_HOLD_COMMAND_PITCH_ROLL_RATIO_ADDR);
+		posRatePitchRollRatio = getScaledCalibrationValue(
+		CALIB_PROP_POS_HOLD_COMMAND_PITCH_ROLL_RATIO_ADDR);
 
-		schedulerAddTask(managePositionTask, POSITION_MANAGEMENT_TASK_FREQUENCY, POSITION_MANAGEMENT_TASK_PRIORITY);
+		schedulerAddTask(managePositionTask, POSITION_MANAGEMENT_TASK_FREQUENCY,
+		POSITION_MANAGEMENT_TASK_PRIORITY);
 		logString("[Position Manager] All tasks   > Started\n");
 
-		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY, POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
+		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY,
+		POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
 	} else {
 		logString("[Position Manager] EKF Init > Failed\n");
 	}
@@ -75,17 +78,20 @@ void updatePositionVelocity(float vx, float vy, float vz, float dt) {
 	float vel;
 	// X Axis
 	vel = applyDeadBandFloat(0.0f, vx, POSITION_MGR_X_VEL_DEADBAND);
-	vel = constrainToRangeF(vel, -POSITION_MGR_X_VEL_MAX, POSITION_MGR_X_VEL_MAX);
+	vel = constrainToRangeF(vel, -POSITION_MGR_X_VEL_MAX,
+	POSITION_MGR_X_VEL_MAX);
 	positionCordinateData.xVelocity = lowPassFilterUpdate(&positionMgrVelXLPF, vel, dt);
 
 	// Y Axis
 	vel = applyDeadBandFloat(0.0f, vy, POSITION_MGR_Y_VEL_DEADBAND);
-	vel = constrainToRangeF(vel, -POSITION_MGR_Y_VEL_MAX, POSITION_MGR_Y_VEL_MAX);
+	vel = constrainToRangeF(vel, -POSITION_MGR_Y_VEL_MAX,
+	POSITION_MGR_Y_VEL_MAX);
 	positionCordinateData.yVelocity = lowPassFilterUpdate(&positionMgrVelYLPF, vel, dt);
 
 	// Z Axis
 	vel = applyDeadBandFloat(0.0f, vz, POSITION_MGR_Z_VEL_DEADBAND);
-	vel = constrainToRangeF(vel, -POSITION_MGR_Z_VEL_MAX, POSITION_MGR_Z_VEL_MAX);
+	vel = constrainToRangeF(vel, -POSITION_MGR_Z_VEL_MAX,
+	POSITION_MGR_Z_VEL_MAX);
 	positionCordinateData.zVelocity = lowPassFilterUpdate(&positionMgrVelZLPF, vel, dt);
 }
 
@@ -94,17 +100,20 @@ void updatePositionAcceleration(float ax, float ay, float az, float dt) {
 	float acc;
 	// X Axis
 	acc = applyDeadBandFloat(0.0f, ax, POSITION_MGR_X_ACC_DEADBAND);
-	acc = constrainToRangeF(acc, -POSITION_MGR_X_ACC_MAX, POSITION_MGR_X_ACC_MAX);
+	acc = constrainToRangeF(acc, -POSITION_MGR_X_ACC_MAX,
+	POSITION_MGR_X_ACC_MAX);
 	positionCordinateData.xAcceleration = lowPassFilterUpdate(&positionMgrAccXLPF, acc, dt);
 
 	// Y Axis
 	acc = applyDeadBandFloat(0.0f, ay, POSITION_MGR_Y_ACC_DEADBAND);
-	acc = constrainToRangeF(acc, -POSITION_MGR_Y_ACC_MAX, POSITION_MGR_Y_ACC_MAX);
+	acc = constrainToRangeF(acc, -POSITION_MGR_Y_ACC_MAX,
+	POSITION_MGR_Y_ACC_MAX);
 	positionCordinateData.yAcceleration = lowPassFilterUpdate(&positionMgrAccYLPF, acc, dt);
 
 	// Z Axis
 	acc = applyDeadBandFloat(0.0f, az, POSITION_MGR_Z_ACC_DEADBAND);
-	acc = constrainToRangeF(acc, -POSITION_MGR_Z_ACC_MAX, POSITION_MGR_Z_ACC_MAX);
+	acc = constrainToRangeF(acc, -POSITION_MGR_Z_ACC_MAX,
+	POSITION_MGR_Z_ACC_MAX);
 	positionCordinateData.zAcceleration = lowPassFilterUpdate(&positionMgrAccZLPF, acc, dt);
 }
 
@@ -135,7 +144,8 @@ void updatePositionRateCommand(float dt) {
 	if ((fcStatusData.isRTHModeActive || fcStatusData.isPositionHoldModeActive) && fcStatusData.isPositionDataReliable) {
 		if ((fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) && fcStatusData.isPositionRefSet) {
 			if (fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING) {
-				positionMgrPosHoldRatePIDGain = POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
+				positionMgrPosHoldRatePIDGain =
+				POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
 			} else {
 				positionMgrPosHoldRatePIDGain = 1.0f;
 			}
@@ -237,18 +247,26 @@ void updateRTHCompletionStatus(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void calculateBrakeAnchor(void) {
-	if (!fcStatusData.canFly || !fcStatusData.isPositionDataReliable) {
-		fcStatusData.positionXRef = positionCordinateData.xPosition;
-		fcStatusData.positionYRef = positionCordinateData.yPosition;
-		fcStatusData.isPositionRefSet = 1;
-		return;
-	}
+void calculateBrakeAnchorBallistic(void) {
 	float vx = positionCordinateData.xVelocity;
 	float vy = positionCordinateData.yVelocity;
 	// Total displacement = (Linear Filter Lag) + (Quadratic Kinetic Coasting)
 	float xOffset = (vx * POSITION_MGR_POS_HOLD_EKF_LAG_SEC) + ((vx * fabsf(vx)) / (2.0f * POSITION_MGR_POS_HOLD_NATURAL_DECEL_X));
 	float yOffset = (vy * POSITION_MGR_POS_HOLD_EKF_LAG_SEC) + ((vy * fabsf(vy)) / (2.0f * POSITION_MGR_POS_HOLD_NATURAL_DECEL_Y));
+
+	fcStatusData.positionXRef = positionCordinateData.xPosition + xOffset;
+	fcStatusData.positionYRef = positionCordinateData.yPosition + yOffset;
+	fcStatusData.isPositionRefSet = 1;
+}
+
+__ATTR_ITCM_TEXT
+void calculateBrakeAnchorLinear(void) {
+	float vx = positionCordinateData.xVelocity;
+	float vy = positionCordinateData.yVelocity;
+
+	// FIX: Match the linear P-gain decay of the position loop instead of ballistic quadratic deceleration
+	float xOffset = (vx * POSITION_MGR_POS_HOLD_EKF_LAG_SEC) + (vx / 0.5f);
+	float yOffset = (vy * POSITION_MGR_POS_HOLD_EKF_LAG_SEC) + (vy / 0.5f);
 
 	fcStatusData.positionXRef = positionCordinateData.xPosition + xOffset;
 	fcStatusData.positionYRef = positionCordinateData.yPosition + yOffset;
@@ -269,22 +287,21 @@ void handlePositionBraking(float dt) {
 	// Generate a counter-velocity command based on current ground speed
 	float vxCmd = -positionCordinateData.xVelocity * brakeStrength;
 	float vyCmd = -positionCordinateData.yVelocity * brakeStrength;
-	vxCmd = constrainToRangeF(vxCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
-	vyCmd = constrainToRangeF(vyCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+	vxCmd = constrainToRangeF(vxCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY,
+	POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+	vyCmd = constrainToRangeF(vyCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY,
+	POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
 	setExpectedPositionVelocity(dt, vxCmd, vyCmd);
 
 	// Check termination conditions
 	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED);
 	uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
-
 	if (lowGroundSpeed || timeoutReached) {
 		positionMgrPosHoldElapseDtSum = 0.0f;
 		resetPositionControl(1);
-		//calculateBrakeAnchor();
-		updatePositionReference();
+		calculateBrakeAnchorLinear();
+		//updatePositionReference();
 		fcStatusData.postionHoldState = POS_HOLD_STATE_SETTLING;
-	} else {
-		updatePositionReference();
 	}
 }
 
@@ -334,11 +351,11 @@ void updatePositionCordinateCommand(float dt) {
 		}
 		break;
 	case POS_HOLD_STATE_LOCKED:
+		positionMgrPosHoldElapseDtSum = 0.0f;
 		if (fcStatusData.isRTHModeActive) {
 			handleRTHNavigation(dt);
 		} else {
 			controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
-			positionMgrPosHoldElapseDtSum = 0.0f;
 		}
 		break;
 	default:
@@ -351,11 +368,15 @@ void updatePositionCordinateCommand(float dt) {
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
 	float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
-	dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
+	dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f,
+	POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
 
-	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_X_ACC_OUTPUT_GAIN;
-	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_Y_ACC_OUTPUT_GAIN;
-	float azEarth = applyDeadBandFloat(0, imuData.azEarthLinear, POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_Z_ACC_OUTPUT_GAIN;
+	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear,
+	POSITION_MGR_X_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_X_ACC_OUTPUT_GAIN;
+	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear,
+	POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_Y_ACC_OUTPUT_GAIN;
+	float azEarth = applyDeadBandFloat(0, imuData.azEarthLinear,
+	POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_Z_ACC_OUTPUT_GAIN;
 
 	// 1. Prediction (Using raw or slightly scaled earth-frame acc)
 	positionEKFPredict(&positionEkf, axEarth, ayEarth, azEarth, dt);
@@ -377,14 +398,15 @@ void managePositionTask(void) {
 	updatePositionVelocity(x[1], x[4], x[7], dt);
 
 	postionMgrRateDtSum += dt;
-	while ( postionMgrRateDtSum >= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD ) {
+	while (postionMgrRateDtSum >= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD) {
 		updatePositionRateCommand(POSITION_MANAGEMENT_RATE_CONTROL_PERIOD);
 		postionMgrRateDtSum -= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD;
 	}
 
 	postionMgrPositionDtSum += dt;
-	while ( postionMgrPositionDtSum >= POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD ) {
-		updatePositionCordinateCommand(POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD);
+	while (postionMgrPositionDtSum >= POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD) {
+		updatePositionCordinateCommand(
+		POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD);
 		postionMgrPositionDtSum -= POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD;
 	}
 
@@ -393,7 +415,7 @@ void managePositionTask(void) {
 
 __ATTR_ITCM_TEXT
 void doPositionManagement() {
-	if (fcStatusData.hasCrashed || !fcStatusData.isFlying) {
+	if (fcStatusData.hasCrashed) {
 		resetPositionManager();
 	} else if (fcStatusData.canStabilize && !positionManagerWasInStabMode) {
 		positionManagerWasInStabMode = 1;
@@ -432,8 +454,10 @@ void doPositionManagement() {
 				dynamicRv = POSITION_MGR_GNSS_VEL_R_MAX;
 			}
 
-			float velN = applyDeadBandFloat(0.0f, gnssData.velN, POSITION_MGR_GNSS_VEL_DEADBAND);
-			float velE = applyDeadBandFloat(0.0f, gnssData.velE, POSITION_MGR_GNSS_VEL_DEADBAND);
+			float velN = applyDeadBandFloat(0.0f, gnssData.velN,
+			POSITION_MGR_GNSS_VEL_DEADBAND);
+			float velE = applyDeadBandFloat(0.0f, gnssData.velE,
+			POSITION_MGR_GNSS_VEL_DEADBAND);
 			positionEKFUpdateXYVel(&positionEkf, velN, velE, dynamicRv);
 
 			float hAcc = gnssData.hAccMts;
@@ -482,7 +506,8 @@ void resetPositionManager(void) {
 	positionMgrRTHVyCommand = 0;
 	positionMgrRTHCompleteDt = 0;
 
-	positionEKFUpdateXYVel(&positionEkf, 0.0f, 0.0f, POSITION_MGR_XY_VEL_RESET_DAMP_STRENGTH);
+	positionEKFUpdateXYVel(&positionEkf, 0.0f, 0.0f,
+	POSITION_MGR_XY_VEL_RESET_DAMP_STRENGTH);
 }
 
 __ATTR_ITCM_TEXT

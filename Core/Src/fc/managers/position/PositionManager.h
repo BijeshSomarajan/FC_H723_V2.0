@@ -21,24 +21,24 @@
 
 #define POSITION_MGR_MAX_POS_COMMAND  30.0f // Degrees
 
-#define POSITION_MGR_X_VEL_LPF_FREQ 12.00f
-#define POSITION_MGR_Y_VEL_LPF_FREQ 12.00f
+#define POSITION_MGR_X_VEL_LPF_FREQ 15.00f
+#define POSITION_MGR_Y_VEL_LPF_FREQ 15.00f
 #define POSITION_MGR_Z_VEL_LPF_FREQ 20.00f
 
-#define POSITION_MGR_X_ACC_LPF_FREQ 15.00f
-#define POSITION_MGR_Y_ACC_LPF_FREQ 15.00f
+#define POSITION_MGR_X_ACC_LPF_FREQ 30.00f
+#define POSITION_MGR_Y_ACC_LPF_FREQ 30.00f
 #define POSITION_MGR_Z_ACC_LPF_FREQ 30.00f
 
 #define POSITION_MGR_X_ACC_DEADBAND 0.0f //0.01f    // Meter/Sec2
 #define POSITION_MGR_Y_ACC_DEADBAND 0.0f //0.01f    // Meter/Sec2
 #define POSITION_MGR_Z_ACC_DEADBAND 1.0f            // Meter/Sec2
 
-#define POSITION_MGR_X_ESTIMATION_ACC_DEADBAND   0.01f // Meter/Sec2
-#define POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND   0.01f // Meter/Sec2
+#define POSITION_MGR_X_ESTIMATION_ACC_DEADBAND   0.0f // Meter/Sec2
+#define POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND   0.0f // Meter/Sec2
 #define POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND   0.1f // Meter/Sec2
 
-#define POSITION_MGR_X_VEL_DEADBAND     0.0f   //0.005f // Meter/Sec
-#define POSITION_MGR_Y_VEL_DEADBAND     0.0f   //0.005f // Meter/Sec
+#define POSITION_MGR_X_VEL_DEADBAND     0.01f   //0.005f // Meter/Sec
+#define POSITION_MGR_Y_VEL_DEADBAND     0.01f   //0.005f // Meter/Sec
 #define POSITION_MGR_Z_VEL_DEADBAND     1.0f   // Cm/Sec
 
 #define POSITION_MGR_X_VEL_MAX          50.0f  // M/Sec
@@ -54,8 +54,8 @@
 // --------------------------------------------------
 // GPS POSITION MEASUREMENT TRUST (Standard GNSS Tuned)
 // --------------------------------------------------
-#define POSITION_MGR_XY_POS_DYNAMIC_R_BASE   2.5f   // Balanced floor (~1.0m uncertainty minimum)
-#define POSITION_MGR_GNSS_POS_HACC_SCALE     3.0f   // Slightly reduced to prevent over-reacting to jumpy hAcc
+#define POSITION_MGR_XY_POS_DYNAMIC_R_BASE   1.25f   // Balanced floor (~1.0m uncertainty minimum)
+#define POSITION_MGR_GNSS_POS_HACC_SCALE     2.0f   // Slightly reduced to prevent over-reacting to jumpy hAcc
 #define POSITION_MGR_GNSS_POS_HACC_MIN       0.8f   // Realistic best-case accuracy floor for standard GNSS
 #define POSITION_MGR_GNSS_POS_R_MAX          100.0f // High ceiling to protect against severe multipath reflection
 // --------------------------------------------------
@@ -70,16 +70,16 @@
 
 //Loiter configurations
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY             15.0f
-#define POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN             1.25f
+#define POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN             1.2f
 #define POSITION_MGR_POS_HOLD_BRAKE_REF_EST_VELOCITY_GAIN    0.33f
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED         0.4f
 #define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD            0.5f// 0.85f
 #define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD          0.5f // 1.0f
-#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH                 2.0f //1.5f
+#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH                 2.2f //1.5f
 #define POSITION_MGR_POS_HOLD_SETTLE_MAX_VEL                 0.3f
 #define POSITION_MGR_POS_HOLD_EKF_LAG_SEC                    0.05f   // 50ms total filter transport delay
-#define POSITION_MGR_POS_HOLD_NATURAL_DECEL_X                1.2f    // Pitch axis deceleration (m/s^2)
-#define POSITION_MGR_POS_HOLD_NATURAL_DECEL_Y                1.4f    // Roll axis deceleration (m/s^2)
+#define POSITION_MGR_POS_HOLD_NATURAL_DECEL_X                7.5f    // Pitch axis deceleration (m/s^2)
+#define POSITION_MGR_POS_HOLD_NATURAL_DECEL_Y                8.0f    // Roll axis deceleration (m/s^2)
 
 //RTH Configurations
 #define POSITION_MGR_RTH_CRUISE_SPEED          15.0f   // m/s
@@ -90,7 +90,7 @@
 #define POSITION_MGR_RTH_COMPLETE_PERIOD       4.0f
 #define POSITION_MGR_RTH_COMPLETE_MAX_GROUND_SPEED    0.4f
 
-#define POSITION_MGR_VENTURI_ESTIMATE_ENABLED 0
+#define POSITION_MGR_VENTURI_ESTIMATE_ENABLED 1
 
 typedef enum {
 	POS_HOLD_STATE_IDLE = 0, POS_HOLD_STATE_BRAKING, POS_HOLD_STATE_SETTLING, POS_HOLD_STATE_LOCKED

@@ -38,33 +38,6 @@ uint8_t initDebugManager(void) {
 	return 1;
 }
 
-void debugOSD() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.canStart | fcStatusData.canStabilize << 8 | fcStatusData.canFly << 16 | fcStatusData.hasCrashed << 24;
-	DEBUG_DATA_BUFFER[1] = fcStatusData.isTxOn | fcStatusData.isPositionDataReliable << 8 | fcStatusData.isPositionHoldModeActive << 16 | fcStatusData.isRTHModeActive << 24;
-	DEBUG_DATA_BUFFER[2] = fcStatusData.throttleControlPercent * 100;
-
-	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.pitch * 10;
-	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.roll * 10;
-	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.heading * 10;
-
-	DEBUG_DATA_BUFFER[6] = positionCordinateData.xPosition * 10;
-	DEBUG_DATA_BUFFER[7] = positionCordinateData.xVelocity * 10;
-
-	DEBUG_DATA_BUFFER[8] = positionCordinateData.yPosition * 10;
-	DEBUG_DATA_BUFFER[9] = positionCordinateData.yVelocity * 10;
-
-	DEBUG_DATA_BUFFER[10] = positionCordinateData.zPosition;
-	DEBUG_DATA_BUFFER[11] = positionCordinateData.zVelocity;
-
-	DEBUG_DATA_BUFFER[12] = gnssData.satCount;
-	DEBUG_DATA_BUFFER[13] = gnssData.fixStatus;
-
-	DEBUG_DATA_BUFFER[14] = gnssData.latitude * 1000000;
-	DEBUG_DATA_BUFFER[15] = gnssData.longitude * 1000000;
-
-	sendConfigData(DEBUG_DATA_BUFFER, 16, CMD_FC_DATA);
-}
-
 void debugNoise() {
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.gxDS * 10;
 	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDSFiltered * 10;
@@ -90,9 +63,9 @@ void debugPosition() {
 	DEBUG_DATA_BUFFER[10] = positionCordinateData.yAcceleration * 1000;
 	DEBUG_DATA_BUFFER[11] = positionCordinateData.yAccelerationBias * 1000;
 
-	DEBUG_DATA_BUFFER[12] = positionCordinateData.zPosition * 10;
-	DEBUG_DATA_BUFFER[13] = positionCordinateData.zVelocity * 10;
-	DEBUG_DATA_BUFFER[14] = imuData.azEarthLinear * 1000;
+	DEBUG_DATA_BUFFER[12] = positionCordinateData.zVelocity * 10;
+	DEBUG_DATA_BUFFER[13] = imuData.azEarthLinear * 1000;
+	DEBUG_DATA_BUFFER[14] = positionCordinateData.zAccelerationBias * 1000;
 	DEBUG_DATA_BUFFER[15] = positionCordinateData.zAcceleration * 1000;
 //	DEBUG_DATA_BUFFER[16] = positionCordinateData.zAccelerationBias * 1000;
 
