@@ -224,35 +224,55 @@ float getClampedCurrentAltitude() {
 __ATTR_ITCM_TEXT
 void calculateTiltCompThrottle(float dt) {
 	float target = 0.0f;
-	// --- Get attitude ---
-	float pitch = sensorAttitudeData.pitch;   // degrees
-	float roll = sensorAttitudeData.roll;    // degrees
-	// --- Convert to radians ---
-	float pitchRad = convertDegToRadF(pitch);
-	float rollRad = convertDegToRadF(roll);
-	// --- Compute lift component ---
+
+	// 1. Get attitude and convert to radians
+	float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
+	float rollRad  = convertDegToRadF(sensorAttitudeData.roll);
+
+	// 2. Compute the composite vertical lift scaling vector
 	float cosP = cosApproxF(pitchRad);
 	float cosR = cosApproxF(rollRad);
 	float liftComponent = cosP * cosR;
-	// --- Clamp tilt effect using max tilt angle ---
-	float minComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_TH_MAX_ANGLE));
-	liftComponent = fmaxf(liftComponent, minComponent);
-	// --- Apply only if meaningful tilt ---
-	if (liftComponent < 0.999f) {
-		// % thrust loss due to tilt
-		float tiltCompFactor = (1.0f / liftComponent) - 1.0f;
-		// Convert hover throttle (0–1) → throttle units
+
+	// 3. Pre-calculate physical macro boundaries into cosine float space
+	float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_TH_MIN_ANGLE)); // e.g., cos(1.5 deg) -> ~0.9996
+	float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_TH_MAX_ANGLE)); // e.g., cos(30.0 deg) -> ~0.8660
+
+	// 4. Check if the vehicle has tilted past the minimum deadband threshold
+	if (liftComponent < deadbandComponent) {
+
+		// Clamp the lift component to the max physical angle boundary to prevent
+		// exponential mathematical explosion if the airframe over-rotates.
+		float clampedLift = fmaxf(liftComponent, maxAngleComponent);
+
+		// Calculate the exact percentage of vertical thrust lost due to tilt
+		float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
+
+		// Convert current dynamic hover scale to actual mixer throttle units
 		float hoverThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
-		// --- Final compensation ---
+
+		// Apply physics tracking adjusted by your user authority gain
 		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_TH_GAIN;
-		// --- Safety clamp (throttle units) ---
+
+		// Hard clamp target to your safe physical limit ceiling before filtering
 		target = fminf(target, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
 	}
-	// --- Smooth response (your original logic retained) ---
-	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
+
+	// 5. Asymmetrical Low-Pass Filter State Machine
+	// If target is increasing, use high-speed TAU_RISE to stomp out sag instantly.
+	// If target is decreasing, use a slower TAU_FADE to seamlessly unroll RPM.
+	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ?
+	                  ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
+
 	float alpha = dt / (activeTau + dt);
-	target = constrainToRangeF(target, 0, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
+
+	// Double sanity-check constraints on target bounds
+	target = constrainToRangeF(target, 0.0f, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
+
+	// Execute the IIR filter step
 	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
+
+	// 6. Pipe the filtered delta directly into the actuator mixer matrix
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
 

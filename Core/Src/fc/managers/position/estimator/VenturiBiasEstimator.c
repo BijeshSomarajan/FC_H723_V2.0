@@ -24,7 +24,6 @@ uint8_t initVenturiBiasEstimator(void) {
 	return 1;
 }
 
-
 __ATTR_ITCM_TEXT
 float updateVenturiBiasEstimatePhysical(float dt) {
 	// 1. Safety & State Check
@@ -45,14 +44,18 @@ float updateVenturiBiasEstimatePhysical(float dt) {
 
 	// 4. Velocity Integration with Drag
 	float drag = venturiEstimateData.lateralSpeed * VENTURI_EST_DRAG_FEEDBACK_GAIN;
+	if ((venturiEstimateData.lateralSpeed * pitchFiltered) < 0.0f) {
+		float brakeMultiplier = (venturiEstimateData.lateralSpeed < 0.0f) ? VENTURI_EST_BRAKING_DRAG_BWD_MULT : VENTURI_EST_BRAKING_DRAG_FWD_MULT;
+		drag *= brakeMultiplier;
+	}
 	float acceleration = lateralAccel - drag;
-
 	venturiEstimateData.lateralSpeed += (acceleration * dt);
 	venturiEstimateData.lateralSpeed = constrainToRangeF(venturiEstimateData.lateralSpeed, -VENTURI_EST_SPEED_MAX, VENTURI_EST_SPEED_MAX);
 
 	// 5. Bernoulli Bias Calculation (Quadratic: Bias = k * v^2)
 	float speed = venturiEstimateData.lateralSpeed;
-	float biasGain = (pitchFiltered < 0.0f) ? VENTURI_EST_BIAS_GAIN_BWD : VENTURI_EST_BIAS_GAIN_FWD;
+	//float biasGain = (pitchFiltered < 0.0f) ? VENTURI_EST_BIAS_GAIN_BWD : VENTURI_EST_BIAS_GAIN_FWD;
+	float biasGain = (speed < 0.0f) ? VENTURI_EST_BIAS_GAIN_BWD : VENTURI_EST_BIAS_GAIN_FWD;
 	biasGain = lowPassFilterUpdate(&venturiBiasGainLPF, biasGain, dt);
 
 	// v * fabsf(v) preserves the sign so the EKF knows the direction of the pressure dip
@@ -73,7 +76,6 @@ float updateVenturiBiasEstimatePhysical(float dt) {
 	venturiEstimateData.venturiBias = lowPassFilterUpdate(&venturiBiasLPF, bias, dt);
 	return venturiEstimateData.venturiBias;
 }
-
 
 float updateVenturiBiasEstimate(float dt) {
 	return updateVenturiBiasEstimatePhysical(dt);

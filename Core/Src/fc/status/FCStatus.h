@@ -24,7 +24,7 @@ struct _FC_STATUS_DATA {
 	double positionLatHome, positionLongHome;
 	double positionXHome, positionYHome;
 
-	uint8_t isPositionHomeSet, isPositionRefSet;
+	uint8_t isPositionHomeSet;
 	uint8_t postionHoldState, isRTHComplete;
 	//Flight reference values
 	float headingRef, headingHomeRef, headingDelta;

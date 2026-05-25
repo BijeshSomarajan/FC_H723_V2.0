@@ -54,10 +54,10 @@
 // --------------------------------------------------
 // GPS POSITION MEASUREMENT TRUST (Standard GNSS Tuned)
 // --------------------------------------------------
-#define POSITION_MGR_XY_POS_DYNAMIC_R_BASE   1.25f   // Balanced floor (~1.0m uncertainty minimum)
-#define POSITION_MGR_GNSS_POS_HACC_SCALE     2.0f   // Slightly reduced to prevent over-reacting to jumpy hAcc
-#define POSITION_MGR_GNSS_POS_HACC_MIN       0.8f   // Realistic best-case accuracy floor for standard GNSS
-#define POSITION_MGR_GNSS_POS_R_MAX          100.0f // High ceiling to protect against severe multipath reflection
+#define POSITION_MGR_XY_POS_DYNAMIC_R_BASE   0.6f   //0.6 - Works
+#define POSITION_MGR_GNSS_POS_HACC_SCALE     2.0f   //2.0 - Works
+#define POSITION_MGR_GNSS_POS_HACC_MIN       0.8f
+#define POSITION_MGR_GNSS_POS_R_MAX          100.0f
 // --------------------------------------------------
 // GPS VELOCITY MEASUREMENT TRUST (Standard GNSS Tuned)
 // --------------------------------------------------
@@ -71,16 +71,17 @@
 //Loiter configurations
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY             15.0f
 #define POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN             1.2f
+
 #define POSITION_MGR_POS_HOLD_BRAKE_REF_EST_VELOCITY_GAIN    0.33f
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED         0.4f
-#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD            0.5f// 0.85f
-#define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD          0.5f // 1.0f
-#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH                 2.2f //1.5f
-#define POSITION_MGR_POS_HOLD_SETTLE_MAX_VEL                 0.3f
-#define POSITION_MGR_POS_HOLD_EKF_LAG_SEC                    0.05f   // 50ms total filter transport delay
-#define POSITION_MGR_POS_HOLD_NATURAL_DECEL_X                7.5f    // Pitch axis deceleration (m/s^2)
-#define POSITION_MGR_POS_HOLD_NATURAL_DECEL_Y                8.0f    // Roll axis deceleration (m/s^2)
+#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD            0.75f // 0.85f
+#define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD          0.25f // 1.0f
+#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH                 1.25f //1.5f
+#define POSITION_MGR_POS_HOLD_BALLISTIC_SCALE                1.2f
 
+#define POSITION_MGR_POS_HOLD_EKF_LAG_SEC                    0.05f
+#define POSITION_MGR_POS_HOLD_NATURAL_DECEL                  7.5f
+#define POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET               3.0f
 //RTH Configurations
 #define POSITION_MGR_RTH_CRUISE_SPEED          15.0f   // m/s
 #define POSITION_MGR_RTH_NEAR_HOME_RADIUS      1.5f   // meters
