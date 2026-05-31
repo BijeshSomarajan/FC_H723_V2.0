@@ -48,7 +48,7 @@ uint8_t needIndicatorStateChange(uint16_t indicatorThreshold) {
 }
 
 void checkPositionIndication() {
-	if (fcStatusData.isPositionDataReliable) {
+	if (fcStatusData.isPositionDataReliable && fcStatusData.isPositionHomeSet) {
 		if (needIndicatorStateChange(ERROR_POSITION_DATA_RELIABLE_THRESHOLD)) {
 			errorIndicatorBlink();
 		}

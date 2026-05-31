@@ -29,7 +29,6 @@ float altStabilizationDt = 0;
 float altMgrMaxHeight = 0;
 
 uint8_t altMgrWasInStabMode = 0;
-float altMgrMaxLiftComponent = 0;
 
 ALTITUDE_CONTROL_GAINS altControlGains;
 
@@ -68,7 +67,6 @@ uint8_t initAltitudeManager(void) {
 		fcStatusData.liftOffThrottlePercent = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR) / (float) MAX_PERMISSIBLE_THROTTLE_DELTA;
 
 		altMgrMaxHeight = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_HEIGHT_ADDR);
-		altMgrMaxLiftComponent = cosf(convertDegToRadF(ALT_MGR_TILT_TH_MAX_ANGLE));
 
 		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
 
@@ -221,57 +219,44 @@ float getClampedCurrentAltitude() {
 	return fcStatusData.altitudeSLRef + altitudeDelta;
 }
 
+
 __ATTR_ITCM_TEXT
 void calculateTiltCompThrottle(float dt) {
 	float target = 0.0f;
-
 	// 1. Get attitude and convert to radians
 	float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
-	float rollRad  = convertDegToRadF(sensorAttitudeData.roll);
-
+	float rollRad = convertDegToRadF(sensorAttitudeData.roll);
 	// 2. Compute the composite vertical lift scaling vector
 	float cosP = cosApproxF(pitchRad);
 	float cosR = cosApproxF(rollRad);
 	float liftComponent = cosP * cosR;
-
 	// 3. Pre-calculate physical macro boundaries into cosine float space
-	float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_TH_MIN_ANGLE)); // e.g., cos(1.5 deg) -> ~0.9996
-	float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_TH_MAX_ANGLE)); // e.g., cos(30.0 deg) -> ~0.8660
-
+	float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MIN_ANGLE)); // e.g., cos(1.5 deg) -> ~0.9996
+	float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE)); // e.g., cos(30.0 deg) -> ~0.8660
 	// 4. Check if the vehicle has tilted past the minimum deadband threshold
 	if (liftComponent < deadbandComponent) {
-
 		// Clamp the lift component to the max physical angle boundary to prevent
 		// exponential mathematical explosion if the airframe over-rotates.
 		float clampedLift = fmaxf(liftComponent, maxAngleComponent);
-
 		// Calculate the exact percentage of vertical thrust lost due to tilt
 		float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
-
 		// Convert current dynamic hover scale to actual mixer throttle units
 		float hoverThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
-
 		// Apply physics tracking adjusted by your user authority gain
-		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_TH_GAIN;
-
+		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_GAIN;
 		// Hard clamp target to your safe physical limit ceiling before filtering
-		target = fminf(target, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
+		target = fminf(target, ALT_MGR_TILT_COMP_MAX_LIMIT);
 	}
 
 	// 5. Asymmetrical Low-Pass Filter State Machine
 	// If target is increasing, use high-speed TAU_RISE to stomp out sag instantly.
 	// If target is decreasing, use a slower TAU_FADE to seamlessly unroll RPM.
-	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ?
-	                  ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE : ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE;
-
+	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TAU_RISE : ALT_MGR_TILT_COMP_TAU_FADE;
 	float alpha = dt / (activeTau + dt);
-
 	// Double sanity-check constraints on target bounds
-	target = constrainToRangeF(target, 0.0f, ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT);
-
+	target = constrainToRangeF(target, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
 	// Execute the IIR filter step
 	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
-
 	// 6. Pipe the filtered delta directly into the actuator mixer matrix
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
@@ -296,7 +281,7 @@ void manageAltitude(float dt) {
 		altMgrAccDtAccumulation += dt;
 		altMgrVelDtAccumulation += dt;
 		altMgrAltDtAccumulation += dt;
-		while ( altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD || altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD || altMgrAccDtAccumulation >= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD ) {
+		while (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD || altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD || altMgrAccDtAccumulation >= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD) {
 			if (altMgrAccDtAccumulation >= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD) {
 				controlAltitudeAccWithGains(ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD, altControlGains);
 				altMgrAccDtAccumulation -= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD;

@@ -9,7 +9,7 @@
 #include "../../../timers/DelayTimer.h"
 #include "../GNSS.h"
 
-#define UBX_RCV_BUFFER_SIZE       100
+#define UBX_RCV_BUFFER_SIZE       128
 #define UBX_CIRCULAR_QUEUE_SIZE   (UBX_RCV_BUFFER_SIZE * 2)
 #define UBX_READ_BUFFER_SIZE      UBX_RCV_BUFFER_SIZE
 #define UBX_NAV_PVT_LEN           92
@@ -40,6 +40,8 @@ typedef struct {
 	int32_t lon;
 	int32_t lat;
 	int32_t height;
+	int32_t hMSL;
+	uint32_t vAcc;
 	uint32_t hAcc;
 	uint32_t sAcc;
 	int32_t velN;
@@ -123,32 +125,50 @@ uint8_t updateUBXData(UBX_CONTEXT *p, uint8_t *buffer, uint16_t len) {
 			p->ua += byte;
 			p->ub += p->ua;
 			if (p->classId == 0x01 && p->msgId == 0x07) {
-				if (p->payloadIdx == 20) p->fixType = byte;
-				else if (p->payloadIdx == 23) p->numSV = byte;
+				if (p->payloadIdx == 20)
+					p->fixType = byte;
+				else if (p->payloadIdx == 23)
+					p->numSV = byte;
 				else if (p->payloadIdx >= 24 && p->payloadIdx <= 27) {
 					p->temp[p->payloadIdx - 24] = byte;
-					if (p->payloadIdx == 27) p->lon = UBX_BUILD_I32(p->temp);
+					if (p->payloadIdx == 27)
+						p->lon = UBX_BUILD_I32(p->temp);
 				} else if (p->payloadIdx >= 28 && p->payloadIdx <= 31) {
 					p->temp[p->payloadIdx - 28] = byte;
-					if (p->payloadIdx == 31) p->lat = UBX_BUILD_I32(p->temp);
+					if (p->payloadIdx == 31)
+						p->lat = UBX_BUILD_I32(p->temp);
 				} else if (p->payloadIdx >= 32 && p->payloadIdx <= 35) {
 					p->temp[p->payloadIdx - 32] = byte;
-					if (p->payloadIdx == 35) p->height = UBX_BUILD_I32(p->temp);
+					if (p->payloadIdx == 35)
+						p->height = UBX_BUILD_I32(p->temp);
+				} else if (p->payloadIdx >= 36 && p->payloadIdx <= 39) {
+					p->temp[p->payloadIdx - 36] = byte;
+					if (p->payloadIdx == 39)
+						p->hMSL = UBX_BUILD_I32(p->temp);
 				} else if (p->payloadIdx >= 40 && p->payloadIdx <= 43) {
 					p->temp[p->payloadIdx - 40] = byte;
-					if (p->payloadIdx == 43) p->hAcc = UBX_BUILD_U32(p->temp);
+					if (p->payloadIdx == 43)
+						p->hAcc = UBX_BUILD_U32(p->temp);
+				} else if (p->payloadIdx >= 44 && p->payloadIdx <= 47) {
+					p->temp[p->payloadIdx - 44] = byte;
+					if (p->payloadIdx == 47)
+						p->vAcc = UBX_BUILD_U32(p->temp);
 				} else if (p->payloadIdx >= 48 && p->payloadIdx <= 51) {
 					p->temp[p->payloadIdx - 48] = byte;
-					if (p->payloadIdx == 51) p->velN = UBX_BUILD_I32(p->temp);
+					if (p->payloadIdx == 51)
+						p->velN = UBX_BUILD_I32(p->temp);
 				} else if (p->payloadIdx >= 52 && p->payloadIdx <= 55) {
 					p->temp[p->payloadIdx - 52] = byte;
-					if (p->payloadIdx == 55) p->velE = UBX_BUILD_I32(p->temp);
+					if (p->payloadIdx == 55)
+						p->velE = UBX_BUILD_I32(p->temp);
 				} else if (p->payloadIdx >= 56 && p->payloadIdx <= 59) {
 					p->temp[p->payloadIdx - 56] = byte;
-					if (p->payloadIdx == 59) p->velD = UBX_BUILD_I32(p->temp);
-				}else if (p->payloadIdx >= 68 && p->payloadIdx <= 71) {
-				    p->temp[p->payloadIdx - 68] = byte;
-				    if (p->payloadIdx == 71) p->sAcc = UBX_BUILD_U32(p->temp);
+					if (p->payloadIdx == 59)
+						p->velD = UBX_BUILD_I32(p->temp);
+				} else if (p->payloadIdx >= 68 && p->payloadIdx <= 71) {
+					p->temp[p->payloadIdx - 68] = byte;
+					if (p->payloadIdx == 71)
+						p->sAcc = UBX_BUILD_U32(p->temp);
 				}
 			}
 			p->payloadIdx++;
@@ -160,32 +180,41 @@ uint8_t updateUBXData(UBX_CONTEXT *p, uint8_t *buffer, uint16_t len) {
 		case CK_A:
 			if (byte == p->ua) {
 				p->state = CK_B;
-			} else p->state = IDLE;
+			} else
+				p->state = IDLE;
 			break;
 
 		case CK_B:
 			if (byte == p->ub) {
 				if (p->classId == 0x01 && p->msgId == 0x07) {
-					gnssData.fixStatus = (p->fixType >= 3);
-					gnssData.satCount  = p->numSV;
-					gnssData.latitude  = (double)p->lat * 1e-7;
-					gnssData.longitude = (double)p->lon * 1e-7;
-					gnssData.altMts    = p->height * 1e-3f;
-					gnssData.hAccMts   = p->hAcc * 1e-3f;
+					gnssData.fixType = p->fixType;
+					gnssData.satCount = p->numSV;
 
-					gnssData.velN      = p->velN * 0.01f;
-					gnssData.velE      = p->velE * 0.01f;
-					gnssData.velD      = p->velD * 0.01f;
+					gnssData.latitude = (double) p->lat * 1e-7;
+					gnssData.longitude = (double) p->lon * 1e-7;
+
+					gnssData.height = p->height * 1e-3f;
+					gnssData.heightMSL = p->hMSL * 1e-3f;
+
+					gnssData.vAcc = p->vAcc * 1e-3f;
+					gnssData.hAcc = p->hAcc * 1e-3f;
+
 					/*
-					gnssData.velN      = p->velN * 1e-3f;
-					gnssData.velE      = p->velE * 1e-3f;
-					gnssData.velD      = p->velD * 1e-3f;
-					*/
-					gnssData.sAcc      = p->sAcc * 1e-3f;
-					gnssData.msgCount  = gnssData.msgCount + 1;
+					gnssData.velN = p->velN * 0.01f;
+					gnssData.velE = p->velE * 0.01f;
+					gnssData.velD = p->velD * 0.01f;
+                    */
+					gnssData.velN = p->velN * 1e-3f ;
+					gnssData.velE = p->velE * 1e-3f ;
+					gnssData.velD = p->velD * 1e-3f ;
+
+					gnssData.sAcc = p->sAcc * 1e-3f;
+
+					gnssData.msgCount = gnssData.msgCount + 1;
 					if (gnssData.msgCount > 10000) {
 						gnssData.msgCount = 0;
 					}
+
 					packet_ready = 1;
 				}
 			}
@@ -205,7 +234,7 @@ uint8_t updateUBXData(UBX_CONTEXT *p, uint8_t *buffer, uint16_t len) {
  * Handles Cache Incoherency before passing to queue.
  */
 void _processUBXData(uint8_t *data, uint16_t len) {
-	SCB_InvalidateDCache_by_Addr((uint32_t*)data, len);
+	SCB_InvalidateDCache_by_Addr((uint32_t*) data, len);
 	circularQueueWrite(&ubxIOQueue, data, len);
 }
 

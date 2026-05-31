@@ -35,7 +35,12 @@ float positionMgrPosHoldRatePIDGain;
 
 float positionMgrRTHVxCommand, positionMgrRTHVyCommand;
 float positionMgrRTHCompleteDt = 0;
-float posRatePitchRollRatio = 1;
+
+// Static variables to persist sampling state across function calls
+uint16_t positionMgrHomeRefSampleCount = 0;
+double positionMgrHomeRefLatSum = 0.0;
+double positionMgrHomeRefLongSum = 0.0;
+
 void managePositionTask(void);
 
 uint8_t initPositionManager(void) {
@@ -58,8 +63,6 @@ uint8_t initPositionManager(void) {
 		lowPassFilterInit(&positionMgrVelYLPF, POSITION_MGR_Y_VEL_LPF_FREQ);
 		lowPassFilterInit(&positionMgrVelZLPF, POSITION_MGR_Z_VEL_LPF_FREQ);
 
-		posRatePitchRollRatio = getScaledCalibrationValue(CALIB_PROP_POS_HOLD_COMMAND_PITCH_ROLL_RATIO_ADDR);
-
 		schedulerAddTask(managePositionTask, POSITION_MANAGEMENT_TASK_FREQUENCY, POSITION_MANAGEMENT_TASK_PRIORITY);
 		logString("[Position Manager] All tasks   > Started\n");
 
@@ -76,20 +79,17 @@ void updatePositionVelocity(float vx, float vy, float vz, float dt) {
 	float vel;
 	// X Axis
 	vel = applyDeadBandFloat(0.0f, vx, POSITION_MGR_X_VEL_DEADBAND);
-	vel = constrainToRangeF(vel, -POSITION_MGR_X_VEL_MAX,
-	POSITION_MGR_X_VEL_MAX);
+	vel = constrainToRangeF(vel, -POSITION_MGR_X_VEL_MAX, POSITION_MGR_X_VEL_MAX);
 	positionCordinateData.xVelocity = lowPassFilterUpdate(&positionMgrVelXLPF, vel, dt);
 
 	// Y Axis
 	vel = applyDeadBandFloat(0.0f, vy, POSITION_MGR_Y_VEL_DEADBAND);
-	vel = constrainToRangeF(vel, -POSITION_MGR_Y_VEL_MAX,
-	POSITION_MGR_Y_VEL_MAX);
+	vel = constrainToRangeF(vel, -POSITION_MGR_Y_VEL_MAX, POSITION_MGR_Y_VEL_MAX);
 	positionCordinateData.yVelocity = lowPassFilterUpdate(&positionMgrVelYLPF, vel, dt);
 
 	// Z Axis
 	vel = applyDeadBandFloat(0.0f, vz, POSITION_MGR_Z_VEL_DEADBAND);
-	vel = constrainToRangeF(vel, -POSITION_MGR_Z_VEL_MAX,
-	POSITION_MGR_Z_VEL_MAX);
+	vel = constrainToRangeF(vel, -POSITION_MGR_Z_VEL_MAX, POSITION_MGR_Z_VEL_MAX);
 	positionCordinateData.zVelocity = lowPassFilterUpdate(&positionMgrVelZLPF, vel, dt);
 }
 
@@ -98,20 +98,17 @@ void updatePositionAcceleration(float ax, float ay, float az, float dt) {
 	float acc;
 	// X Axis
 	acc = applyDeadBandFloat(0.0f, ax, POSITION_MGR_X_ACC_DEADBAND);
-	acc = constrainToRangeF(acc, -POSITION_MGR_X_ACC_MAX,
-	POSITION_MGR_X_ACC_MAX);
+	acc = constrainToRangeF(acc, -POSITION_MGR_X_ACC_MAX, POSITION_MGR_X_ACC_MAX);
 	positionCordinateData.xAcceleration = lowPassFilterUpdate(&positionMgrAccXLPF, acc, dt);
 
 	// Y Axis
 	acc = applyDeadBandFloat(0.0f, ay, POSITION_MGR_Y_ACC_DEADBAND);
-	acc = constrainToRangeF(acc, -POSITION_MGR_Y_ACC_MAX,
-	POSITION_MGR_Y_ACC_MAX);
+	acc = constrainToRangeF(acc, -POSITION_MGR_Y_ACC_MAX, POSITION_MGR_Y_ACC_MAX);
 	positionCordinateData.yAcceleration = lowPassFilterUpdate(&positionMgrAccYLPF, acc, dt);
 
 	// Z Axis
 	acc = applyDeadBandFloat(0.0f, az, POSITION_MGR_Z_ACC_DEADBAND);
-	acc = constrainToRangeF(acc, -POSITION_MGR_Z_ACC_MAX,
-	POSITION_MGR_Z_ACC_MAX);
+	acc = constrainToRangeF(acc, -POSITION_MGR_Z_ACC_MAX, POSITION_MGR_Z_ACC_MAX);
 	positionCordinateData.zAcceleration = lowPassFilterUpdate(&positionMgrAccZLPF, acc, dt);
 }
 
@@ -134,46 +131,7 @@ void resetPositionCommands() {
 	resetPositionControl(1);
 }
 
-__ATTR_ITCM_TEXT
-void updatePositionRateCommand(float dt) {
-	if ((fcStatusData.isRTHModeActive || fcStatusData.isPositionHoldModeActive) && fcStatusData.isPositionDataReliable) {
 
-		if ((fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED)) {
-
-			if (fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING) {
-				positionMgrPosHoldRatePIDGain = POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
-			} else {
-				positionMgrPosHoldRatePIDGain = 1.0f;
-			}
-
-			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f);
-			float pitchCommand, rollCommand;
-			float positionXControl = controlData.positionXControl;
-			float positionYControl = controlData.positionYControl;
-			convertEarthToBodyCordinates(positionXControl, positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
-
-			float scaledPitchCommand = pitchCommand * posRatePitchRollRatio;
-			float scaledRollCommand = rollCommand;
-
-			float magnitudeSq = (scaledPitchCommand * scaledPitchCommand) + (scaledRollCommand * scaledRollCommand);
-			float maxLimit = POSITION_MGR_MAX_POS_COMMAND;
-			if (magnitudeSq > (maxLimit * maxLimit)) {
-				float magnitude = fastSqrtf(magnitudeSq);
-				float scale = maxLimit / magnitude;
-				scaledPitchCommand *= scale;
-				scaledRollCommand *= scale;
-			}
-			positionCommandData.pitchCommand = constrainToRangeF(scaledPitchCommand, -maxLimit, maxLimit);
-			positionCommandData.rollCommand = constrainToRangeF(scaledRollCommand, -maxLimit, maxLimit);
-		} else {
-			positionMgrPosHoldRatePIDGain = 1.0f;
-			resetPositionCommands();
-		}
-	} else {
-		positionMgrPosHoldRatePIDGain = 1.0f;
-		resetPositionCommands();
-	}
-}
 
 __ATTR_ITCM_TEXT
 void updateRTHVelocityCommand(float dt) {
@@ -244,18 +202,6 @@ void updateRTHCompletionStatus(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void calculateBrakeAnchorBallisticOld(void) {
-	float vx = positionCordinateData.xVelocity;
-	float vy = positionCordinateData.yVelocity;
-	// Total displacement = (Linear Filter Lag) + (Quadratic Kinetic Coasting)
-	float xOffset = (vx * POSITION_MGR_POS_HOLD_EKF_LAG_SEC) + ((vx * fabsf(vx)) / (2.0f * POSITION_MGR_POS_HOLD_NATURAL_DECEL));
-	float yOffset = (vy * POSITION_MGR_POS_HOLD_EKF_LAG_SEC) + ((vy * fabsf(vy)) / (2.0f * POSITION_MGR_POS_HOLD_NATURAL_DECEL));
-
-	fcStatusData.positionXRef = positionCordinateData.xPosition + xOffset;
-	fcStatusData.positionYRef = positionCordinateData.yPosition + yOffset;
-}
-
-__ATTR_ITCM_TEXT
 void calculateBrakeAnchorBallistic(void) {
 	float vx = positionCordinateData.xVelocity;
 	float vy = positionCordinateData.yVelocity;
@@ -302,7 +248,6 @@ void calculateBrakeAnchorLinear(void) {
 
 	fcStatusData.positionXRef = positionCordinateData.xPosition + xOffset;
 	fcStatusData.positionYRef = positionCordinateData.yPosition + yOffset;
-
 }
 
 __ATTR_ITCM_TEXT
@@ -327,7 +272,6 @@ void handlePositionBraking(float dt) {
 	uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
 	if (lowGroundSpeed || timeoutReached) {
 		positionMgrPosHoldElapseDtSum = 0.0f;
-		//setExpectedPositionVelocity(dt, 0.0f, 0.0f);
 		resetPositionControl(1);
 		//updatePositionReference();
 		fcStatusData.postionHoldState = POS_HOLD_STATE_SETTLING;
@@ -352,6 +296,48 @@ void handleRTHNavigation(float dt) {
 }
 
 __ATTR_ITCM_TEXT
+void updatePositionRateCommand(float dt) {
+	if ((fcStatusData.isRTHModeActive || fcStatusData.isPositionHoldModeActive) && fcStatusData.isPositionDataReliable) {
+		if (fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
+			if (fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING) {
+				positionMgrPosHoldRatePIDGain = POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
+			} else {
+				positionMgrPosHoldRatePIDGain = 1.0f;
+			}
+
+			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f);
+			float pitchCommand, rollCommand;
+			float positionXControl = controlData.positionXControl;
+			float positionYControl = controlData.positionYControl;
+
+			convertEarthToBodyCordinates(positionXControl, positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
+
+			float scaledPitchCommand = pitchCommand;
+			float scaledRollCommand = rollCommand;
+
+			float magnitudeSq = (scaledPitchCommand * scaledPitchCommand) + (scaledRollCommand * scaledRollCommand);
+			float maxLimit = POSITION_MGR_MAX_POS_COMMAND;
+			if (magnitudeSq > (maxLimit * maxLimit)) {
+				float magnitude = fastSqrtf(magnitudeSq);
+				float scale = maxLimit / magnitude;
+				scaledPitchCommand *= scale;
+				scaledRollCommand *= scale;
+			}
+
+			positionCommandData.pitchCommand = constrainToRangeF(scaledPitchCommand, -maxLimit, maxLimit);
+			positionCommandData.rollCommand = constrainToRangeF(scaledRollCommand, -maxLimit, maxLimit);
+
+		} else {
+			positionMgrPosHoldRatePIDGain = 1.0f;
+			resetPositionCommands();
+		}
+	} else {
+		positionMgrPosHoldRatePIDGain = 1.0f;
+		resetPositionCommands();
+	}
+}
+
+__ATTR_ITCM_TEXT
 void updatePositionCordinateCommand(float dt) {
 	if (!rcData.pitchCentered || !rcData.rollCentered) {
 		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
@@ -364,7 +350,7 @@ void updatePositionCordinateCommand(float dt) {
 		resetPositionCommands();
 		if (fcStatusData.isPositionHoldModeActive || fcStatusData.isRTHModeActive) {
 			//calculateBrakeAnchorLinear();
-			calculateBrakeAnchorBallistic();
+			//calculateBrakeAnchorBallistic();
 			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
 		}
 		break;
@@ -373,12 +359,14 @@ void updatePositionCordinateCommand(float dt) {
 		break;
 	case POS_HOLD_STATE_SETTLING:
 		positionMgrPosHoldElapseDtSum += dt;
-		controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
+		updatePositionReference();
+		controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 0.5f);
 		if (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD) {
 			fcStatusData.postionHoldState = POS_HOLD_STATE_LOCKED;
 		}
 		break;
 	case POS_HOLD_STATE_LOCKED:
+		positionMgrPosHoldElapseDtSum = 0;
 		controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
 		/*
 		 if (fcStatusData.isRTHModeActive) {
@@ -433,9 +421,11 @@ void managePositionTask(void) {
 	positionCordinateData.positionProcessDt = dt;
 }
 
+// Define the number of samples you want to capture (e.g., 50 samples)
+#define POSITION_MGR_HOME_SAMPLE_TARGET   50
+
 __ATTR_ITCM_TEXT
 void doPositionManagement() {
-
 	if (fcStatusData.hasCrashed) {
 		resetPositionManager();
 	} else if (fcStatusData.canStabilize && !positionManagerWasInStabMode) {
@@ -452,53 +442,56 @@ void doPositionManagement() {
 		updatePositionDataReliability(dt);
 		if (fcStatusData.isPositionDataReliable && fcStatusData.canFly) {
 			uint8_t wasHomeJustSet = 0;
-
 			if (!fcStatusData.isPositionHomeSet) {
-				fcStatusData.positionLongHome = gnssData.longitude;
-				fcStatusData.positionLatHome = gnssData.latitude;
-				fcStatusData.isPositionHomeSet = 1;
-				wasHomeJustSet = 1;
+				if (positionMgrHomeRefSampleCount == 0) {
+					positionMgrHomeRefLatSum = 0.0;
+					positionMgrHomeRefLongSum = 0.0;
+				}
+				positionMgrHomeRefLatSum += gnssData.latitude;
+				positionMgrHomeRefLongSum += gnssData.longitude;
+				positionMgrHomeRefSampleCount++;
+				if (positionMgrHomeRefSampleCount >= POSITION_MGR_HOME_SAMPLE_TARGET) {
+					fcStatusData.positionLatHome = positionMgrHomeRefLatSum / POSITION_MGR_HOME_SAMPLE_TARGET;
+					fcStatusData.positionLongHome = positionMgrHomeRefLongSum / POSITION_MGR_HOME_SAMPLE_TARGET;
+					fcStatusData.isPositionHomeSet = 1;
+					wasHomeJustSet = 1;
+					positionMgrHomeRefSampleCount = 0;
+				}
 			}
 
-			convertGNSSToSICordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
-
-			if (wasHomeJustSet) {
-				positionEKFResetAxis(&positionEkf, POS_EKF_X_AXIS, positionCordinateData.xPositionRaw);
-				positionEKFResetAxis(&positionEkf, POS_EKF_Y_AXIS, positionCordinateData.yPositionRaw);
-				fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
-				fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
+			if (fcStatusData.isPositionHomeSet) {
+				convertGNSSToSICordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
+				if (wasHomeJustSet) {
+					positionEKFResetAxis(&positionEkf, POS_EKF_X_AXIS, positionCordinateData.xPositionRaw);
+					positionEKFResetAxis(&positionEkf, POS_EKF_Y_AXIS, positionCordinateData.yPositionRaw);
+					fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
+					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
+				}
+				// Adaptive Velocity Measurement Noise Logic
+				float sAcc = gnssData.sAcc;
+				if (sAcc < POSITION_MGR_GNSS_VEL_SACC_MIN) {
+					sAcc = POSITION_MGR_GNSS_VEL_SACC_MIN;
+				}
+				float dynamicRv = (POSITION_MGR_XY_VEL_UPDATE_DAMP_STRENGTH + (POSITION_MGR_GNSS_VEL_SACC_SCALE * (sAcc * sAcc)));
+				if (dynamicRv > POSITION_MGR_GNSS_VEL_R_MAX) {
+					dynamicRv = POSITION_MGR_GNSS_VEL_R_MAX;
+				}
+				float velN = applyDeadBandFloat(0.0f, gnssData.velN, POSITION_MGR_GNSS_VEL_DEADBAND);
+				float velE = applyDeadBandFloat(0.0f, gnssData.velE, POSITION_MGR_GNSS_VEL_DEADBAND);
+				positionEKFUpdateXYVel(&positionEkf, velN, velE, dynamicRv);
+				float hAcc = gnssData.hAcc;
+				if (hAcc < POSITION_MGR_GNSS_POS_HACC_MIN) {
+					hAcc = POSITION_MGR_GNSS_POS_HACC_MIN;
+				}
+				// Calculate dynamic R for Position
+				float dynamicR = (POSITION_MGR_XY_POS_DYNAMIC_R_BASE + (POSITION_MGR_GNSS_POS_HACC_SCALE * (hAcc * hAcc)));
+				if (dynamicR > POSITION_MGR_GNSS_POS_R_MAX) {
+					dynamicR = POSITION_MGR_GNSS_POS_R_MAX;
+				}
+				positionEKFSetDymamicPosR(&positionEkf, POS_EKF_X_AXIS, dynamicR);
+				positionEKFSetDymamicPosR(&positionEkf, POS_EKF_Y_AXIS, dynamicR);
+				updatePositionManagerXYPosition((positionCordinateData.xPositionRaw * POSITION_MGR_X_POS_OUTPUT_GAIN), (positionCordinateData.yPositionRaw * POSITION_MGR_Y_POS_OUTPUT_GAIN), dt);
 			}
-
-			// Adaptive Velocity Measurement Noise Logic
-			float sAcc = gnssData.sAcc;
-			if (sAcc < POSITION_MGR_GNSS_VEL_SACC_MIN) {
-				sAcc = POSITION_MGR_GNSS_VEL_SACC_MIN;
-			}
-			float dynamicRv = (POSITION_MGR_XY_VEL_UPDATE_DAMP_STRENGTH + (POSITION_MGR_GNSS_VEL_SACC_SCALE * (sAcc * sAcc)));
-			if (dynamicRv > POSITION_MGR_GNSS_VEL_R_MAX) {
-				dynamicRv = POSITION_MGR_GNSS_VEL_R_MAX;
-			}
-
-			float velN = applyDeadBandFloat(0.0f, gnssData.velN, POSITION_MGR_GNSS_VEL_DEADBAND);
-			float velE = applyDeadBandFloat(0.0f, gnssData.velE, POSITION_MGR_GNSS_VEL_DEADBAND);
-			positionEKFUpdateXYVel(&positionEkf, velN, velE, dynamicRv);
-
-			float hAcc = gnssData.hAccMts;
-			if (hAcc < POSITION_MGR_GNSS_POS_HACC_MIN) {
-				hAcc = POSITION_MGR_GNSS_POS_HACC_MIN;
-			}
-
-			// Calculate dynamic R for Position
-			float dynamicR = (POSITION_MGR_XY_POS_DYNAMIC_R_BASE + (POSITION_MGR_GNSS_POS_HACC_SCALE * (hAcc * hAcc)));
-
-			if (dynamicR > POSITION_MGR_GNSS_POS_R_MAX) {
-				dynamicR = POSITION_MGR_GNSS_POS_R_MAX;
-			}
-
-			positionEKFSetDymamicPosR(&positionEkf, POS_EKF_X_AXIS, dynamicR);
-			positionEKFSetDymamicPosR(&positionEkf, POS_EKF_Y_AXIS, dynamicR);
-
-			updatePositionManagerXYPosition((positionCordinateData.xPositionRaw * POSITION_MGR_X_POS_OUTPUT_GAIN), (positionCordinateData.yPositionRaw * POSITION_MGR_Y_POS_OUTPUT_GAIN), dt);
 
 		}
 	}
@@ -521,6 +514,7 @@ void resetPositionManager(void) {
 	positionCommandData.pitchCommand = 0.0f;
 	positionCommandData.rollCommand = 0.0f;
 	fcStatusData.isPositionHomeSet = 0;
+	positionMgrHomeRefSampleCount = 0;
 	positionMgrPosHoldElapseDtSum = 0;
 	positionMgrPosHoldRatePIDGain = 1.0f;
 	fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;

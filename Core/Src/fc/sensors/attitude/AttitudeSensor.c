@@ -9,6 +9,7 @@
 #include "../../timers/GPTimer.h"
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
+#include "../../util/MathUtil.h"
 
 extern DEVICE_ATTITUDE_DATA deviceAttitudeData;
 SENSOR_ATTITUDE_DATA __ATTR_DTCM_BSS sensorAttitudeData;
@@ -26,6 +27,9 @@ float sensorAccZMaxG;
 float sensorGyroXMaxDS;
 float sensorGyroYMaxDS;
 float sensorGyroZMaxDS;
+
+float imuCoGXOffset = 0;
+float imuCoGYOffset = 0;
 
 // --- Start & Init ---
 void startAttitudeMgmtTimers(void);
@@ -85,10 +89,15 @@ uint8_t initAttitudeSensors() {
 		sensorGyroYMaxDS = getMaxValidDS() * SENSOR_GYRO_FLYABLE_VALUE_GAIN;
 		sensorGyroZMaxDS = getMaxValidDS() * SENSOR_GYRO_FLYABLE_VALUE_GAIN;
 
+       //CoG Offsets
+		imuCoGXOffset = getScaledCalibrationValue(CALIB_PROP_COG_ACC_X_OFFSET_ADDR);
+		imuCoGYOffset = getScaledCalibrationValue(CALIB_PROP_COG_ACC_Y_OFFSET_ADDR);
+
 		logString("[Attitude Sensor] > Calibration Filters > Initialized\n");
 	}
 	// Final Status Report (Single exit point)
 	if (status) {
+
 		logString("[Attitude Sensor] > Init > Success\n");
 	} else {
 		logString("[Attitude Sensor] > Init > Failed\n");
@@ -172,6 +181,43 @@ void loadAttitudeSensorConfig() {
 	deviceAttitudeData.gyroZTempCoeff[3] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GZ_C3_ADDR) / 10000000.0f; // 0.00962;
 }
 
+/**
+ * @brief Compensates X-axis accelerometer data for centripetal lever-arm effects
+ * CoG offset is lateral along the X-axis (IMU is displaced left/right of CoG).
+ */
+__ATTR_ITCM_TEXT
+float deviceAccApplyLeverArmCompensationX(void) {
+	// An IMU offset on the X-axis experiences centripetal forces from Pitch (gy) and Yaw (gz)
+	const float gy = convertDegToRadF(sensorAttitudeData.gyDSFiltered);
+	const float gz = convertDegToRadF(sensorAttitudeData.gzDSFiltered);
+	// Formula: a_x = -r_x * (omega_y^2 + omega_z^2)
+	// Since SENSOR_ACC_LEVER_ARM_X_OFFSET is negative (-0.02), this evaluates to a positive m/s^2 acceleration
+	const float centripetal_x_m_s2 = -SENSOR_ACC_LEVER_ARM_X_OFFSET * ((gy * gy) + (gz * gz));
+	float parasitic_x_g = centripetal_x_m_s2 * INVERSE_GRAVITY_MSS;
+	// Clamp the correction magnitude defensively
+	parasitic_x_g = constrainToRangeF(parasitic_x_g, -SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G, SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G);
+	// Subtract the false forward acceleration component from the X-axis raw variable
+	return deviceAttitudeData.axG - parasitic_x_g;
+}
+
+/**
+ * @brief Compensates Y-axis accelerometer data for centripetal lever-arm effects
+ * CoG offset is longitudinal along the Y-axis (IMU is behind the CoG).
+ */
+__ATTR_ITCM_TEXT
+float deviceAccApplyLeverArmCompensationY(void) {
+	// An IMU offset on the Y-axis experiences centripetal forces from Roll (gx) and Yaw (gz)
+	float gx = convertDegToRadF(sensorAttitudeData.gxDSFiltered);
+	float gz = convertDegToRadF(sensorAttitudeData.gzDSFiltered);
+	// Since SENSOR_ACC_LEVER_ARM_Y_OFFSET is negative (-0.02), this evaluates to a positive m/s^2 acceleration
+	float centripetal_y_m_s2 = -SENSOR_ACC_LEVER_ARM_Y_OFFSET * ((gx * gx) + (gz * gz));
+	float parasitic_y_g = centripetal_y_m_s2 * INVERSE_GRAVITY_MSS;
+	// Clamp the correction magnitude defensively
+	parasitic_y_g = constrainToRangeF(parasitic_y_g, -SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G, SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G);
+	// Subtract the false acceleration component from the Y-axis raw variable
+	return deviceAttitudeData.ayG - parasitic_y_g;
+}
+
 __ATTR_ITCM_TEXT
 void updateAccSensorData(float dt) {
 
@@ -185,9 +231,27 @@ void updateAccSensorData(float dt) {
 
 	deviceAccApplyOrientationForImu();
 
-	// Limit the values
+// Limit the values
+#if SENSOR_ACC_LEVER_ARM_COMPENSATION_X_ENABLED == 1
+	if (imuCoGXOffset != 0) {
+		sensorAttitudeData.axG = constrainToRangeF(deviceAccApplyLeverArmCompensationX(), -sensorAccXMaxG, sensorAccXMaxG);
+	} else {
+		sensorAttitudeData.axG = constrainToRangeF(deviceAttitudeData.axG, -sensorAccXMaxG, sensorAccXMaxG);
+	}
+#else
 	sensorAttitudeData.axG = constrainToRangeF(deviceAttitudeData.axG, -sensorAccXMaxG, sensorAccXMaxG);
+#endif
+
+#if SENSOR_ACC_LEVER_ARM_COMPENSATION_Y_ENABLED == 1
+	if (imuCoGYOffset != 0) {
+		sensorAttitudeData.ayG = constrainToRangeF(deviceAccApplyLeverArmCompensationY(), -sensorAccYMaxG, sensorAccYMaxG);
+	} else {
+		sensorAttitudeData.ayG = constrainToRangeF(deviceAttitudeData.ayG, -sensorAccYMaxG, sensorAccYMaxG);
+	}
+#else
 	sensorAttitudeData.ayG = constrainToRangeF(deviceAttitudeData.ayG, -sensorAccYMaxG, sensorAccYMaxG);
+#endif
+
 	sensorAttitudeData.azG = constrainToRangeF(deviceAttitudeData.azG, -sensorAccZMaxG, sensorAccZMaxG);
 }
 
@@ -232,7 +296,13 @@ void updateAGTSensorData(float dt) {
 void updateMagSensorData(float dt) {
 	deviceMagApplyDataScaling();
 	deviceMagApplyOffsetCorrection();
-	deviceMagApplyOrientationForImu();
+
+#if FC_BOARD_VERSION == 1
+	deviceMagApplyOrientationForImu(0);
+#else
+	deviceMagApplyOrientationForImu(180);
+#endif
+
 	sensorAttitudeData.mx = deviceAttitudeData.mx;
 	sensorAttitudeData.my = deviceAttitudeData.my;
 	sensorAttitudeData.mz = deviceAttitudeData.mz;
@@ -321,16 +391,22 @@ void calculateMagBias() {
 		delayMs(2);
 		deviceMagLoadData();
 		// Check X
-		if (deviceAttitudeData.rawMx > mag_max[0]) mag_max[0] = deviceAttitudeData.rawMx;
-		if (deviceAttitudeData.rawMx < mag_min[0]) mag_min[0] = deviceAttitudeData.rawMx;
+		if (deviceAttitudeData.rawMx > mag_max[0])
+			mag_max[0] = deviceAttitudeData.rawMx;
+		if (deviceAttitudeData.rawMx < mag_min[0])
+			mag_min[0] = deviceAttitudeData.rawMx;
 
 		// Check Y
-		if (deviceAttitudeData.rawMy > mag_max[1]) mag_max[1] = deviceAttitudeData.rawMy;
-		if (deviceAttitudeData.rawMy < mag_min[1]) mag_min[1] = deviceAttitudeData.rawMy;
+		if (deviceAttitudeData.rawMy > mag_max[1])
+			mag_max[1] = deviceAttitudeData.rawMy;
+		if (deviceAttitudeData.rawMy < mag_min[1])
+			mag_min[1] = deviceAttitudeData.rawMy;
 
 		// Check Z
-		if (deviceAttitudeData.rawMz > mag_max[2]) mag_max[2] = deviceAttitudeData.rawMz;
-		if (deviceAttitudeData.rawMz < mag_min[2]) mag_min[2] = deviceAttitudeData.rawMz;
+		if (deviceAttitudeData.rawMz > mag_max[2])
+			mag_max[2] = deviceAttitudeData.rawMz;
+		if (deviceAttitudeData.rawMz < mag_min[2])
+			mag_min[2] = deviceAttitudeData.rawMz;
 
 		delayMs(SENSOR_MAG_CALIB_SAMPLE_DELAY);
 	}
@@ -410,12 +486,12 @@ void calculateAccAndGyroTempCoeff() {
 			lpfInit = 1;
 		}
 		deviceAttitudeData.tempC = lowPassFilterUpdate(&sensorTempCalibLPF, deviceAttitudeData.tempC, dt);
-	} while ( fabs(deviceAttitudeData.tempC - deviceAttitudeData.offsetTemp) > SESNSOR_TEMP_CAL_PROXIMITY_DEAD_BAND );
+	} while (fabs(deviceAttitudeData.tempC - deviceAttitudeData.offsetTemp) > SESNSOR_TEMP_CAL_PROXIMITY_DEAD_BAND);
 	previousTemp = deviceAttitudeData.tempC;
 	lpfInit = 0;
 	lowPassFilterResetToValue(&sensorTempCalibLPF, deviceAttitudeData.tempC);
 	// Take measurements
-	while ( fabs(deltaTemp) <= SESNSOR_TEMP_CAL_RANGE ) {
+	while (fabs(deltaTemp) <= SESNSOR_TEMP_CAL_RANGE) {
 		delayMs(SENSOR_AG_TEMP_CALIB_SAMPLE_DELAY);
 		deviceTempRead();
 		deviceAccRead();

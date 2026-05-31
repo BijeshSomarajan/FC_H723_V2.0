@@ -176,8 +176,16 @@ uint8_t deviceMagRead() {
 	return rm3100Read();
 }
 
-void deviceMagApplyOrientationForImu() {
-	deviceAttitudeData.mx = -deviceAttitudeData.mx;
+void deviceMagApplyOrientationForImu(uint16_t orientationAngle) {
+	if (orientationAngle >= 180) {
+		float temp = deviceAttitudeData.mx;
+		deviceAttitudeData.mx = -deviceAttitudeData.my;
+		deviceAttitudeData.my = -temp;
+	} else {
+		float temp = deviceAttitudeData.mx;
+		deviceAttitudeData.mx = deviceAttitudeData.my;
+		deviceAttitudeData.my = temp;
+	}
 }
 
 void deviceMagApplyOffsetCorrection(void) {

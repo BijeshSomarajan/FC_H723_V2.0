@@ -36,6 +36,7 @@ uint8_t initConfigManager() {
 			} else {
 				//Load the persisted calibrations
 				loadCalibration();
+				fcStatusData.batteryVolt = getScaledCalibrationValue(CALIB_PROP_VBAT_ADDR);
 				logString("[Config Manager] : Calibration -> Was Initialized , Loaded\n");
 			}
 			status = initConfigHelper();

@@ -121,16 +121,11 @@ void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 
 __ATTR_ITCM_TEXT
 void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
-	// --- Acc PID ---
 	pidUpdateWithGains(&altAccPID, positionCordinateData.zAcceleration, altRatePID.pid, dt, altControlGains.accPGain, 0.0f, altControlGains.accDGain);
 	float output = altAccPID.pid;
-
-	// --- Velocity Feedforward (P + I) ---
 #if ALT_CONTROL_VEL_FEED_FWD_ENABLED == 1
 	output += (altRatePID.p + altRatePID.i) * ALT_CONTROL_VEL_FEED_FWD_GAIN;
 #endif
-
-	// --- Disturbance Estimation ---
 #if	ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED == 1
 	float expectedAcc = altRatePID.pid;
 	float measuredAcc = positionCordinateData.zAcceleration;
@@ -140,11 +135,9 @@ void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 	output -= altControlZDisturbanceEstimate * ALT_CONTROL_ACC_DISTURBANCE_FF_GAIN;
 	output = constrainToRangeF(output, -getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR));
 #endif
-
 #if DISABLE_ALT_CONTROL_FOR_DEBUG == 1
     output = 0;
 #endif
-
 	controlData.altitudeControl = output;
 	controlData.altitudeControlDt = dt;
 }

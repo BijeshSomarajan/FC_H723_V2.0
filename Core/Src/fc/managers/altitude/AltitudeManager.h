@@ -33,14 +33,13 @@ void resetAltitudeManager(void);
 #define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 20.0f//5.0f
 
 // Altitude estimate Complementary filter alpha constraints
-#define ALT_MGR_TILT_TH_MIN_ANGLE            1.5f
-#define ALT_MGR_TILT_TH_MAX_ANGLE            30.0f
-// Tilt compensation settings
-#define ALT_MGR_TILT_COMP_ENABLED            1
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.01f
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.10f
-#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT     120.0f
-#define ALT_MGR_TILT_COMP_TH_GAIN            0.6f
+#define ALT_MGR_TILT_COMP_ENABLED      1
+#define ALT_MGR_TILT_COMP_MIN_ANGLE    1.0f
+#define ALT_MGR_TILT_COMP_MAX_ANGLE    30.0f
+#define ALT_MGR_TILT_COMP_TAU_RISE     0.001f
+#define ALT_MGR_TILT_COMP_TAU_FADE     0.65f
+#define ALT_MGR_TILT_COMP_MAX_LIMIT    160.0f
+#define ALT_MGR_TILT_COMP_GAIN         1.1f
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.

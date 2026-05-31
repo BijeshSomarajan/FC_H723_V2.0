@@ -12,6 +12,7 @@
 #include "../../timers/GPTimer.h"
 #include "../../util/MathUtil.h"
 #include "../../FCConfig.h"
+#include "../../calibration/Calibration.h"
 
 void setPWMChannelValue(uint8_t channel, int value);
 void idlePWMs(void);
@@ -19,6 +20,7 @@ void motorControlTask(void);
 
 PWM_DATA __ATTR_DTCM_BSS pwmData;
 uint8_t motorControlInitStatus = 0;
+float pitchRollRatio = 1;
 
 uint8_t initMotorManager(void) {
 	uint8_t status = 1;
@@ -31,6 +33,7 @@ uint8_t initMotorManager(void) {
 	if (status) {
 		initGPTimer6(MOTOR_CONTROL_FREQUENCY, motorControlTask, 5);
 		startGPTimer6();
+		pitchRollRatio = getScaledCalibrationValue(CALIB_PROP_PITCH_ROLL_RATIO_ADDR);
 		motorControlInitStatus = status;
 		logString("[Motor Manager] >> Init > Success\n");
 	} else {
@@ -56,7 +59,7 @@ void motorControlTask() {
 #endif
 	if (fcStatusData.canFly) {
 		float throttleControl = controlData.throttleControl;
-		float pitchControl = controlData.pitchControl;
+		float pitchControl = controlData.pitchControl * pitchRollRatio;
 		float rollControl = controlData.rollControl;
 		float yawControl = controlData.yawControl;
 		pwmData.PWM_VALUES[0] = throttleControl - pitchControl - rollControl + yawControl;

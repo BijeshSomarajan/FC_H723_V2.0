@@ -19,70 +19,70 @@
 #define POS_EKF_STATE_B         2  // Accelerometer Bias index offset
 
 /*=======================================================================================================
- HORIZONTAL AXIS (X / Y) - GPS & IMU Fusion
- =======================================================================================================*/
-// State variance for position. Lower values assume the drone's true position cannot teleport between steps.
-#define POS_EKF_X_Q_POS   0.006f
-// Velocity process noise. Lower = heavily trust IMU integration short-term; Higher = rely on raw GPS velocity steps.
-#define POS_EKF_X_Q_VEL   0.15f
-// Accelerometer bias tracking speed. Lower = locks bias down during hover; Higher = allows bias to warp rapidly.
+//HORIZONTAL AXIS (X / Y) - GPS & IMU Fusion
+=======================================================================================================*/
+
+// [+] Faster position updates but jittery | [-] Smoother track but introduces position lag
+#define POS_EKF_X_Q_POS   0.0001f
+// [+] Trusts raw GPS velocity more | [-] Trusts IMU short-term (smoother, but drifts if IMU is bad)
+#define POS_EKF_X_Q_VEL   0.0015f
+// [+] Fast adaptation to changing sensor bias | [-] Locks bias firmly down but fails to track drift
 #define POS_EKF_X_Q_BIAS  0.001f
-// Default GPS measurement noise. (Dynamically overridden at runtime by your GPS Accuracy telemetry).
-#define POS_EKF_X_R_MEAS  1.0f
-// Anomaly shield. Rejects GPS steps greater than 6 standard deviations from the EKF's predicted position.
+// [+] Ignores GPS noise (smoother, high drift) | [-] Follows GPS precisely (twitchy if GPS has jitter)
+#define POS_EKF_X_R_MEAS  0.01f
+// [+] Accepts larger GPS glitches | [-] Rejects valid aggressive movements as anomalies (causes freeze)
 #define POS_EKF_X_GATE    6.0f
-// Defcon limit. Number of consecutive rejected GPS steps before EKF panics and forces a hard reset to the sensor.
+// [+] Patient with bad GPS drops | [-] Panics and hard-resets EKF quickly during minor glitches
 #define POS_EKF_X_PANIC   8
 
-// State variance for position. Lower values assume the drone's true position cannot teleport between steps.
-#define POS_EKF_Y_Q_POS   0.006f
-// Velocity process noise. Lower = heavily trust IMU integration short-term; Higher = rely on raw GPS velocity steps.
-#define POS_EKF_Y_Q_VEL   0.15f
-// Accelerometer bias tracking speed. Lower = locks bias down during hover; Higher = allows bias to warp rapidly.
+// [+] Faster position updates but jittery | [-] Smoother track but introduces position lag
+#define POS_EKF_Y_Q_POS   0.0001f
+// [+] Trusts raw GPS velocity more | [-] Trusts IMU short-term (smoother, but drifts if IMU is bad)
+#define POS_EKF_Y_Q_VEL   0.0015f
+// [+] Fast adaptation to changing sensor bias | [-] Locks bias firmly down but fails to track drift
 #define POS_EKF_Y_Q_BIAS  0.001f
-// Default GPS measurement noise. (Dynamically overridden at runtime by your GPS Accuracy telemetry).
-#define POS_EKF_Y_R_MEAS  1.0f
-// Anomaly shield. Rejects GPS steps greater than 6 standard deviations from the EKF's predicted position.
+// [+] Ignores GPS noise (smoother, high drift) | [-] Follows GPS precisely (twitchy if GPS has jitter)
+#define POS_EKF_Y_R_MEAS  0.01f
+// [+] Accepts larger GPS glitches | [-] Rejects valid aggressive movements as anomalies (causes freeze)
 #define POS_EKF_Y_GATE    6.0f
-// Defcon limit. Number of consecutive rejected GPS steps before EKF panics and forces a hard reset to the sensor.
+// [+] Patient with bad GPS drops | [-] Panics and hard-resets EKF quickly during minor glitches
 #define POS_EKF_Y_PANIC   8
 
 /*=======================================================================================================
- VERTICAL AXIS (Z) - Barometer & IMU Fusion
- =======================================================================================================*/
-// State variance for altitude. Controls how tightly the EKF clamps the absolute geometric vertical height.
-#define POS_EKF_Z_Q_POS   0.0001f
-// Vertical velocity process noise. Lower eliminates phase lag for instantaneous PID D-term; Higher dampens response.
-#define POS_EKF_Z_Q_VEL   0.001f
-// Barometer/Thermal bias tracking speed. Keeps the floor high enough to absorb structural environmental pressure drift.
-#define POS_EKF_Z_Q_BIAS  0.0003f
-// Barometer hardware noise covariance. High value tells the EKF that baro data is noisy and should be smoothed out.
-#define POS_EKF_Z_R_MEAS  4000.0f
-// Innovation gate. Rejects massive, sudden pressure spikes (like prop wash or wind gusts hitting the canopy).
+VERTICAL AXIS (Z) - Barometer & IMU Fusion
+=======================================================================================================*/
+// [+] Snappier vertical altitude tracking | [-] Smoother but more delayed altitude estimation
+#define POS_EKF_Z_Q_POS   0.0002f
+// [+] Quicker vertical velocity response (noisy) | [-] Smoother vertical transitions (delayed)
+#define POS_EKF_Z_Q_VEL   0.003f
+// [+] Fast adaptation to weather/pressure drift | [-] Steadier correction but slow to adapt to changes
+#define POS_EKF_Z_Q_BIAS  0.0005f
+// [+] Trusts baro less (smoother altitude, drifts) | [-] Trusts baro more (sharp hold, twitches with wind)
+#define POS_EKF_Z_R_MEAS  6000.0f
+// [+] Accepts sudden pressure/wind spikes | [-] Rejects rapid vertical shifts (causes climb/drop lag)
 #define POS_EKF_Z_GATE    6.0f
-// Defcon limit. Number of consecutive rejected BARO reads before EKF panics and forces a hard reset to the sensor.
+// [+] Tolerates prolonged baro anomalies | [-] Aggressively resets EKF at the slightest sensor error
 #define POS_EKF_Z_PANIC   8
-
 /*=======================================================================================================
  Dynamic R configuration for Z-axis based on vertical velocity and acceleration
  =======================================================================================================*/
-// Multiplier for how aggressively model-vs-baro disagreement inflates measurement noise covariance
-#define POS_Z_DYNAMIC_R_GAIN              1.25f
-// IIR low-pass filter smoothing factor (0.0 to 1.0) to prevent step jumps in the covariance matrix
+// [+] De-weights baro aggressively during high acceleration | [-] Sluggish to distrust bad baro data during maneuvers
+#define POS_Z_DYNAMIC_R_GAIN              2.5f //1.25
+// [+] Faster response to noise spikes but jittery | [-] Smoother noise scaling transitions but introduces lag
 #define POS_Z_DYNAMIC_R_SMOOTH_ALPHA      0.4f
-// Absolute lower bound for measurement noise variance; defaults to clean, static sensor baseline
-#define POS_Z_DYNAMIC_R_MIN               POS_EKF_Z_R_MEAS
-// Absolute upper bound for measurement noise variance; heavily dampens baro reliance during high vibration
-#define POS_Z_DYNAMIC_R_MAX               6500.0f
-// Small epsilon floor for state variance (Pzz) to prevent float underflow and mathematical collapse
+// [+] Smoother baseline but increases lag when static | [-] Sharper tracking at hover but catches static sensor noise
+#define POS_Z_DYNAMIC_R_MEAS_MIN          POS_EKF_Z_R_MEAS
+// [+] Disregards baro completely during heavy vibes (trusts IMU) | [-] Forces baro reliance even during high vibrations
+#define POS_Z_DYNAMIC_R_MEAS_MAX          POS_EKF_Z_R_MEAS * 1.5f
+// [+] Safer against float underflow | [-] Risk of EKF mathematical collapse/matrix corruption
 #define POS_Z_DYNAMIC_R_EPS               1e-6f
-// Protection factor added to the denominator to strictly prevent division-by-zero errors
+// [+] Safer against division-by-zero | [-] Risk of NaN/Inf code crash if denominator approaches zero
 #define POS_Z_DYNAMIC_R_SCALE_EPS         1e-3f
-// Hard ceiling (in cm) on the tracking error fed into the dynamic noise scaling curve
+// [+] Massive baro deviations trigger maximum rejection | [-] Limits noise scaling; protects against runaway R values
 #define POS_Z_RESIDUAL_CLAMP              5.0f
-// Horizontal acceleration limit (m/s²) used to detect transitions into high-speed forward/lateral cruise
+// [+] Requires fast horizontal flight to trigger scaling | [-] Triggers scaling on slight drift (prematurely drops baro trust)
 #define POS_Z_ACC_XY_THRESH               1.2f
-// Vertical acceleration limit (m/s²) used to distinguish purposeful altitude maneuvers from static hover
+// [+] Requires hard vertical punches to alter baro trust | [-] Drops baro trust during tiny, normal altitude adjustments
 #define POS_Z_ACC_Z_THRESH                1.5f
 
 /*=======================================================================================================

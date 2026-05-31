@@ -30,8 +30,8 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 		ekf->panicLimit[axis] = p_l[axis];
 		ekf->rejectCount[axis] = 0;
 
-		ekf->P[i + 0][i + 0] = 10.0f;
-		ekf->P[i + 1][i + 1] = 10.0f;
+		ekf->P[i + 0][i + 0] = 1.0f;
+		ekf->P[i + 1][i + 1] = 1.0f;
 		ekf->P[i + 2][i + 2] = 1.0f;
 	}
 	ekf->initialized = 0;
@@ -365,47 +365,12 @@ void _axisVelocityUpdate(POSITION_EKF *ekf, int axis, float meas_v, float R_v) {
 }
 
 __ATTR_ITCM_TEXT
-float positionEKFUpdateZROld(POSITION_EKF *ekf, float zMeas, float bias, float ax, float ay, float az) {
-	float zPred = ekf->x[6];
-	float residual = zMeas - (zPred + bias);
-	residual = constrainToRangeF(residual, -POS_Z_RESIDUAL_CLAMP, POS_Z_RESIDUAL_CLAMP);
-	float Pzz = ekf->P[6][6];
-	if (Pzz < POS_Z_DYNAMIC_R_EPS) {
-		Pzz = POS_Z_DYNAMIC_R_EPS;
-	}
-	float denom = Pzz + POS_EKF_Z_R_MEAS + POS_Z_DYNAMIC_R_SCALE_EPS;
-	if (denom < 1e-3f) {
-		denom = 1e-3f;
-	}
-	float scale = 1.0f / denom;
-	float residualTerm = POS_Z_DYNAMIC_R_GAIN * residual * residual * scale;
-	float accXY = fabsf(ax) + fabsf(ay);
-	float accZ = fabsf(az);
-	float accXYScale = constrainToRangeF(accXY / POS_Z_ACC_XY_THRESH, 0.0f, 1.0f);
-	float accZScale = constrainToRangeF(accZ / POS_Z_ACC_Z_THRESH, 0.0f, 1.0f);
-	float motionScale = constrainToRangeF(accXYScale + accZScale, 0.0f, 1.0f);
-	float dynamicR;
-	if (motionScale > 0.15f) {
-		dynamicR = POS_Z_DYNAMIC_R_MAX;
-	} else {
-		dynamicR = POS_EKF_Z_R_MEAS + residualTerm;
-	}
-	dynamicR = constrainToRangeF(dynamicR, POS_Z_DYNAMIC_R_MIN, POS_Z_DYNAMIC_R_MAX);
-	dynamicR = positionEKFPrevZR + POS_Z_DYNAMIC_R_SMOOTH_ALPHA * (dynamicR - positionEKFPrevZR);
-	positionEKFPrevZR = dynamicR;
-	return dynamicR;
-}
-
-__ATTR_ITCM_TEXT
 float positionEKFUpdateZR(POSITION_EKF *ekf, float zMeas, float bias, float ax, float ay, float az) {
 	float zPred = ekf->x[6]; // EKF Z-position estimate (cm)
-
 	// 1. Calculate the physical innovation residual
 	float residual = zMeas - (zPred + bias);
-
 	// Open up the clamp from 5cm to 25cm to allow real transient events to register
 	residual = constrainToRangeF(residual, -POS_Z_RESIDUAL_CLAMP, POS_Z_RESIDUAL_CLAMP);
-
 	// 2. Compute the residual variance scaling factor
 	float Pzz = ekf->P[6][6];
 	if (Pzz < POS_Z_DYNAMIC_R_EPS) {
@@ -435,10 +400,10 @@ float positionEKFUpdateZR(POSITION_EKF *ekf, float zMeas, float bias, float ax, 
 	float baseDynamicR = POS_EKF_Z_R_MEAS + residualTerm;
 
 	// Smoothly scale towards MAX R based strictly on how violently the airframe is moving
-	float targetDynamicR = baseDynamicR + (motionScale * (POS_Z_DYNAMIC_R_MAX - baseDynamicR));
+	float targetDynamicR = baseDynamicR + (motionScale * (POS_Z_DYNAMIC_R_MEAS_MAX - baseDynamicR));
 
 	// 5. Apply final safety constraints
-	targetDynamicR = constrainToRangeF(targetDynamicR, POS_Z_DYNAMIC_R_MIN, POS_Z_DYNAMIC_R_MAX);
+	targetDynamicR = constrainToRangeF(targetDynamicR, POS_Z_DYNAMIC_R_MEAS_MIN, POS_Z_DYNAMIC_R_MEAS_MAX);
 
 	// 6. IIR Filter to prevent step discontinuities from rattling the EKF covariance matrix
 	float dynamicR = positionEKFPrevZR + POS_Z_DYNAMIC_R_SMOOTH_ALPHA * (targetDynamicR - positionEKFPrevZR);

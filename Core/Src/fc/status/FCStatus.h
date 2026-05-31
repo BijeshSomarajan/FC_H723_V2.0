@@ -24,7 +24,10 @@ struct _FC_STATUS_DATA {
 	double positionLatHome, positionLongHome;
 	double positionXHome, positionYHome;
 
-	uint8_t isPositionHomeSet;
+	double positionLatHomeEffective, positionLongHomeEffective;
+	double positionXHomeEffective, positionYHomeEffective;
+
+	uint8_t isPositionHomeSet, needPositionHomeReset;
 	uint8_t postionHoldState, isRTHComplete;
 	//Flight reference values
 	float headingRef, headingHomeRef, headingDelta;
@@ -41,6 +44,7 @@ struct _FC_STATUS_DATA {
 	//The config mode
 	uint8_t isConfigMode;
 	float batteryVolt;
+	float batteryVoltCurrent;
 };
 
 extern FC_STATUS_DATA fcStatusData;

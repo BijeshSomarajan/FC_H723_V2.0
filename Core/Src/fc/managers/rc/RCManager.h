@@ -18,6 +18,7 @@
 #define LANDING_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 #define HEADLESS_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 #define ALT_MODE_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
+#define HOME_RESET_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 
 uint8_t initRCManager(void);
 void doRCManagement();
@@ -52,6 +53,7 @@ uint8_t isRTHModeActive(void);
 uint8_t isHeadLessModeActive(void);
 uint8_t isTerrainAltModeActive(void);
 uint8_t canEnableLandingMode();
+uint8_t canReSetHomePosition();
 void checkForFailSafe(float dt);
 
 #endif

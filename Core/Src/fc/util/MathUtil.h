@@ -10,6 +10,7 @@
 
 #define GRAVITY_MSS     9.80665f    // Gravity in m/s^2
 #define GRAVITY_CMS     980.665f    // Gravity in cm/s^2
+#define INVERSE_GRAVITY_MSS             (1.0f / GRAVITY_MSS)
 
 /* --- Math Constants --- */
 #define HALF_PI            1.57079632679489661923f

@@ -89,7 +89,7 @@ void processRCData(float dt) {
 	loadRCStickDelta();
 
 	rcData.RC_DELTA_DATA[RC_FLIGHT_MODE_CHANNEL_INDEX] = getRCValue(RC_FLIGHT_MODE_CHANNEL_INDEX);
-	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = getRCValue(RC_ALT_MODE_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_HOME_POS_SET_CHANNEL_INDEX] = getRCValue(RC_HOME_POS_SET_CHANNEL_INDEX);
 
 	fcStatusData.canStart = canStartModel();
 	fcStatusData.canArm = (fcStatusData.canStart && (!fcStatusData.canFly && !fcStatusData.isStabilized && !fcStatusData.canStabilize) ? canArmModel() : 0);
@@ -111,6 +111,8 @@ void processRCData(float dt) {
 	fcStatusData.isTerrainAltModeActive = isTerrainAltModeActive();
 	fcStatusData.isLandingModeActive = canEnableLandingMode();
 	fcStatusData.isHeadLessModeActive = isHeadLessModeActive();
+
+	fcStatusData.needPositionHomeReset = canReSetHomePosition();
 }
 
 void determineFCState(float dt) {
@@ -173,7 +175,7 @@ void resetRCManager() {
  * Configure the stick rate PIDs
  */
 void configureRCStickControl() {
-	rcStickThrottleGain = getScaledCalibrationValue(CALIB_PROP_RC_THROTTLE_RATE_K_ADDR);
+	rcStickThrottleGain = getScaledCalibrationValue(CALIB_PROP_RC_THROTTLE_RATE_P_ADDR);
 	rcStickPitchGain = getScaledCalibrationValue(CALIB_PROP_RC_PITCH_RATE_P_ADDR);
 	rcStickRollGain = getScaledCalibrationValue(CALIB_PROP_RC_ROLL_RATE_P_ADDR);
 	rcStickYawGain = getScaledCalibrationValue(CALIB_PROP_RC_YAW_RATE_P_ADDR);
@@ -277,7 +279,7 @@ uint8_t isHeadLessModeActive() {
 }
 
 uint8_t isTerrainAltModeActive() {
-	return (rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] > ALT_MODE_MODE_ACT_TSH);
+	return (rcData.RC_DELTA_DATA[RC_HOME_POS_SET_CHANNEL_INDEX] > ALT_MODE_MODE_ACT_TSH);
 }
 /**
  * Checks if Altitude hold can be enabled
@@ -323,6 +325,10 @@ uint8_t isRTHModeActive() {
  */
 uint8_t canEnableLandingMode() {
 	return (rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] > LANDING_MODE_ACT_TSH);
+}
+
+uint8_t canReSetHomePosition() {
+	return (rcData.RC_DELTA_DATA[RC_HOME_POS_SET_CHANNEL_INDEX] > HOME_RESET_ACT_TSH);
 }
 
 /**

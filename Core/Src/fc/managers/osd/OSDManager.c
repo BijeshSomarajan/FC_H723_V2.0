@@ -35,7 +35,7 @@ void osdUpdateTask() {
 		OSD_DATA_BUFFER[10] = positionCordinateData.zPosition;
 		OSD_DATA_BUFFER[11] = positionCordinateData.zVelocity;
 
-		OSD_DATA_BUFFER[12] = gnssData.satCount | gnssData.fixStatus << 8;
+		OSD_DATA_BUFFER[12] = gnssData.satCount | gnssData.fixType << 8;
 		OSD_DATA_BUFFER[13] = gnssData.latitude * 1000000;
 		OSD_DATA_BUFFER[14] = gnssData.longitude * 1000000;
 

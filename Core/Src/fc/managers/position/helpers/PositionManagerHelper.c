@@ -12,7 +12,7 @@ float posManagerGNSSStableTime = 0;
 __ATTR_ITCM_TEXT
 void updatePositionDataReliability(float dt) {
 	// 1. Basic threshold check (Must be a 3D fix or higher)
-	uint8_t valid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.sAcc <= POSITION_GNSS_MIN_SACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
+	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.sAcc <= POSITION_GNSS_MIN_SACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
 	if (valid) {
 		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
 		posManagerGNSSStableTime += dt;
@@ -41,7 +41,6 @@ void updatePositionDataReliability(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-// WGS84 Earth radius (meters)
 void convertGNSSToSICordinates(double latDeg, double lonDeg, double latRefDeg, double lonRefDeg, float *x, float *y) {
 	// Convert to radians
 	double latRad = convertDegToRad(latDeg);

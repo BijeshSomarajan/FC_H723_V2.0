@@ -1,14 +1,15 @@
 #ifndef SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_
 #define SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_
 
-#define POSITION_GNSS_EARTH_RADIUS_METERS 6378137.0f
+#define POSITION_GNSS_EARTH_RADIUS_METERS 6378137.0
+#define POSITION_GNSS_EARTH_RADIUS_DECI_CM 63781370.0
 #define POSITION_GNSS_DEG_TO_RAD 0.017453292519943295
 
 // GNSS Quality Gates (Tightened for safe autonomous flight)
 #define POSITION_GNSS_MIN_NSAT                  8       // Modern multi-GNSS easily gets 12+ sats out in the open
 #define POSITION_GNSS_MIN_HACC                  2.5f    // Meters (Ceiling for acceptable horizontal position scatter)
 #define POSITION_GNSS_MIN_SACC                  0.7f    // Meter/Sec (Ceiling for speed estimation chatter)
-#define POSITION_GNSS_MIN_FIX                   1       // MANDATORY: 3 = 3D Fix
+#define POSITION_GNSS_MIN_FIX                   2       // MANDATORY: 3 = 3D Fix
 // Hysteresis Configuration
 #define POSITION_GNSS_STABILITY_MAX_WINDOW      2.0f    // Seconds (Maximum accumulator depth)
 #define POSITION_GNSS_STABILITY_INVALID_GAIN    2.0f    // Decay rate multiplier for bad data
