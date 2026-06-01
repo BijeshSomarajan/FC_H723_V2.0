@@ -1,12 +1,7 @@
 #include "PositionEstimator.h"
-
 #include <string.h>
-#include <sys/_stdint.h>
-
 #include "../../../memory/Memory.h"
 #include "../../../util/MathUtil.h"
-
-float positionEKFPrevZR;
 
 /* --- Initialization --- */
 uint8_t positionEKFInit(POSITION_EKF *ekf) {
@@ -29,14 +24,16 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 		ekf->gateSize[axis] = g_s[axis];
 		ekf->panicLimit[axis] = p_l[axis];
 		ekf->rejectCount[axis] = 0;
+		ekf->axisInitialized[axis] = 0;
 
-		ekf->P[i + 0][i + 0] = 1.0f;
-		ekf->P[i + 1][i + 1] = 1.0f;
-		ekf->P[i + 2][i + 2] = 1.0f;
+		ekf->P[i + 0][i + 0] = 5.0f;
+		ekf->P[i + 1][i + 1] = 2.0f;
+		ekf->P[i + 2][i + 2] = 0.1f;
 	}
 	ekf->initialized = 0;
 
-	positionEKFPrevZR = POS_EKF_Z_R_MEAS;
+	// PATCH: Thread Safety/Encapsulation (Ensure 'prevZR' is added to your POSITION_EKF struct definition in header)
+	ekf->prevZR = POS_EKF_Z_R_MEAS;
 
 	return 1;
 }
@@ -46,372 +43,215 @@ void positionEKFSetMode(POSITION_EKF *ekf, uint8_t stabilize) {
 	for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
 		ekf->R[axis] = stabilize ? (baseR[axis] * 0.1f) : baseR[axis];
 	}
-
 }
 
 __ATTR_ITCM_TEXT
-void positionEKFSetDymamicPosR(POSITION_EKF *ekf, uint8_t axis, float rValue) {
+void positionEKFSetDymamicRP(POSITION_EKF *ekf, uint8_t axis, float rValue) {
 	ekf->R[axis] = rValue;
 }
 
 /* --- Prediction Step --- */
-
 __ATTR_ITCM_TEXT
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt) {
 	float acc[3] = { ax, ay, az };
 	const float dt2 = dt * dt;
 	const float hdt2 = 0.5f * dt2;
+
 	for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
 		const int i = axis * POS_EKF_AXIS_DIM;
+
 		/* =========================
 		 * State Prediction
 		 * ========================= */
 		float a = acc[axis] - ekf->x[i + POS_EKF_STATE_B];
 		ekf->x[i + POS_EKF_STATE_P] += (ekf->x[i + POS_EKF_STATE_V] * dt) + (hdt2 * a);
 		ekf->x[i + POS_EKF_STATE_V] += (a * dt);
+
 		/* =========================
-		 * Covariance Prediction
-		 * Exact: P = FPFᵀ + Q
+		 * Covariance Prediction (Optimized & Symmetrized)
 		 * ========================= */
 		float p00 = ekf->P[i + 0][i + 0];
 		float p01 = ekf->P[i + 0][i + 1];
 		float p02 = ekf->P[i + 0][i + 2];
-
-		float p10 = ekf->P[i + 1][i + 0];
 		float p11 = ekf->P[i + 1][i + 1];
 		float p12 = ekf->P[i + 1][i + 2];
-
-		float p20 = ekf->P[i + 2][i + 0];
-		float p21 = ekf->P[i + 2][i + 1];
 		float p22 = ekf->P[i + 2][i + 2];
 
-		float P00 = p00 + dt * (p01 + p10) + dt2 * p11 - hdt2 * (p02 + p20) - dt * hdt2 * (p12 + p21) + hdt2 * hdt2 * p22;
-		float P01 = p01 + dt * p11 - hdt2 * p21 - dt * p02 - dt2 * p12 + dt * hdt2 * p22;
+		float P00 = p00 + 2.0f * dt * p01 - 2.0f * hdt2 * p02 + dt2 * p11 - 2.0f * dt * hdt2 * p12 + hdt2 * hdt2 * p22 + ekf->Q[i + 0][i + 0];
+		float P01 = p01 + dt * p11 - hdt2 * p12 - dt * p02 - dt2 * p12 + dt * hdt2 * p22;
 		float P02 = p02 + dt * p12 - hdt2 * p22;
-		float P10 = p10 + dt * p11 - hdt2 * p20 - dt * p21 + dt * hdt2 * p22;
-		float P11 = p11 - dt * (p12 + p21) + dt2 * p22;
+		float P11 = p11 - 2.0f * dt * p12 + dt2 * p22 + ekf->Q[i + 1][i + 1];
 		float P12 = p12 - dt * p22;
-		float P20 = p20 + dt * p21 - hdt2 * p22;
-		float P21 = p21 - dt * p22;
-		float P22 = p22;
+		float P22 = p22 + ekf->Q[i + 2][i + 2];
+
 		/* =========================
-		 * Add Process Noise
+		 * Storage & Localized Stabilization
 		 * ========================= */
-		P00 += ekf->Q[i + 0][i + 0];
-		P11 += ekf->Q[i + 1][i + 1];
-		P22 += ekf->Q[i + 2][i + 2];
-		/* =========================
-		 * Store Back
-		 * ========================= */
-		ekf->P[i + 0][i + 0] = P00;
+		ekf->P[i + 0][i + 0] = (P00 < POS_EKF_P_MIN) ? POS_EKF_P_MIN : P00;
+		ekf->P[i + 1][i + 1] = (P11 < POS_EKF_P_MIN) ? POS_EKF_P_MIN : P11;
+		ekf->P[i + 2][i + 2] = (P22 < POS_EKF_P_MIN) ? POS_EKF_P_MIN : P22;
+
 		ekf->P[i + 0][i + 1] = P01;
+		ekf->P[i + 1][i + 0] = P01;
 		ekf->P[i + 0][i + 2] = P02;
-
-		ekf->P[i + 1][i + 0] = P10;
-		ekf->P[i + 1][i + 1] = P11;
+		ekf->P[i + 2][i + 0] = P02;
 		ekf->P[i + 1][i + 2] = P12;
-
-		ekf->P[i + 2][i + 0] = P20;
-		ekf->P[i + 2][i + 1] = P21;
-		ekf->P[i + 2][i + 2] = P22;
-	}
-	/* =========================
-	 * Symmetry & Positivity
-	 * ========================= */
-	for (int r = 0; r < POS_EKF_STATE_DIM; r++) {
-		for (int c = r; c < POS_EKF_STATE_DIM; c++) {
-			if (r == c) {
-				if (ekf->P[r][r] < POS_EKF_P_MIN) {
-					ekf->P[r][r] = POS_EKF_P_MIN;
-				}
-			} else {
-				float avg = 0.5f * (ekf->P[r][c] + ekf->P[c][r]);
-				ekf->P[r][c] = ekf->P[c][r] = avg;
-			}
-		}
+		ekf->P[i + 2][i + 1] = P12;
 	}
 }
 
-/**
- * @brief Resets Position and Velocity for a single axis while preserving learned bias.
- * @param ekf Pointer to the EKF structure.
- * @param axis Axis index (0 = X, 1 = Y, 2 = Z).
- * @param pos_new New position for the selected axis.
- */
-void positionEKFResetAxis(POSITION_EKF *ekf, uint8_t axis, float pos_new) {
-
-	if (axis >= POS_EKF_SPACE_DIM) return;
-
-	int i = axis * POS_EKF_AXIS_DIM;
-
-	// 1. Reset State: Position to new value, Velocity to zero.
-	// Bias (x[i + 2]) is preserved.
-	ekf->x[i + POS_EKF_STATE_P] = pos_new;
-	ekf->x[i + POS_EKF_STATE_V] = 0.0f;
-
-	// 2. Reset Covariance: Re-initialize uncertainty for this axis block.
-	for (int r = 0; r < 3; r++) {
-		for (int c = 0; c < 3; c++) {
-			ekf->P[i + r][i + c] = 0.0f;
-		}
-	}
-
-	ekf->P[i + 0][i + 0] = 10.0f; // Position uncertainty
-	ekf->P[i + 1][i + 1] = 10.0f; // Velocity uncertainty
-	ekf->P[i + 2][i + 2] = 0.01f; // Bias uncertainty (kept low)
-
-	// 3. Reset Gating
-	ekf->rejectCount[axis] = 0;
-}
-
-/**
- * @brief Resets Position and Velocity while preserving learned biases.
- * @param ekf Pointer to the EKF structure.
- * @param x_new New X position (usually 0.0f).
- * @param y_new New Y position (usually 0.0f).
- * @param z_new New Z position (usually current baro height).
- */
-void positionEKFReset(POSITION_EKF *ekf, float x_new, float y_new, float z_new) {
-	float new_pos[3] = { x_new, y_new, z_new };
-
-	for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
-		int i = axis * POS_EKF_AXIS_DIM;
-
-		// 1. Reset State: Position to new value, Velocity to zero.
-		// We leave x[i + 2] (Bias) untouched so it remains calibrated.
-		ekf->x[i + POS_EKF_STATE_P] = new_pos[axis];
-		ekf->x[i + POS_EKF_STATE_V] = 0.0f;
-
-		// 2. Reset Covariance: Re-initialize uncertainty for the axis block.
-		// We set high uncertainty for P and V, but keep Bias uncertainty low.
-		for (int r = 0; r < 3; r++) {
-			for (int c = 0; c < 3; c++) {
-				ekf->P[i + r][i + c] = 0.0f;
-			}
-		}
-		ekf->P[i + 0][i + 0] = 10.0f; // Position uncertainty
-		ekf->P[i + 1][i + 1] = 10.0f; // Velocity uncertainty
-		// Bias uncertainty remains at current or a small stable value
-		ekf->P[i + 2][i + 2] = 0.01f;
-
-		// 3. Reset Gating: Clear the rejection counter to allow immediate updates
-		ekf->rejectCount[axis] = 0;
-	}
-}
-
-/* --- Axis Update --- */
+/* --- Axis Update Engine --- */
 __ATTR_ITCM_TEXT
-void _axisPositionUpdate(POSITION_EKF *ekf, int axis, float meas) {
+void _axisPositionUpdateInternal(POSITION_EKF *ekf, int axis, float meas, float externalBias) {
 	const int i = axis * POS_EKF_AXIS_DIM;
 
-	// Initial vertical alignment
-	if (!ekf->initialized && axis == POS_EKF_Z_AXIS) {
-		ekf->x[i + POS_EKF_STATE_P] = meas;
-		ekf->P[i + POS_EKF_STATE_P][i + POS_EKF_STATE_P] = 2.0f;
+	// Absolute Cold-Start Alignment Guard per individual axis
+	if (!ekf->axisInitialized[axis]) {
+		ekf->x[i + POS_EKF_STATE_P] = meas - externalBias;
+		ekf->x[i + POS_EKF_STATE_V] = 0.0f;
+		ekf->x[i + POS_EKF_STATE_B] = 0.0f;
+
+		ekf->P[i + 0][i + 0] = 2.0f;
+		ekf->P[i + 1][i + 1] = 1.0f;
+		ekf->P[i + 2][i + 2] = 0.1f;
+		ekf->P[i + 0][i + 1] = 0.0f;
+		ekf->P[i + 1][i + 0] = 0.0f;
+		ekf->P[i + 0][i + 2] = 0.0f;
+		ekf->P[i + 2][i + 0] = 0.0f;
+		ekf->P[i + 1][i + 2] = 0.0f;
+		ekf->P[i + 2][i + 1] = 0.0f;
+
+		ekf->rejectCount[axis] = 0;
+		ekf->axisInitialized[axis] = 1;
 		return;
 	}
 
-	float y = meas - ekf->x[i + POS_EKF_STATE_P];
-	float S = ekf->P[i + POS_EKF_STATE_P][i + POS_EKF_STATE_P] + ekf->R[axis];
-	float d2 = (y * y) / S;
-	//Exporting the innovation for potential external monitoring or adaptive logic
+	float y = meas - (ekf->x[i + POS_EKF_STATE_P] + externalBias);
+	float S = ekf->P[i + 0][i + 0] + ekf->R[axis];
+
+	// FIX: Guard against pathological or negative variance collapse
+	if (S < POS_EKF_P_MIN) {
+		S = POS_EKF_P_MIN;
+	}
 	ekf->innovation[axis] = y;
 
-	// Gating logic
+	// Gating Outlier Rejection (Safe from division-by-zero)
+	float d2 = (y * y) / S;
 	if (d2 > ekf->gateSize[axis]) {
 		if (ekf->rejectCount[axis] < ekf->panicLimit[axis]) {
 			ekf->rejectCount[axis]++;
 			return;
 		}
+		ekf->axisInitialized[axis] = 0;
+		return;
 	}
 	ekf->rejectCount[axis] = 0;
 
-	// Kalman Gain
-	float K[3] = { ekf->P[i + 0][i + 0] / S, ekf->P[i + 1][i + 0] / S, ekf->P[i + 2][i + 0] / S };
+	// Compute Kalman Gains
+	float S_inv = 1.0f / S;
+	float K[3] = { ekf->P[i + 0][i + 0] * S_inv, ekf->P[i + 1][i + 0] * S_inv, ekf->P[i + 2][i + 0] * S_inv };
 
-	// State update
+	// Execute State Vector Updates
 	ekf->x[i + 0] += K[0] * y;
 	ekf->x[i + 1] += K[1] * y;
 	ekf->x[i + 2] += K[2] * y;
 
-	// Covariance update
-	float p0[3] = { ekf->P[i + 0][i + 0], ekf->P[i + 0][i + 1], ekf->P[i + 0][i + 2] };
-	for (int r = 0; r < 3; r++)
-		for (int c = 0; c < 3; c++)
-			ekf->P[i + r][i + c] -= K[r] * p0[c];
+	// Cache Row 0 of current covariance block before destructive write
+	float p00 = ekf->P[i + 0][i + 0];
+	float p01 = ekf->P[i + 0][i + 1];
+	float p02 = ekf->P[i + 0][i + 2];
 
-	// Stabilize block
-	for (int r = 0; r < 3; r++) {
-		for (int c = r; c < 3; c++) {
-			int row = i + r;
-			int col = i + c;
-			if (row == col) {
-				if (ekf->P[row][col] < POS_EKF_P_MIN) ekf->P[row][col] = POS_EKF_P_MIN;
-			} else {
-				float avg = 0.5f * (ekf->P[row][col] + ekf->P[col][row]);
-				ekf->P[row][col] = ekf->P[col][row] = avg;
-			}
-		}
-	}
+	// Unrolled updates enforcing mathematical symmetry directly
+	float P00 = p00 - K[0] * p00;
+	float P01 = p01 - K[0] * p01;
+	float P02 = p02 - K[0] * p02;
+	float P11 = ekf->P[i + 1][i + 1] - K[1] * p01;
+	float P12 = ekf->P[i + 1][i + 2] - K[1] * p02;
+	float P22 = ekf->P[i + 2][i + 2] - K[2] * p02;
 
+	// Clamping and reflective mapping back to structures
+	ekf->P[i + 0][i + 0] = (P00 < POS_EKF_P_MIN) ? POS_EKF_P_MIN : P00;
+	ekf->P[i + 1][i + 1] = (P11 < POS_EKF_P_MIN) ? POS_EKF_P_MIN : P11;
+	ekf->P[i + 2][i + 2] = (P22 < POS_EKF_P_MIN) ? POS_EKF_P_MIN : P22;
+
+	ekf->P[i + 0][i + 1] = P01;
+	ekf->P[i + 1][i + 0] = P01;
+	ekf->P[i + 0][i + 2] = P02;
+	ekf->P[i + 2][i + 0] = P02;
+	ekf->P[i + 1][i + 2] = P12;
+	ekf->P[i + 2][i + 1] = P12;
+}
+
+__ATTR_ITCM_TEXT
+void _axisPositionUpdate(POSITION_EKF *ekf, int axis, float meas) {
+	_axisPositionUpdateInternal(ekf, axis, meas, 0.0f);
 }
 
 __ATTR_ITCM_TEXT
 void _axisPositionUpdateWithBias(POSITION_EKF *ekf, int axis, float meas, float bias) {
-	const int i = axis * POS_EKF_AXIS_DIM;
-
-	// Initial vertical alignment
-	if (!ekf->initialized && axis == POS_EKF_Z_AXIS) {
-		ekf->x[i + POS_EKF_STATE_P] = meas;
-		ekf->P[i + POS_EKF_STATE_P][i + POS_EKF_STATE_P] = 2.0f;
-		return;
-	}
-
-	// Calculate innovation (y) including the bias term
-	// For Z-axis, this accounts for the Venturi effect
-	float y = meas - (ekf->x[i + POS_EKF_STATE_P] + bias);
-	float S = ekf->P[i + POS_EKF_STATE_P][i + POS_EKF_STATE_P] + ekf->R[axis];
-	float d2 = (y * y) / S;
-	//Exporting the innovation for potential external monitoring or adaptive logic
-	ekf->innovation[axis] = y;
-
-	// Gating logic
-	if (d2 > ekf->gateSize[axis]) {
-		if (ekf->rejectCount[axis] < ekf->panicLimit[axis]) {
-			ekf->rejectCount[axis]++;
-			return;
-		}
-	}
-	ekf->rejectCount[axis] = 0;
-
-	// Kalman Gain
-	float K[3] = { ekf->P[i + 0][i + 0] / S, ekf->P[i + 1][i + 0] / S, ekf->P[i + 2][i + 0] / S };
-
-	// State update
-	ekf->x[i + 0] += K[0] * y;
-	ekf->x[i + 1] += K[1] * y;
-	ekf->x[i + 2] += K[2] * y;
-
-	// Covariance update
-	float p0[3] = { ekf->P[i + 0][i + 0], ekf->P[i + 0][i + 1], ekf->P[i + 0][i + 2] };
-	for (int r = 0; r < 3; r++)
-		for (int c = 0; c < 3; c++)
-			ekf->P[i + r][i + c] -= K[r] * p0[c];
-
-	// Stabilize block
-	for (int r = 0; r < 3; r++) {
-		for (int c = r; c < 3; c++) {
-			int row = i + r;
-			int col = i + c;
-			if (row == col) {
-				if (ekf->P[row][col] < POS_EKF_P_MIN) ekf->P[row][col] = POS_EKF_P_MIN;
-			} else {
-				float avg = 0.5f * (ekf->P[row][col] + ekf->P[col][row]);
-				ekf->P[row][col] = ekf->P[col][row] = avg;
-			}
-		}
-	}
+	_axisPositionUpdateInternal(ekf, axis, meas, bias);
 }
 
 __ATTR_ITCM_TEXT
 void _axisVelocityUpdate(POSITION_EKF *ekf, int axis, float meas_v, float R_v) {
-	const int i = (axis * POS_EKF_AXIS_DIM);
+	const int i = axis * POS_EKF_AXIS_DIM;
 
-	float y = (meas_v - ekf->x[i + 1]);
-	float S = (ekf->P[i + 1][i + 1] + R_v);
-
-	if (S < 1e-6f) {
+	if (!ekf->axisInitialized[axis])
 		return;
+
+	float y = meas_v - ekf->x[i + 1];
+	float S = ekf->P[i + 1][i + 1] + R_v;
+
+	// FIX: Guard against pathological or negative variance collapse instead of dropping frame
+	if (S < POS_EKF_P_MIN) {
+		S = POS_EKF_P_MIN;
 	}
 
-	float d2 = ((y * y) / S);
-
+	// Gating Outlier Rejection (Safe from division-by-zero)
+	float d2 = (y * y) / S;
 	if (d2 > ekf->gateSize[axis]) {
 		if (ekf->rejectCount[axis] < ekf->panicLimit[axis]) {
 			ekf->rejectCount[axis]++;
 			return;
 		}
+		ekf->axisInitialized[axis] = 0;
+		ekf->rejectCount[axis] = 0;
+		return;
 	}
 	ekf->rejectCount[axis] = 0;
 
-	float K[3] = { (ekf->P[i + 0][i + 1] / S), (ekf->P[i + 1][i + 1] / S), (ekf->P[i + 2][i + 1] / S) };
+	float S_inv = 1.0f / S;
+	float K[3] = { ekf->P[i + 0][i + 1] * S_inv, ekf->P[i + 1][i + 1] * S_inv, ekf->P[i + 2][i + 1] * S_inv };
 
-	ekf->x[i + 0] += (K[0] * y);
-	ekf->x[i + 1] += (K[1] * y);
-	ekf->x[i + 2] += (K[2] * y);
+	ekf->x[i + 0] += K[0] * y;
+	ekf->x[i + 1] += K[1] * y;
+	ekf->x[i + 2] += K[2] * y;
 
-	float p1[3] = { ekf->P[i + 1][i + 0], ekf->P[i + 1][i + 1], ekf->P[i + 1][i + 2] };
+	// Cache Row 1 parameters before modifications
+	float p10 = ekf->P[i + 1][i + 0];
+	float p11 = ekf->P[i + 1][i + 1];
+	float p12 = ekf->P[i + 1][i + 2];
 
-	for (int r = 0; (r < 3); r++) {
-		for (int c = 0; (c < 3); c++) {
-			ekf->P[i + r][i + c] -= (K[r] * p1[c]);
-		}
-	}
+	float P00 = ekf->P[i + 0][i + 0] - K[0] * p10;
+	float P01 = ekf->P[i + 0][i + 1] - K[0] * p11;
+	float P02 = ekf->P[i + 0][i + 2] - K[0] * p12;
+	float P11 = p11 - K[1] * p11;
+	float P12 = p12 - K[1] * p12;
+	float P22 = ekf->P[i + 2][i + 2] - K[2] * p12;
 
-	for (int r = 0; (r < 3); r++) {
-		for (int c = r; (c < 3); c++) {
-			int row = (i + r);
-			int col = (i + c);
-			if (row == col) {
-				if (ekf->P[row][col] < POS_EKF_P_MIN) {
-					ekf->P[row][col] = POS_EKF_P_MIN;
-				}
-			} else {
-				float avg = (0.5f * (ekf->P[row][col] + ekf->P[col][row]));
-				ekf->P[row][col] = ekf->P[col][row] = avg;
-			}
-		}
-	}
+	ekf->P[i + 0][i + 0] = (P00 < POS_EKF_P_MIN) ? POS_EKF_P_MIN : P00;
+	ekf->P[i + 1][i + 1] = (P11 < POS_EKF_P_MIN) ? POS_EKF_P_MIN : P11;
+	ekf->P[i + 2][i + 2] = (P22 < POS_EKF_P_MIN) ? POS_EKF_P_MIN : P22;
+
+	ekf->P[i + 0][i + 1] = P01;
+	ekf->P[i + 1][i + 0] = P01;
+	ekf->P[i + 0][i + 2] = P02;
+	ekf->P[i + 2][i + 0] = P02;
+	ekf->P[i + 1][i + 2] = P12;
+	ekf->P[i + 2][i + 1] = P12;
 }
 
-__ATTR_ITCM_TEXT
-float positionEKFUpdateZR(POSITION_EKF *ekf, float zMeas, float bias, float ax, float ay, float az) {
-	float zPred = ekf->x[6]; // EKF Z-position estimate (cm)
-	// 1. Calculate the physical innovation residual
-	float residual = zMeas - (zPred + bias);
-	// Open up the clamp from 5cm to 25cm to allow real transient events to register
-	residual = constrainToRangeF(residual, -POS_Z_RESIDUAL_CLAMP, POS_Z_RESIDUAL_CLAMP);
-	// 2. Compute the residual variance scaling factor
-	float Pzz = ekf->P[6][6];
-	if (Pzz < POS_Z_DYNAMIC_R_EPS) {
-		Pzz = POS_Z_DYNAMIC_R_EPS;
-	}
-	float denom = Pzz + POS_EKF_Z_R_MEAS + POS_Z_DYNAMIC_R_SCALE_EPS;
-	if (denom < 1e-3f) {
-		denom = 1e-3f;
-	}
-	float scale = 1.0f / denom;
-
-	// This tracks how much the hardware baro disagrees with the math model
-	float residualTerm = POS_Z_DYNAMIC_R_GAIN * residual * residual * scale;
-
-	// 3. Compute frame motion scaling factor (vibration and translation)
-	float accXY = fabsf(ax) + fabsf(ay);
-	float accZ  = fabsf(az);
-
-	float accXYScale = constrainToRangeF(accXY / POS_Z_ACC_XY_THRESH, 0.0f, 1.0f);
-	float accZScale  = constrainToRangeF(accZ / POS_Z_ACC_Z_THRESH, 0.0f, 1.0f);
-
-	// motionScale will be 0.0 at rest, scaling smoothly up to 1.0 during heavy flight maneuvers
-	float motionScale = constrainToRangeF(accXYScale + accZScale, 0.0f, 1.0f);
-
-	// 4. ELIMINATE BINARY SWITCH: Blended Dynamic R Calculation
-	// Base target begins with baseline noise + disagreement penalty
-	float baseDynamicR = POS_EKF_Z_R_MEAS + residualTerm;
-
-	// Smoothly scale towards MAX R based strictly on how violently the airframe is moving
-	float targetDynamicR = baseDynamicR + (motionScale * (POS_Z_DYNAMIC_R_MEAS_MAX - baseDynamicR));
-
-	// 5. Apply final safety constraints
-	targetDynamicR = constrainToRangeF(targetDynamicR, POS_Z_DYNAMIC_R_MEAS_MIN, POS_Z_DYNAMIC_R_MEAS_MAX);
-
-	// 6. IIR Filter to prevent step discontinuities from rattling the EKF covariance matrix
-	float dynamicR = positionEKFPrevZR + POS_Z_DYNAMIC_R_SMOOTH_ALPHA * (targetDynamicR - positionEKFPrevZR);
-	positionEKFPrevZR = dynamicR;
-
-	return dynamicR;
-}
-
+/* --- Public API Hooks --- */
 __ATTR_ITCM_TEXT
 void positionEKFUpdateZMeasure(POSITION_EKF *ekf, float z_meas) {
 	_axisPositionUpdate(ekf, POS_EKF_Z_AXIS, z_meas);
@@ -430,21 +270,83 @@ void positionEKFUpdateXYMeasure(POSITION_EKF *ekf, float x_meas, float y_meas) {
 	_axisPositionUpdate(ekf, POS_EKF_Y_AXIS, y_meas);
 }
 
-/**
- * @brief Apply damping to Horizontal axes only.
- * Call this when GPS is lost or sticks are centered.
- */
 __ATTR_ITCM_TEXT
-void positionEKFUpdateXYVel(POSITION_EKF *ekf, float xVel, float yVel, float dampingStrength) {
-	// damping_strength: 0.1 (Aggressive) to 2.0 (Loose/Soft)
-	_axisVelocityUpdate(ekf, POS_EKF_X_AXIS, xVel, dampingStrength);
-	_axisVelocityUpdate(ekf, POS_EKF_Y_AXIS, yVel, dampingStrength);
+void positionEKFUpdateXYVel(POSITION_EKF *ekf, float xVel, float yVel, float velR) {
+	_axisVelocityUpdate(ekf, POS_EKF_X_AXIS, xVel, velR);
+	_axisVelocityUpdate(ekf, POS_EKF_Y_AXIS, yVel, velR);
 }
 
-/**
- * @brief Apply damping to Vertical axis.
- * Useful during landing detection to prevent "bounce" estimates.
- */
-void positionEKFUpdateZVel(POSITION_EKF *ekf, float zVel, float dampingStrength) {
-	_axisVelocityUpdate(ekf, POS_EKF_Z_AXIS, zVel, dampingStrength);
+__ATTR_ITCM_TEXT
+void positionEKFResetXYVel(POSITION_EKF *ekf) {
+	positionEKFUpdateXYVel(ekf, 0.0f, 0.0f, POS_ESTIMATOR_DYNAMIC_XY_RV_RESET);
+}
+
+void positionEKFUpdateZVel(POSITION_EKF *ekf, float zVel, float velR) {
+	_axisVelocityUpdate(ekf, POS_EKF_Z_AXIS, zVel, velR);
+}
+
+__ATTR_ITCM_TEXT
+float getEstimatedZDynamicRP(POSITION_EKF *ekf, float zMeas, float bias, float ax, float ay, float az) {
+	float zPred = ekf->x[6];
+	float residual = zMeas - (zPred + bias);
+	residual = constrainToRangeF(residual, -POS_ESTIMATOR_DYNAMIC_Z_RESIDUAL_CLAMP, POS_ESTIMATOR_DYNAMIC_Z_RESIDUAL_CLAMP);
+
+	float Pzz = ekf->P[6][6];
+	if (Pzz < POS_ESTIMATOR_DYNAMIC_Z_RP_EPS) {
+		Pzz = POS_ESTIMATOR_DYNAMIC_Z_RP_EPS;
+	}
+	float denom = Pzz + POS_EKF_Z_R_MEAS + POS_ESTIMATOR_DYNAMIC_Z_RP_SCALE_EPS;
+	if (denom < 1e-3f) {
+		denom = 1e-3f;
+	}
+	float scale = 1.0f / denom;
+	float residualTerm = POS_ESTIMATOR_DYNAMIC_Z_RP_GAIN * residual * residual * scale;
+
+	float accXY = fastSqrtf(ax * ax + ay * ay);
+	float accZ = fabsf(az);
+
+	float accXYScale = constrainToRangeF(accXY / POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH, 0.0f, 1.0f);
+	float accZScale = constrainToRangeF(accZ / POS_ESTIMATOR_DYNAMIC_Z_ACC_Z_THRESH, 0.0f, 1.0f);
+	float motionScale = constrainToRangeF(accXYScale + accZScale, 0.0f, 1.0f);
+
+	float baseDynamicR = POS_EKF_Z_R_MEAS + residualTerm;
+	float targetDynamicR = baseDynamicR + (motionScale * (POS_ESTIMATOR_DYNAMIC_Z_RP_MAX - baseDynamicR));
+	targetDynamicR = constrainToRangeF(targetDynamicR, POS_ESTIMATOR_DYNAMIC_Z_RP_MIN, POS_ESTIMATOR_DYNAMIC_Z_RP_MAX);
+
+	// PATCH: Encapsulate within structure variable to isolate thread execution contexts
+	float dynamicR = ekf->prevZR + POS_ESTIMATOR_DYNAMIC_Z_RP_ALPHA * (targetDynamicR - ekf->prevZR);
+	ekf->prevZR = dynamicR;
+
+	return dynamicR;
+}
+
+float getEstimatedXYDynamicRP(float hAcc) {
+	if (hAcc < POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_MIN) {
+		hAcc = POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_MIN;
+	}
+	float dynamicR = (POS_ESTIMATOR_DYNAMIC_XY_RP_BASE + (POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_SCALE * (hAcc * hAcc)));
+	if (dynamicR > POS_ESTIMATOR_DYNAMIC_XY_RP_MAX) {
+		dynamicR = POS_ESTIMATOR_DYNAMIC_XY_RP_MAX;
+	}
+	return dynamicR;
+}
+
+float getEstimatedXYDynamicRV(float sAcc) {
+	if (sAcc < POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_MIN) {
+		sAcc = POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_MIN;
+	}
+	float dynamicRv = (POS_ESTIMATOR_DYNAMIC_XY_RV_BASE + (POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_SCALE * (sAcc * sAcc)));
+	if (dynamicRv > POS_ESTIMATOR_DYNAMIC_XY_RV_MAX) {
+		dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_RV_MAX;
+	}
+	return dynamicRv;
+}
+
+void positionEKFInvalidateAxis(POSITION_EKF *ekf, uint8_t axis) {
+	if (axis <= POS_EKF_Z_AXIS) {
+		ekf->axisInitialized[axis] = 0;
+		ekf->rejectCount[axis] = 0;
+		int i = axis * POS_EKF_AXIS_DIM;
+		ekf->x[i + POS_EKF_STATE_V] = 0.0f;
+	}
 }

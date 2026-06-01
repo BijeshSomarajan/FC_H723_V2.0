@@ -18,17 +18,6 @@
 #define POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY 75
 #define POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD    (1.0f / POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY)
 
-// =============================================================================
-// 2. CONVERSION & SCALE GAINS
-// =============================================================================
-#define POSITION_MGR_X_ACC_OUTPUT_GAIN                 1.0f    // Scaling factor for X IMU acceleration. Do not change unless altering physical units.
-#define POSITION_MGR_Y_ACC_OUTPUT_GAIN                 1.0f    // Scaling factor for Y IMU acceleration. Do not change unless altering physical units.
-#define POSITION_MGR_Z_ACC_OUTPUT_GAIN                 100.0f  // Converts m/s² to cm/s² for vertical estimation scales.
-
-#define POSITION_MGR_X_POS_OUTPUT_GAIN                 1.0f    // Scaling factor for raw X coordinates (meters). Leave at 1.0f.
-#define POSITION_MGR_Y_POS_OUTPUT_GAIN                 1.0f    // Scaling factor for raw Y coordinates (meters). Leave at 1.0f.
-#define POSITION_MGR_Z_POS_OUTPUT_GAIN                 100.0f  // Converts vertical position from meters to centimeters.
-
 /* Higher: Allows aggressive tilt angles to fight heavy wind or brake violently. Lower: Safer flight envelope, but drone will drift in stiff breezes. */
 #define POSITION_MGR_MAX_POS_COMMAND                   30.0f   // Maximum tilt angle command allowed by position loop (Degrees)
 
@@ -51,47 +40,32 @@
 /* Higher: Suppresses frame resonance feedback. Lower: Captures raw micro-accelerations; if too low, integrates noise into control loops. */
 #define POSITION_MGR_X_ACC_DEADBAND                    0.0f    // m/s²
 #define POSITION_MGR_Y_ACC_DEADBAND                    0.0f    // m/s²
-#define POSITION_MGR_Z_ACC_DEADBAND                    1.0f    // m/s²
+#define POSITION_MGR_Z_ACC_DEADBAND                    0.01f   // m/s²
 
 /* Higher: EKF ignores subtle sensor changes, creating lag. Lower: EKF captures micro-movements, but risks integrating sensor bias during steady hover. */
 #define POSITION_MGR_X_ESTIMATION_ACC_DEADBAND         0.001f    // m/s²
 #define POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND         0.001f    // m/s²
-#define POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND         0.1f    // m/s²
+#define POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND         0.001f    // m/s²
 
 /* Higher: Prevents tiny tracking errors from translating to motor twitches. Lower: Tighter control near zero velocity, but can cause micro-oscillations. */
 #define POSITION_MGR_X_VEL_DEADBAND                    0.0f   // m/s
 #define POSITION_MGR_Y_VEL_DEADBAND                    0.0f   // m/s
-#define POSITION_MGR_Z_VEL_DEADBAND                    1.0f    // cm/s
+#define POSITION_MGR_Z_VEL_DEADBAND                    0.01f  // m/s
 
 /* Safety ceilings. Limits maximum values processed by low pass filters to prevent math blowups from sensor glitches. */
 #define POSITION_MGR_X_VEL_MAX                         5.0f   // m/s
 #define POSITION_MGR_Y_VEL_MAX                         5.0f   // m/s
-#define POSITION_MGR_Z_VEL_MAX                         500.0f  // cm/s
+#define POSITION_MGR_Z_VEL_MAX                         5.0f   // m/s
 
 #define POSITION_MGR_X_ACC_MAX                         50.0f   // m/s²
 #define POSITION_MGR_Y_ACC_MAX                         50.0f   // m/s²
-#define POSITION_MGR_Z_ACC_MAX                         500.0f  // cm/s²
+#define POSITION_MGR_Z_ACC_MAX                         50.0f   // m/s²
 
 // =============================================================================
 // 5. GNSS EKF MEASUREMENT TRUST (Tuned for Standard GNSS - POST-FIX TUNE)
 // =============================================================================
 #define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
 #define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          1
-#define POSITION_MGR_XY_POS_DYNAMIC_R_BASE             POS_EKF_X_R_MEAS // 0.06f
-
-/* GPS Position Gating & Scaling */
-#define POSITION_MGR_GNSS_POS_HACC_SCALE               1.2f
-#define POSITION_MGR_GNSS_POS_HACC_MIN                 0.6f
-#define POSITION_MGR_GNSS_POS_R_MAX                    50.0f
-/* GPS Velocity Damping */
-#define POSITION_MGR_XY_VEL_UPDATE_DAMP_STRENGTH       0.12f //0.05f
-#define POSITION_MGR_XY_VEL_RESET_DAMP_STRENGTH        0.2f
-
-/* GPS Velocity Gating & Scaling */
-#define POSITION_MGR_GNSS_VEL_SACC_SCALE               0.1f
-#define POSITION_MGR_GNSS_VEL_SACC_MIN                 0.1f
-#define POSITION_MGR_GNSS_VEL_R_MAX                    10.0f
-#define POSITION_MGR_GNSS_VEL_DEADBAND                 0.0f
 
 // =============================================================================
 // 6. LOITER BRAKING & SETTLING CONFIGURATIONS
@@ -120,12 +94,12 @@
 #define POSITION_MGR_BRAKE_TERMINAL_VEL_DEADBAND       0.03f   // m/s
 
 #define POSITION_MGR_POS_HOLD_BALLISTIC_SCALE                1.2f
-#define POSITION_MGR_POS_HOLD_EKF_LAG_SEC                    0.05f
-#define POSITION_MGR_POS_HOLD_NATURAL_DECEL                  7.5f
-#define POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET               3.0f/10
+#define POSITION_MGR_POS_HOLD_EKF_LAG_SEC                    0.06f
+#define POSITION_MGR_POS_HOLD_NATURAL_DECEL                  6.0f//0.7f
+#define POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET               12.0f//0.3f
 #define POSITION_MGR_POS_HOLD_BRAKE_REF_EST_VELOCITY_GAIN    0.33f
-#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD            0.75f // 0.85f
-#define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD          0.25f // 1.0f
+#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD            0.5f
+#define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD          0.5f
 #define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH                 1.25f //1.5f
 
 // Define the number of samples you want to capture (e.g., 50 samples)

@@ -137,16 +137,8 @@ __ATTR_ITCM_TEXT
 void handleThrottleChange(float dt) {
 	float currentStick = altMgrLandingPulseActive ? -altMgrLandingCommand : rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX];
 	float gain = currentStick * ALT_MGR_ALT_AGGREGATION_GAIN * dt;
-	if (altMgrWasThrottleCentered != 0) {
-		float lpfValue = altMgrThrottleControlLPF.output;
-		if (currentStick < 0.0f && lpfValue > altMgrPreviousThrottle) {
-			fcStatusData.currentThrottle = altMgrPreviousThrottle;
-		} else if (currentStick > 0.0f && lpfValue < altMgrPreviousThrottle) {
-			fcStatusData.currentThrottle = altMgrPreviousThrottle;
-		} else {
-			fcStatusData.currentThrottle = lpfValue;
-		}
-	}
+
+	// Clean, unobstructed tracking of stick inputs
 	float nextThrottle = fcStatusData.currentThrottle + gain;
 	if (currentStick < 0.0f) { // Moving Down
 		if (nextThrottle > altMgrPreviousThrottle) {
@@ -211,17 +203,17 @@ void updateAltitudeReferences() {
 	fcStatusData.altitudeSLHome = fcStatusData.altitudeSLRef;
 	fcStatusData.altitudeSLMax = fcStatusData.altitudeSLHome + altMgrMaxHeight;
 }
-
+float clampedAlt = 0;
 __ATTR_ITCM_TEXT
 float getClampedCurrentAltitude() {
 	float altitudeDelta = positionCordinateData.zPosition - fcStatusData.altitudeSLRef;
 	altitudeDelta = constrainToRangeF(altitudeDelta, -ALT_MGR_MAX_ALT_DELTA, ALT_MGR_MAX_ALT_DELTA);
+	clampedAlt = fcStatusData.altitudeSLRef + altitudeDelta;
 	return fcStatusData.altitudeSLRef + altitudeDelta;
 }
 
-
 __ATTR_ITCM_TEXT
-void calculateTiltCompThrottle(float dt) {
+void calculateTiltCompThrottleOld(float dt) {
 	float target = 0.0f;
 	// 1. Get attitude and convert to radians
 	float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
@@ -261,11 +253,70 @@ void calculateTiltCompThrottle(float dt) {
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
 
+
+// Add this to your global/struct state definitions alongside your other tracker:
+float altMgrTiltCompIntermediate = 0.0f;
+
+__ATTR_ITCM_TEXT
+void calculateTiltCompThrottle(float dt) {
+	float target = 0.0f;
+
+	// 1. Get attitude and convert to radians
+	float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
+	float rollRad = convertDegToRadF(sensorAttitudeData.roll);
+
+	// 2. Compute the composite vertical lift scaling vector
+	float cosP = cosApproxF(pitchRad);
+	float cosR = cosApproxF(rollRad);
+	float liftComponent = cosP * cosR;
+
+	// 3. Pre-calculate physical macro boundaries into cosine float space
+	float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MIN_ANGLE));
+	float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE));
+
+	// 4. Check if the vehicle has tilted past the minimum deadband threshold
+	if (liftComponent < deadbandComponent) {
+		float clampedLift = fmaxf(liftComponent, maxAngleComponent);
+		float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
+		float hoverThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
+
+		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_GAIN;
+		target = fminf(target, ALT_MGR_TILT_COMP_MAX_LIMIT);
+	}
+
+	// 5. OPTIMIZED: Asymmetric Cascaded Second-Order S-Curve Filter Step
+	// Determines tau based on whether the overall profile is expanding or contracting
+	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TAU_RISE : ALT_MGR_TILT_COMP_TAU_FADE;
+
+	// Adjust alpha for a cascaded system. To maintain a similar overall transient window
+	// as your original first-order filter, reduce your base TAU values by roughly 30-40%.
+	float alpha = dt / (activeTau + dt);
+	target = constrainToRangeF(target, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
+
+	// Stage 1: Primary smoothing (Generates the baseline transition profile)
+	altMgrTiltCompIntermediate += alpha * (target - altMgrTiltCompIntermediate);
+
+	// Stage 2: Secondary smoothing (Rounds off the acceleration corners -> Completes the S-Curve)
+	altMgrCurrentTiltCompThDelta += alpha * (altMgrTiltCompIntermediate - altMgrCurrentTiltCompThDelta);
+
+	// 6. Pipe the filtered delta directly into the actuator mixer matrix
+	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
+}
+
 __ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
 	handleLanding(dt);
 	if (!rcData.throttleCentered || altMgrLandingPulseActive) {
+		// EDGE TRIGGER:
+		if (altMgrWasThrottleCentered != 0) {
+			// 1. Snapshot the actual physical throttle output to baseline memory
+			fcStatusData.currentThrottle = altMgrThrottleControlLPF.output;
+			altMgrPreviousThrottle = fcStatusData.currentThrottle;
+			// 2. Clear the mixing output instantly to handle multi-rate execution lag
+			controlData.altitudeControl = 0.0f;
+		}
 		handleThrottleChange(dt);
+		fcStatusData.altitudeSLRef = positionCordinateData.zPosition;
 		altMgrWasThrottleCentered = 0;
 	} else {
 		if (altMgrWasThrottleCentered == 0) {
@@ -276,7 +327,10 @@ void manageAltitude(float dt) {
 		}
 		altMgrPreviousThrottleControl = altMgrThrottleControlLPF.output;
 	}
+
+	// Wipes internal integrators and scales gains downwards for stick tracking
 	manageAltControlSettings(dt);
+
 	if (fcStatusData.isFlying) {
 		altMgrAccDtAccumulation += dt;
 		altMgrVelDtAccumulation += dt;
@@ -308,6 +362,8 @@ void manageAltitude(float dt) {
 		altMgrVelDtAccumulation = 0;
 		altMgrAltDtAccumulation = 0;
 	}
+
+	// High-rate mixer equation now perfectly protected against stale values
 	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta;
 	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttleControlPercent = controlData.throttleControl / MAX_PERMISSIBLE_THROTTLE_DELTA;

@@ -6,6 +6,7 @@
 #include "../../memory/Memory.h"
 #include "../ControlData.h"
 #include "../Pid.h"
+#include "../../FCConfig.h"
 
 PID positionXPID, positionYPID, positionXRatePID, positionYRatePID;
 float positionControlXVelDist = 0.0f, positionControlYVelDist = 0.0f;
@@ -134,8 +135,15 @@ void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, fl
 	float rateLimit = getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR);
 	outputX = constrainToRangeF(outputX, -rateLimit, rateLimit);
 	outputY = constrainToRangeF(outputY, -rateLimit, rateLimit);
+
+#if DISABLE_POSITION_CONTROL_FOR_DEBUG == 1
+	controlData.positionXControl = 0;
+	controlData.positionYControl = 0;
+#else
 	controlData.positionXControl = outputX;
 	controlData.positionYControl = outputY;
+#endif
+
 }
 
 __ATTR_ITCM_TEXT

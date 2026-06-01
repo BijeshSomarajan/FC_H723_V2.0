@@ -54,7 +54,7 @@ void updateNoiseFilterCoefficients() {
 	if (fftContextGyroX.hasProcessUpdate) {
 		fftContextGyroX.hasProcessUpdate = 0;
 
-# if DEBUG_ENABLED == 1
+# if ENABLE_DT_TRACE_FOR_DEBUG == 1
 		float dt = getDeltaTime(NOISE_FILTER_FFTX_TIMER_CHANNEL);
 		sensorAttitudeData.noiseFilterProcessXDt = dt;
 #endif
@@ -71,7 +71,7 @@ void updateNoiseFilterCoefficients() {
 	if (fftContextGyroY.hasProcessUpdate) {
 		fftContextGyroY.hasProcessUpdate = 0;
 
-# if DEBUG_ENABLED == 1
+# if ENABLE_DT_TRACE_FOR_DEBUG == 1
 		float dt = getDeltaTime(NOISE_FILTER_FFTY_TIMER_CHANNEL);
 		sensorAttitudeData.noiseFilterProcessYDt = dt;
 #endif
@@ -88,7 +88,7 @@ void updateNoiseFilterCoefficients() {
 	if (fftContextGyroZ.hasProcessUpdate) {
 		fftContextGyroZ.hasProcessUpdate = 0;
 
-# if DEBUG_ENABLED == 1
+# if ENABLE_DT_TRACE_FOR_DEBUG == 1
 		float dt = getDeltaTime(NOISE_FILTER_FFTZ_TIMER_CHANNEL);
 		sensorAttitudeData.noiseFilterProcessZDt = dt;
 #endif

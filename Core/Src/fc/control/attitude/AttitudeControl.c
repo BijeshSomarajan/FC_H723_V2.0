@@ -101,6 +101,7 @@ float updateHeadingDelta() {
 
 __ATTR_ITCM_TEXT
 void controlAttitudeRateWithGains(float dt,float ratePGain,float rateIGain, float rateDGain) {
+
 #if DISABLE_ATT_CONTROL_FOR_DEBUG == 1
 	float pitchRate = 0;
 	float rollRate = 0;
@@ -110,6 +111,7 @@ void controlAttitudeRateWithGains(float dt,float ratePGain,float rateIGain, floa
 	float rollRate = sensorAttitudeData.rollRate;
 	float yawRate = sensorAttitudeData.yawRate;
 #endif
+
 	pidUpdateWithGains(&attitudePitchRatePID, pitchRate, attitudePitchPID.pid, dt, ratePGain, rateIGain, rateDGain);
 	pidUpdateWithGains(&attitudeRollRatePID, rollRate, attitudeRollPID.pid, dt, ratePGain, rateIGain, rateDGain);
 	pidUpdateWithGains(&attitudeYawRatePID, yawRate, attitudeYawPID.pid, dt, ratePGain, rateIGain, rateDGain);

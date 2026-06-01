@@ -37,56 +37,56 @@ uint8_t initDebugManager(void) {
 	schedulerAddTask(debugTask, DEBUG_TASK_FREQUENCY, DEBUG_TASK_PRIORITY);
 	return 1;
 }
-/*
-void debugNoise() {
-	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.gxDS * 10;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDSFiltered * 10;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.gyDS * 10;
-	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gyDSFiltered * 10;
-	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.gzDS * 10;
-	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.gzDSFiltered * 10;
-	DEBUG_DATA_BUFFER[6] = sensorAttitudeData.heading * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
-}
-*/
-/*
-void debugLeverArm() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.batteryVolt * 10;
-	DEBUG_DATA_BUFFER[1] = deviceAttitudeData.ayG * 10000;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.ayG * 10000;
-	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gxDSFiltered * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
-}
-*/
-/*
-void debugAttitude() {
-	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch * 10;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.pitchRate * 10;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.roll * 10;
-	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.rollRate * 10;
-	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.heading * 10;
-	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.yawRate * 10;
-	DEBUG_DATA_BUFFER[6] = sensorAltitudeData.altitudeSLFiltered * 10;
-	DEBUG_DATA_BUFFER[7] = positionCordinateData.zPosition * 10;
-	DEBUG_DATA_BUFFER[8] = positionCordinateData.zVelocity * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
-}
-*/
-/*
-void debugVenturi() {
-	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch;
-	DEBUG_DATA_BUFFER[1] = rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX];
-	DEBUG_DATA_BUFFER[2] = venturiEstimateData.venturiBias;
-	DEBUG_DATA_BUFFER[3] = venturiEstimateData.lateralSpeed ;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity ;
-	DEBUG_DATA_BUFFER[5] = controlData.tiltCompThDelta ;
-	DEBUG_DATA_BUFFER[6] = controlData.altitudeControl;
-	DEBUG_DATA_BUFFER[7] = positionCordinateData.zPosition;
-	DEBUG_DATA_BUFFER[8] = sensorAltitudeData.altitudeSLScaled;
 
-	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
-}
-*/
+ void debugNoise() {
+ DEBUG_DATA_BUFFER[0] = sensorAttitudeData.gxDS * 10;
+ DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDSFiltered * 10;
+ DEBUG_DATA_BUFFER[2] = sensorAttitudeData.gyDS * 10;
+ DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gyDSFiltered * 10;
+ DEBUG_DATA_BUFFER[4] = sensorAttitudeData.gzDS * 10;
+ DEBUG_DATA_BUFFER[5] = sensorAttitudeData.gzDSFiltered * 10;
+ DEBUG_DATA_BUFFER[6] = sensorAttitudeData.heading * 10;
+ sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+ }
+
+/*
+ void debugLeverArm() {
+ DEBUG_DATA_BUFFER[0] = fcStatusData.batteryVolt * 10;
+ DEBUG_DATA_BUFFER[1] = deviceAttitudeData.ayG * 10000;
+ DEBUG_DATA_BUFFER[2] = sensorAttitudeData.ayG * 10000;
+ DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gxDSFiltered * 10;
+ sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+ }
+ */
+/*
+ void debugAttitude() {
+ DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch * 10;
+ DEBUG_DATA_BUFFER[1] = sensorAttitudeData.pitchRate * 10;
+ DEBUG_DATA_BUFFER[2] = sensorAttitudeData.roll * 10;
+ DEBUG_DATA_BUFFER[3] = sensorAttitudeData.rollRate * 10;
+ DEBUG_DATA_BUFFER[4] = sensorAttitudeData.heading * 10;
+ DEBUG_DATA_BUFFER[5] = sensorAttitudeData.yawRate * 10;
+ DEBUG_DATA_BUFFER[6] = sensorAltitudeData.altitudeSLFiltered * 10;
+ DEBUG_DATA_BUFFER[7] = positionCordinateData.zPosition * 10;
+ DEBUG_DATA_BUFFER[8] = positionCordinateData.zVelocity * 10;
+ sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
+ }
+ */
+/*
+ void debugVenturi() {
+ DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch;
+ DEBUG_DATA_BUFFER[1] = rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX];
+ DEBUG_DATA_BUFFER[2] = venturiEstimateData.venturiBias;
+ DEBUG_DATA_BUFFER[3] = venturiEstimateData.lateralSpeed ;
+ DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity ;
+ DEBUG_DATA_BUFFER[5] = controlData.tiltCompThDelta ;
+ DEBUG_DATA_BUFFER[6] = controlData.altitudeControl;
+ DEBUG_DATA_BUFFER[7] = positionCordinateData.zPosition;
+ DEBUG_DATA_BUFFER[8] = sensorAltitudeData.altitudeSLScaled;
+
+ sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
+ }
+ */
 
 /*
  float heightTemp = 0;
@@ -166,6 +166,29 @@ void debugPosition() {
 	sendConfigData(DEBUG_DATA_BUFFER, 11, CMD_FC_DATA);
 }
 
+extern PID altPID;
+extern PID altRatePID;
+extern PID altAccPID;
+extern float clampedAlt;
+extern LOWPASSFILTER altMgrThrottleControlLPF;
+
+void debugAltitude() {
+	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeSLFiltered * 1000;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPositionRaw * 1000;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPosition * 1000;
+	DEBUG_DATA_BUFFER[3] = fcStatusData.altitudeSLRef * 1000;
+	DEBUG_DATA_BUFFER[4] = (positionCordinateData.zPosition - fcStatusData.altitudeSLRef) * 1000;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.zVelocity * 1000;
+
+	DEBUG_DATA_BUFFER[6] = altPID.pid;
+	DEBUG_DATA_BUFFER[7] = altRatePID.pid;
+	DEBUG_DATA_BUFFER[8] = altAccPID.pid;
+	DEBUG_DATA_BUFFER[9]  = fcStatusData.currentThrottle;
+	DEBUG_DATA_BUFFER[10] = controlData.throttleControl;
+	DEBUG_DATA_BUFFER[11] = altMgrThrottleControlLPF.output;
+	sendConfigData(DEBUG_DATA_BUFFER, 12, CMD_FC_DATA);
+}
+
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
 		return;
@@ -175,7 +198,8 @@ void debugTask() {
 //	debugVenturi();
 //	debugAttitude();
 //	debugLeverArm();
-//  debugNoise();
+ debugNoise();
 //  debugGNSS();
-  debugPosition();
+//  debugPosition();
+//	debugAltitude();
 }

@@ -28,7 +28,7 @@ uint8_t initAltitudeSensors(void) {
 
 __ATTR_ITCM_TEXT
 void scaleSeaLevelAlt() {
-	sensorAltitudeData.altitudeSLScaled = sensorAltitudeData.altitudeSL * SENSOR_ALT_BARO_ALTITUDE_GAIN;
+	sensorAltitudeData.altitudeSLScaled = sensorAltitudeData.altitudeSL;
 }
 
 __ATTR_ITCM_TEXT

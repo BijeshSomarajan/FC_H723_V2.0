@@ -205,75 +205,82 @@ __ATTR_ITCM_TEXT
 void calculateBrakeAnchorBallistic(void) {
 	float vx = positionCordinateData.xVelocity;
 	float vy = positionCordinateData.yVelocity;
+	// Calculate total ground speed squared and magnitude
+	float speedSq = (vx * vx) + (vy * vy);
+	// Protection against zero-velocity noise or division-by-zero during hover
+	if (speedSq < 0.001f) {
+		fcStatusData.positionXRef = positionCordinateData.xPosition;
+		fcStatusData.positionYRef = positionCordinateData.yPosition;
+		return;
+	}
+	float speed = sqrtf(speedSq); // Single precise sqrtf inside ITCM
 	// -------------------------------------------------
-	// 1. EKF / GPS latency compensation
+	// 1. Effective braking authority (Vector Bounded)
 	// -------------------------------------------------
-	float xLagOffset = vx * POSITION_MGR_POS_HOLD_EKF_LAG_SEC;
-	float yLagOffset = vy * POSITION_MGR_POS_HOLD_EKF_LAG_SEC;
-	// -------------------------------------------------
-	// 2. Effective braking authority
-	// -------------------------------------------------
-	// Keeps braking physically tied to controller strength
 	float brakeGain = fmaxf(POSITION_MGR_POS_HOLD_BRAKE_STRENGTH, 0.1f);
 	float effectiveDecel = POSITION_MGR_POS_HOLD_NATURAL_DECEL * brakeGain;
-	// Prevent divide-by-zero or insane amplification
 	effectiveDecel = fmaxf(effectiveDecel, 0.1f);
 	// -------------------------------------------------
-	// 3. Ballistic stopping estimate
+	// 2. Vector Ballistic & Lag Magnitude Calculation
 	// -------------------------------------------------
-	// d = v² / 2a
+	// Total scalar distance required to stop based on vector speed
 	float invDenominator = 1.0f / (2.0f * effectiveDecel);
-	float xBrakeOffset = (vx * fabsf(vx)) * invDenominator * POSITION_MGR_POS_HOLD_BALLISTIC_SCALE;
-	float yBrakeOffset = (vy * fabsf(vy)) * invDenominator * POSITION_MGR_POS_HOLD_BALLISTIC_SCALE;
+	float scalarBrakeOffset = (speedSq * invDenominator) * POSITION_MGR_POS_HOLD_BALLISTIC_SCALE;
+	float scalarLagOffset = speed * POSITION_MGR_POS_HOLD_EKF_LAG_SEC;
+	float totalTargetOffset = scalarBrakeOffset + scalarLagOffset;
 	// -------------------------------------------------
-	// 4. Safety clamp
+	// 3. Safety Magnitude Clamp (Preserves Heading Angle)
 	// -------------------------------------------------
-	xBrakeOffset = constrainToRangeF(xBrakeOffset, -POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET, POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET);
-	yBrakeOffset = constrainToRangeF(yBrakeOffset, -POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET, POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET);
+	if (totalTargetOffset > POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET) {
+		totalTargetOffset = POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET;
+	}
 	// -------------------------------------------------
-	// 5. Final anchor assignment
+	// 4. Directional Projection & Final Anchor Assignment
 	// -------------------------------------------------
-	fcStatusData.positionXRef = positionCordinateData.xPosition + xLagOffset + xBrakeOffset;
-	fcStatusData.positionYRef = positionCordinateData.yPosition + yLagOffset + yBrakeOffset;
-}
-
-__ATTR_ITCM_TEXT
-void calculateBrakeAnchorLinear(void) {
-	float vx = positionCordinateData.xVelocity;
-	float vy = positionCordinateData.yVelocity;
-
-	// FIX: Match the linear P-gain decay of the position loop instead of ballistic quadratic deceleration
-	float xOffset = (vx * POSITION_MGR_POS_HOLD_EKF_LAG_SEC) + (vx / 0.5f);
-	float yOffset = (vy * POSITION_MGR_POS_HOLD_EKF_LAG_SEC) + (vy / 0.5f);
-
-	fcStatusData.positionXRef = positionCordinateData.xPosition + xOffset;
-	fcStatusData.positionYRef = positionCordinateData.yPosition + yOffset;
+	// Compute the unit directional vectors of motion
+	float dirX = vx / speed;
+	float dirY = vy / speed;
+	// Distribute the safe, combined magnitude back to the world coordinate components
+	fcStatusData.positionXRef = positionCordinateData.xPosition + (dirX * totalTargetOffset);
+	fcStatusData.positionYRef = positionCordinateData.yPosition + (dirY * totalTargetOffset);
 }
 
 __ATTR_ITCM_TEXT
 void handlePositionBraking(float dt) {
 	positionMgrPosHoldElapseDtSum += dt;
-	// Calculate linear decay of braking authority over time
+
+	// 1. Calculate progress from 0.0 to 1.0 over the active period
 	float progress = positionMgrPosHoldElapseDtSum / POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD;
 	progress = constrainToRangeF(progress, 0.0f, 1.0f);
 
-	float brakeStrength = POSITION_MGR_POS_HOLD_BRAKE_STRENGTH * (1.0f - progress);
-	brakeStrength = constrainToRangeF(brakeStrength, POSITION_MGR_POS_HOLD_BRAKE_STRENGTH / 4.0f, POSITION_MGR_POS_HOLD_BRAKE_STRENGTH);
+	// 2. Compute progressive brake strength (Ramp up from floor to max)
+	// Defines the starting baseline authority (25% of maximum strength)
+	float minBrakeStrength = POSITION_MGR_POS_HOLD_BRAKE_STRENGTH * 0.25f;
 
-	// Generate a counter-velocity command based on current ground speed
+	// Linearly interpolate from minBrakeStrength to max POSITION_MGR_POS_HOLD_BRAKE_STRENGTH over the duration
+	float brakeStrength = minBrakeStrength + (progress * (POSITION_MGR_POS_HOLD_BRAKE_STRENGTH - minBrakeStrength));
+
+	// Safety clamp to ensure numeric bounds match constraints perfectly
+	brakeStrength = constrainToRangeF(brakeStrength, minBrakeStrength, POSITION_MGR_POS_HOLD_BRAKE_STRENGTH);
+
+	// 3. Generate a progressive counter-velocity command based on ground speed
 	float vxCmd = -positionCordinateData.xVelocity * brakeStrength;
 	float vyCmd = -positionCordinateData.yVelocity * brakeStrength;
+
+	// Clamp maximum permitted feed-forward command velocity components
 	vxCmd = constrainToRangeF(vxCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
 	vyCmd = constrainToRangeF(vyCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+
+	// Pipe the generated target velocity directly into the inner position controller
 	setExpectedPositionVelocity(dt, vxCmd, vyCmd);
 
-	// Check termination conditions
+	// 4. Check termination conditions
 	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED);
 	uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
+
 	if (lowGroundSpeed || timeoutReached) {
 		positionMgrPosHoldElapseDtSum = 0.0f;
 		resetPositionControl(1);
-		//updatePositionReference();
 		fcStatusData.postionHoldState = POS_HOLD_STATE_SETTLING;
 	}
 }
@@ -347,19 +354,18 @@ void updatePositionCordinateCommand(float dt) {
 	switch (fcStatusData.postionHoldState) {
 	case POS_HOLD_STATE_IDLE:
 		positionMgrPosHoldElapseDtSum = 0.0f;
-		resetPositionCommands();
 		if (fcStatusData.isPositionHoldModeActive || fcStatusData.isRTHModeActive) {
-			//calculateBrakeAnchorLinear();
-			//calculateBrakeAnchorBallistic();
+			calculateBrakeAnchorBallistic();
 			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
 		}
+		resetPositionCommands();
 		break;
 	case POS_HOLD_STATE_BRAKING:
 		handlePositionBraking(dt);
 		break;
 	case POS_HOLD_STATE_SETTLING:
 		positionMgrPosHoldElapseDtSum += dt;
-		updatePositionReference();
+		//updatePositionReference();
 		controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 0.5f);
 		if (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD) {
 			fcStatusData.postionHoldState = POS_HOLD_STATE_LOCKED;
@@ -384,9 +390,9 @@ void managePositionTask(void) {
 	float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
 	dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
 
-	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_X_ACC_OUTPUT_GAIN;
-	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_Y_ACC_OUTPUT_GAIN;
-	float azEarth = applyDeadBandFloat(0, imuData.azEarthLinear, POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND) * POSITION_MGR_Z_ACC_OUTPUT_GAIN;
+	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_ESTIMATION_ACC_DEADBAND);
+	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND);
+	float azEarth = applyDeadBandFloat(0, imuData.azEarthLinear, POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND);
 
 	// 1. Prediction (Using raw or slightly scaled earth-frame acc)
 	positionEKFPredict(&positionEkf, axEarth, ayEarth, azEarth, dt);
@@ -462,35 +468,23 @@ void doPositionManagement() {
 			if (fcStatusData.isPositionHomeSet) {
 				convertGNSSToSICordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
 				if (wasHomeJustSet) {
-					positionEKFResetAxis(&positionEkf, POS_EKF_X_AXIS, positionCordinateData.xPositionRaw);
-					positionEKFResetAxis(&positionEkf, POS_EKF_Y_AXIS, positionCordinateData.yPositionRaw);
+					positionEKFInvalidateAxis(&positionEkf,POS_EKF_X_AXIS);
+					positionEKFInvalidateAxis(&positionEkf,POS_EKF_Y_AXIS);
+
 					fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
 					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
 				}
 				// Adaptive Velocity Measurement Noise Logic
-				float sAcc = gnssData.sAcc;
-				if (sAcc < POSITION_MGR_GNSS_VEL_SACC_MIN) {
-					sAcc = POSITION_MGR_GNSS_VEL_SACC_MIN;
-				}
-				float dynamicRv = (POSITION_MGR_XY_VEL_UPDATE_DAMP_STRENGTH + (POSITION_MGR_GNSS_VEL_SACC_SCALE * (sAcc * sAcc)));
-				if (dynamicRv > POSITION_MGR_GNSS_VEL_R_MAX) {
-					dynamicRv = POSITION_MGR_GNSS_VEL_R_MAX;
-				}
-				float velN = applyDeadBandFloat(0.0f, gnssData.velN, POSITION_MGR_GNSS_VEL_DEADBAND);
-				float velE = applyDeadBandFloat(0.0f, gnssData.velE, POSITION_MGR_GNSS_VEL_DEADBAND);
+				float dynamicRv = getEstimatedXYDynamicRV(gnssData.sAcc);
+				float velN = applyDeadBandFloat(0.0f, gnssData.velN, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
+				float velE = applyDeadBandFloat(0.0f, gnssData.velE, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
 				positionEKFUpdateXYVel(&positionEkf, velN, velE, dynamicRv);
-				float hAcc = gnssData.hAcc;
-				if (hAcc < POSITION_MGR_GNSS_POS_HACC_MIN) {
-					hAcc = POSITION_MGR_GNSS_POS_HACC_MIN;
-				}
+
 				// Calculate dynamic R for Position
-				float dynamicR = (POSITION_MGR_XY_POS_DYNAMIC_R_BASE + (POSITION_MGR_GNSS_POS_HACC_SCALE * (hAcc * hAcc)));
-				if (dynamicR > POSITION_MGR_GNSS_POS_R_MAX) {
-					dynamicR = POSITION_MGR_GNSS_POS_R_MAX;
-				}
-				positionEKFSetDymamicPosR(&positionEkf, POS_EKF_X_AXIS, dynamicR);
-				positionEKFSetDymamicPosR(&positionEkf, POS_EKF_Y_AXIS, dynamicR);
-				updatePositionManagerXYPosition((positionCordinateData.xPositionRaw * POSITION_MGR_X_POS_OUTPUT_GAIN), (positionCordinateData.yPositionRaw * POSITION_MGR_Y_POS_OUTPUT_GAIN), dt);
+				float dynamicRp = getEstimatedXYDynamicRV(gnssData.hAcc);
+				positionEKFSetDymamicRP(&positionEkf, POS_EKF_X_AXIS, dynamicRp);
+				positionEKFSetDymamicRP(&positionEkf, POS_EKF_Y_AXIS, dynamicRp);
+				updatePositionManagerXYPosition(positionCordinateData.xPositionRaw,positionCordinateData.yPositionRaw, dt);
 			}
 
 		}
@@ -506,7 +500,10 @@ void resetPositionManager(void) {
 	lowPassFilterReset(&positionMgrVelYLPF);
 	lowPassFilterReset(&positionMgrVelZLPF);
 
-	positionEKFReset(&positionEkf, 0, 0, 0);
+	positionEKFInvalidateAxis(&positionEkf,POS_EKF_X_AXIS);
+	positionEKFInvalidateAxis(&positionEkf,POS_EKF_Y_AXIS);
+	positionEKFInvalidateAxis(&positionEkf,POS_EKF_Z_AXIS);
+
 	resetVenturiBiasEstimator();
 	resetPositionControl(1);
 
@@ -522,7 +519,7 @@ void resetPositionManager(void) {
 	positionMgrRTHVyCommand = 0;
 	positionMgrRTHCompleteDt = 0;
 
-	positionEKFUpdateXYVel(&positionEkf, 0.0f, 0.0f, POSITION_MGR_XY_VEL_RESET_DAMP_STRENGTH);
+	positionEKFResetXYVel(&positionEkf);
 }
 
 __ATTR_ITCM_TEXT
@@ -537,8 +534,8 @@ void updatePositionManagerZPosition(float zPos, float dt) {
 #endif
 
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R  == 1
-	float dynamicR = positionEKFUpdateZR(&positionEkf, zPos, venturiBias, imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
-	positionEKFSetDymamicPosR(&positionEkf, POS_EKF_Z_AXIS, dynamicR);
+	float dynamicR = getEstimatedZDynamicRP(&positionEkf, zPos, venturiBias, imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
+	positionEKFSetDymamicRP(&positionEkf, POS_EKF_Z_AXIS, dynamicR);
 #endif
 
 	positionEKFUpdateZMeasureWithBias(&positionEkf, zPos, venturiBias);

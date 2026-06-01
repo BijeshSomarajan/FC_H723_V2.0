@@ -29,7 +29,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_MAX_PERMISSIBLE_THROTTLE   RC_CHANNEL_MIN_VALUE + ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA
 #define ALT_MGR_ALT_AGGREGATION_GAIN  0.35f //meter per second
 
-#define ALT_MGR_MAX_ALT_DELTA 500 //Cms
+#define ALT_MGR_MAX_ALT_DELTA 2.5f //Mts
 #define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 20.0f//5.0f
 
 // Altitude estimate Complementary filter alpha constraints
@@ -39,7 +39,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_COMP_TAU_RISE     0.001f
 #define ALT_MGR_TILT_COMP_TAU_FADE     0.65f
 #define ALT_MGR_TILT_COMP_MAX_LIMIT    160.0f
-#define ALT_MGR_TILT_COMP_GAIN         1.1f
+#define ALT_MGR_TILT_COMP_GAIN         1.2f
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.
@@ -75,6 +75,6 @@ void resetAltitudeManager(void);
 /* Autolanding configuration */
 #define ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD       0.75f
 #define ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD         0.75f
-#define ALT_MGR_ALT_LANDING_STICK_COMMAND               250
+#define ALT_MGR_ALT_LANDING_STICK_COMMAND               150
 
 #endif
