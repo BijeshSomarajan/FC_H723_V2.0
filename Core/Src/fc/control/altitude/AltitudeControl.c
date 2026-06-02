@@ -14,30 +14,32 @@ PID altRatePID;
 PID altAccPID;
 float altMasterPLimit = 0;
 float altRateILimit = 0;
+float altAccPIDLimit = 0;
 float altControlZDisturbanceEstimate = 0.0f;
 
 uint8_t initAltitudeControl() {
 	/** Master PID **/
-	pidInit(&altPID, getScaledCalibrationValue(CALIB_PROP_ALT_HOLD_PID_KP_ADDR), 0, 0, 0);
-	pidSetPIDOutputLimits(&altPID, -getCalibrationValue(CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR));
-	altMasterPLimit = getCalibrationValue(CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR);
+	pidInit(&altPID, get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_PID_KP_ADDR), 0, 0, 0);
+	pidSetPIDOutputLimits(&altPID, -get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR));
+	altMasterPLimit = get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR);
 	pidSetPOutputLimits(&altPID, -altMasterPLimit, altMasterPLimit);
 
 	/** Rate PID **/
-	pidInit(&altRatePID, getScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_KP_ADDR), getScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_KI_ADDR), getScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_KD_ADDR), ALT_CONTROL_RATE_PID_D_LPF_FREQ);
-	pidSetPIDOutputLimits(&altRatePID, -getCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR));
-	pidSetPOutputLimits(&altRatePID, -getCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR));
+	pidInit(&altRatePID, get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_KP_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_KI_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_KD_ADDR), ALT_CONTROL_RATE_PID_D_LPF_FREQ);
+	pidSetPIDOutputLimits(&altRatePID, -get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR));
+	pidSetPOutputLimits(&altRatePID, -get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR));
 
-	altRateILimit = getCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR) * ALT_CONTROL_RATE_PID_I_LIMIT_RATIO;
+	altRateILimit = get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR) * ALT_CONTROL_RATE_PID_I_LIMIT_RATIO;
 	pidSetIOutputLimits(&altRatePID, -altRateILimit, altRateILimit);
-	pidSetDOutputLimits(&altRatePID, -getCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR) * ALT_CONTROL_RATE_PID_D_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR) * ALT_CONTROL_RATE_PID_D_LIMIT_RATIO);
+	pidSetDOutputLimits(&altRatePID, -get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR) * ALT_CONTROL_RATE_PID_D_LIMIT_RATIO, get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR) * ALT_CONTROL_RATE_PID_D_LIMIT_RATIO);
 
 	/** Acc PID **/
+	altAccPIDLimit = get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR);
 
-	pidInit(&altAccPID, getScaledCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_KP_ADDR), 0, getScaledCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_KD_ADDR), ALT_CONTROL_ACC_PID_D_LPF_FREQ);
-	pidSetPIDOutputLimits(&altAccPID, -getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR));
-	pidSetPOutputLimits(&altAccPID, -getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR));
-	pidSetDOutputLimits(&altAccPID, -getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR) * ALT_CONTROL_ACC_PID_D_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR) * ALT_CONTROL_ACC_PID_D_LIMIT_RATIO);
+	pidInit(&altAccPID, get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_KP_ADDR), 0, get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_KD_ADDR), ALT_CONTROL_ACC_PID_D_LPF_FREQ);
+	pidSetPIDOutputLimits(&altAccPID, -altAccPIDLimit, altAccPIDLimit);
+	pidSetPOutputLimits(&altAccPID, -altAccPIDLimit, altAccPIDLimit);
+	pidSetDOutputLimits(&altAccPID, -altAccPIDLimit * ALT_CONTROL_ACC_PID_D_LIMIT_RATIO, altAccPIDLimit * ALT_CONTROL_ACC_PID_D_LIMIT_RATIO);
 
 	resetAltitudeControl(1);
 	return 1;
@@ -133,7 +135,7 @@ void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 	float alpha = dt / (ALT_CONTROL_ACC_DISTURBANCE_TAU + dt);
 	altControlZDisturbanceEstimate += alpha * (disturbance - altControlZDisturbanceEstimate);
 	output -= altControlZDisturbanceEstimate * ALT_CONTROL_ACC_DISTURBANCE_FF_GAIN;
-	output = constrainToRangeF(output, -getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR));
+	output = constrainToRangeF(output, -altAccPIDLimit, altAccPIDLimit);
 #endif
 #if DISABLE_ALT_CONTROL_FOR_DEBUG == 1
     output = 0;

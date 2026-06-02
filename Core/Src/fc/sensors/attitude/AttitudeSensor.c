@@ -90,8 +90,8 @@ uint8_t initAttitudeSensors() {
 		sensorGyroZMaxDS = getMaxValidDS() * SENSOR_GYRO_FLYABLE_VALUE_GAIN;
 
        //CoG Offsets
-		imuCoGXOffset = getScaledCalibrationValue(CALIB_PROP_COG_ACC_X_OFFSET_ADDR);
-		imuCoGYOffset = getScaledCalibrationValue(CALIB_PROP_COG_ACC_Y_OFFSET_ADDR);
+		imuCoGXOffset = get1KXScaledCalibrationValue(CALIB_PROP_COG_ACC_X_OFFSET_ADDR);
+		imuCoGYOffset = get1KXScaledCalibrationValue(CALIB_PROP_COG_ACC_Y_OFFSET_ADDR);
 
 		logString("[Attitude Sensor] > Calibration Filters > Initialized\n");
 	}
@@ -134,19 +134,19 @@ void loadAttitudeSensorConfig() {
 	deviceAttitudeData.offsetGy = getCalibrationValue(CALIB_PROP_GY_BIAS_ADDR);
 	deviceAttitudeData.offsetGz = getCalibrationValue(CALIB_PROP_GZ_BIAS_ADDR);
 
-	deviceAttitudeData.offsetMx = getScaledCalibrationValue(CALIB_PROP_MX_OFFSET_ADDR);
-	deviceAttitudeData.offsetMy = getScaledCalibrationValue(CALIB_PROP_MY_OFFSET_ADDR);
-	deviceAttitudeData.offsetMz = getScaledCalibrationValue(CALIB_PROP_MZ_OFFSET_ADDR);
+	deviceAttitudeData.offsetMx = get1KXScaledCalibrationValue(CALIB_PROP_MX_OFFSET_ADDR);
+	deviceAttitudeData.offsetMy = get1KXScaledCalibrationValue(CALIB_PROP_MY_OFFSET_ADDR);
+	deviceAttitudeData.offsetMz = get1KXScaledCalibrationValue(CALIB_PROP_MZ_OFFSET_ADDR);
 
-	deviceAttitudeData.biasMx = getScaledCalibrationValue(CALIB_PROP_MX_BIAS_ADDR);
-	deviceAttitudeData.biasMy = getScaledCalibrationValue(CALIB_PROP_MY_BIAS_ADDR);
-	deviceAttitudeData.biasMz = getScaledCalibrationValue(CALIB_PROP_MZ_BIAS_ADDR);
+	deviceAttitudeData.biasMx = get1KXScaledCalibrationValue(CALIB_PROP_MX_BIAS_ADDR);
+	deviceAttitudeData.biasMy = get1KXScaledCalibrationValue(CALIB_PROP_MY_BIAS_ADDR);
+	deviceAttitudeData.biasMz = get1KXScaledCalibrationValue(CALIB_PROP_MZ_BIAS_ADDR);
 
-	deviceAttitudeData.scaleMx = getScaledCalibrationValue(CALIB_PROP_MX_SCALE_ADDR);
-	deviceAttitudeData.scaleMy = getScaledCalibrationValue(CALIB_PROP_MY_SCALE_ADDR);
-	deviceAttitudeData.scaleMz = getScaledCalibrationValue(CALIB_PROP_MZ_SCALE_ADDR);
+	deviceAttitudeData.scaleMx = get1KXScaledCalibrationValue(CALIB_PROP_MX_SCALE_ADDR);
+	deviceAttitudeData.scaleMy = get1KXScaledCalibrationValue(CALIB_PROP_MY_SCALE_ADDR);
+	deviceAttitudeData.scaleMz = get1KXScaledCalibrationValue(CALIB_PROP_MZ_SCALE_ADDR);
 
-	deviceAttitudeData.offsetTemp = getScaledCalibrationValue(CALIB_PROP_IMU_TEMP_ADDR);
+	deviceAttitudeData.offsetTemp = get1KXScaledCalibrationValue(CALIB_PROP_IMU_TEMP_ADDR);
 	deviceAttitudeData.tempC = deviceAttitudeData.offsetTemp;
 
 	// Higher order coefficients are divided by higher powers of 10
@@ -375,7 +375,7 @@ void calculateAccAndGyroBias() {
 	setCalibrationValue(CALIB_PROP_GX_BIAS_ADDR, deviceAttitudeData.offsetGx);
 	setCalibrationValue(CALIB_PROP_GY_BIAS_ADDR, deviceAttitudeData.offsetGy);
 	setCalibrationValue(CALIB_PROP_GZ_BIAS_ADDR, deviceAttitudeData.offsetGz);
-	setCalibrationValue(CALIB_PROP_IMU_TEMP_ADDR, getCalibrationScalableValue(deviceAttitudeData.offsetTemp));
+	setCalibrationValue(CALIB_PROP_IMU_TEMP_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.offsetTemp));
 	// Persist the calibration
 	saveCalibration();
 }
@@ -441,17 +441,17 @@ void calculateMagBias() {
 	}
 
 	// Back fill data for persistence
-	setCalibrationValue(CALIB_PROP_MX_OFFSET_ADDR, getCalibrationScalableValue(deviceAttitudeData.offsetMx));
-	setCalibrationValue(CALIB_PROP_MY_OFFSET_ADDR, getCalibrationScalableValue(deviceAttitudeData.offsetMy));
-	setCalibrationValue(CALIB_PROP_MZ_OFFSET_ADDR, getCalibrationScalableValue(deviceAttitudeData.offsetMz));
+	setCalibrationValue(CALIB_PROP_MX_OFFSET_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.offsetMx));
+	setCalibrationValue(CALIB_PROP_MY_OFFSET_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.offsetMy));
+	setCalibrationValue(CALIB_PROP_MZ_OFFSET_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.offsetMz));
 
-	setCalibrationValue(CALIB_PROP_MX_BIAS_ADDR, getCalibrationScalableValue(deviceAttitudeData.biasMx));
-	setCalibrationValue(CALIB_PROP_MY_BIAS_ADDR, getCalibrationScalableValue(deviceAttitudeData.biasMy));
-	setCalibrationValue(CALIB_PROP_MZ_BIAS_ADDR, getCalibrationScalableValue(deviceAttitudeData.biasMz));
+	setCalibrationValue(CALIB_PROP_MX_BIAS_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.biasMx));
+	setCalibrationValue(CALIB_PROP_MY_BIAS_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.biasMy));
+	setCalibrationValue(CALIB_PROP_MZ_BIAS_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.biasMz));
 
-	setCalibrationValue(CALIB_PROP_MX_SCALE_ADDR, getCalibrationScalableValue(deviceAttitudeData.scaleMx));
-	setCalibrationValue(CALIB_PROP_MY_SCALE_ADDR, getCalibrationScalableValue(deviceAttitudeData.scaleMy));
-	setCalibrationValue(CALIB_PROP_MZ_SCALE_ADDR, getCalibrationScalableValue(deviceAttitudeData.scaleMz));
+	setCalibrationValue(CALIB_PROP_MX_SCALE_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.scaleMx));
+	setCalibrationValue(CALIB_PROP_MY_SCALE_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.scaleMy));
+	setCalibrationValue(CALIB_PROP_MZ_SCALE_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.scaleMz));
 
 	// Persist the calibration
 	saveCalibration();

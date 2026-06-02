@@ -66,7 +66,7 @@ uint8_t initAltitudeManager(void) {
 
 		fcStatusData.liftOffThrottlePercent = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR) / (float) MAX_PERMISSIBLE_THROTTLE_DELTA;
 
-		altMgrMaxHeight = (float) getCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_HEIGHT_ADDR);
+		altMgrMaxHeight = (float) get100XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_HEIGHT_ADDR);
 
 		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
 

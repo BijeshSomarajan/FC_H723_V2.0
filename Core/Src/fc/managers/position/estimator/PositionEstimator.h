@@ -29,11 +29,11 @@
 #define POS_EKF_X_Q_POS   0.0001f
 #define POS_EKF_Y_Q_POS   0.0001f
 // [+] Trusts raw GNSS velocity more | [-] Trusts IMU short-term (smoother, but drifts if IMU is bad)
-#define POS_EKF_X_Q_VEL   0.0015f
-#define POS_EKF_Y_Q_VEL   0.0015f
+#define POS_EKF_X_Q_VEL   0.0065f//0.0015f
+#define POS_EKF_Y_Q_VEL   0.0065f//0.0015f
 // [+] Fast adaptation to changing sensor bias | [-] Locks bias firmly down but fails to track drift
-#define POS_EKF_X_Q_BIAS  0.001f
-#define POS_EKF_Y_Q_BIAS  0.001f
+#define POS_EKF_X_Q_BIAS  0.002f//0.001f
+#define POS_EKF_Y_Q_BIAS  0.002f//0.001f
 // [+] Ignores GPS noise (smoother, high drift) | [-] Follows GPS precisely (twitchy if GPS has jitter)
 #define POS_EKF_X_R_MEAS  0.01f
 #define POS_EKF_Y_R_MEAS  0.01f

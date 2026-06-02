@@ -3,17 +3,15 @@
 #define CALIB_STATUS_ADDR CALIB_PROP_MAX_CONFIGURABLE_LENGTH
 #define CALIB_STATUS_MAJIC_NUMBER 13
 
-float CONFIG_PROPERTY_VALUE_SCALE = 1000.0f;
-float CONFIG_PROPERTY_VALUE_EXTRA_SCALE = 10000.0f;
+float CONFIG_SCALE_10  = 10.0f;
+float CONFIG_SCALE_100 = 100.0f;
+float CONFIG_SCALE_1K  = 1000.0f;
+float CONFIG_SCALE_10K = 10000.0f;
 
 int32_t CALIB_DATA[CALIB_PROP_LENGTH];
 
 uint8_t initCalibration() {
 	return initFlash();
-}
-
-int32_t getCalibrationScalableValue(float value) {
-	return value * CONFIG_PROPERTY_VALUE_SCALE;
 }
 
 int32_t* getCalibrationData() {
@@ -28,23 +26,46 @@ void setCalibrationValue(uint8_t calidationIndex, int32_t value) {
 	CALIB_DATA[calidationIndex] = value;
 }
 
-float getScaledCalibrationValue(uint8_t calidationIndex) {
-	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_PROPERTY_VALUE_SCALE;
+float get10XScaledCalibrationValue(uint8_t calidationIndex) {
+	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_10;
 }
 
-void setScaledCalibrationValue(uint8_t calidationIndex, float value) {
-	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_PROPERTY_VALUE_SCALE);
+void set10XScaledCalibrationValue(uint8_t calidationIndex, float value) {
+	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_SCALE_10);
 }
 
-void setExtraScaledCalibrationValue(uint8_t calidationIndex, float value) {
-	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_PROPERTY_VALUE_EXTRA_SCALE);
+float get100XScaledCalibrationValue(uint8_t calidationIndex) {
+	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_100;
+}
+
+void set100XScaledCalibrationValue(uint8_t calidationIndex, float value) {
+	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_SCALE_100);
+}
+
+float get1KXScaledCalibrationValue(uint8_t calidationIndex) {
+	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_1K;
+}
+
+void set1KXScaledCalibrationValue(uint8_t calidationIndex, float value) {
+	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_SCALE_1K);
+}
+
+int32_t get1KXScalableCalibrationValue(float value) {
+	return value * CONFIG_SCALE_1K;
+}
+
+void set10KXScaledCalibrationValue(uint8_t calidationIndex, float value) {
+	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_SCALE_10K);
+}
+
+float get10KXScaledCalibrationValue(uint8_t calidationIndex) {
+	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_10K;
 }
 
 /************************************************************************/
 /* Sets the default calibration values                                  */
 /************************************************************************/
 void setDefaultCalibration() {
-
 	//PID Master Calibrations
 	CALIB_DATA[CALIB_PROP_PID_KP_PITCH_ADDR] = 980;
 	CALIB_DATA[CALIB_PROP_PID_KP_ROLL_ADDR] = 980;

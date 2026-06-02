@@ -33,7 +33,7 @@ uint8_t initMotorManager(void) {
 	if (status) {
 		initGPTimer6(MOTOR_CONTROL_FREQUENCY, motorControlTask, 5);
 		startGPTimer6();
-		pitchRollRatio = getScaledCalibrationValue(CALIB_PROP_PITCH_ROLL_RATIO_ADDR);
+		pitchRollRatio = get1KXScaledCalibrationValue(CALIB_PROP_PITCH_ROLL_RATIO_ADDR);
 		motorControlInitStatus = status;
 		logString("[Motor Manager] >> Init > Success\n");
 	} else {

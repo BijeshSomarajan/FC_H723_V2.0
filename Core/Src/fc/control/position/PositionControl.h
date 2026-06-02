@@ -9,17 +9,17 @@
 
 /*------ FF Configurations -----*/
 #define POSITION_CONTROL_VEL_FF_ENABLED 1
-#define POSITION_CONTROL_VEL_FF_GAIN  0.03f
+#define POSITION_CONTROL_VEL_FF_GAIN  0.05f//0.03f
 /*------ Disturbance Estimations -----*/
 #define POSITION_CONTROL_DOB_ENABLED   1
-#define POSITION_CONTROL_DOB_ACC_TAU     0.2f
-#define POSITION_CONTROL_DOB_VEL_TAU     2.25f
-#define POSITION_CONTROL_DOB_ACC_GAIN    0.03f
-#define POSITION_CONTROL_DOB_VEL_GAIN    0.15f
+#define POSITION_CONTROL_DOB_ACC_TAU     0.12f //0.2f
+#define POSITION_CONTROL_DOB_VEL_TAU     0.35f //2.25f
+#define POSITION_CONTROL_DOB_ACC_GAIN    0.12f //0.03f
+#define POSITION_CONTROL_DOB_VEL_GAIN    0.45f //0.15f
 #define POSITION_CONTROL_DOB_ACCEL_MODEL_K 0.171f
-#define POSITION_CONTROL_DOB_ACC_LIMIT    2.0f
-#define POSITION_CONTROL_DOB_STATE_LIMIT  1.5f
-#define POSITION_CONTROL_DOB_OUTPUT_LIMIT 2.0
+#define POSITION_CONTROL_DOB_ACC_LIMIT    3.0f//2.0f
+#define POSITION_CONTROL_DOB_STATE_LIMIT  2.0f//1.5f
+#define POSITION_CONTROL_DOB_OUTPUT_LIMIT 3.0f//2.0f
 
 uint8_t initPositionControl(float masterControlFrequency, float rateControlFrequency);
 void resetPositionControl(uint8_t hard);

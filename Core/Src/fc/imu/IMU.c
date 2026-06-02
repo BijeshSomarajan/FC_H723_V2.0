@@ -20,7 +20,7 @@ uint16_t getImuStabilizationCount() {
 /*****************************************************************************************************************/
 uint8_t imuInit(float pMagInclination) {
 	imuReset(1);
-	imuHeadingCorrection = getScaledCalibrationValue(CALIB_PROP_HEADING_BIAS_ADDR);
+	imuHeadingCorrection = get1KXScaledCalibrationValue(CALIB_PROP_HEADING_BIAS_ADDR);
 	imuFilterInit(1);
 	return 1;
 }

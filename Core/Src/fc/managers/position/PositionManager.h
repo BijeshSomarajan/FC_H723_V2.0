@@ -93,12 +93,12 @@
 /* Higher: Swallows EKF/GPS velocity jitter earlier, but leaves minor residual drift. Lower: Keeps braking active down to a near-perfect halt. */
 #define POSITION_MGR_BRAKE_TERMINAL_VEL_DEADBAND       0.03f   // m/s
 
-#define POSITION_MGR_POS_HOLD_BALLISTIC_SCALE                1.2f
+#define POSITION_MGR_POS_HOLD_BALLISTIC_SCALE                10.2f
 #define POSITION_MGR_POS_HOLD_EKF_LAG_SEC                    0.06f
 #define POSITION_MGR_POS_HOLD_NATURAL_DECEL                  6.0f//0.7f
 #define POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET               12.0f//0.3f
 #define POSITION_MGR_POS_HOLD_BRAKE_REF_EST_VELOCITY_GAIN    0.33f
-#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD            0.5f
+#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD            0.15f
 #define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD          0.5f
 #define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH                 1.25f //1.5f
 

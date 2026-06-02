@@ -133,15 +133,24 @@ void setDefaultCalibration(void);
 uint8_t saveCalibration(void);
 void loadCalibration(void);
 uint8_t isCalibrated(void);
+int32_t* getCalibrationData(void);
 
-int32_t getCalibrationScalableValue(float value);
-
-void setScaledCalibrationValue(uint8_t calidationIndex, float value);
-float getScaledCalibrationValue(uint8_t calidationIndex);
 
 void setCalibrationValue(uint8_t calidationIndex, int32_t value);
 int32_t getCalibrationValue(uint8_t calidationIndex);
 
-int32_t* getCalibrationData(void);
+void set10XScaledCalibrationValue(uint8_t calidationIndex, float value);
+float get10XScaledCalibrationValue(uint8_t calidationIndex);
+
+void set100XScaledCalibrationValue(uint8_t calidationIndex, float value);
+float get100XScaledCalibrationValue(uint8_t calidationIndex);
+
+void set1KXScaledCalibrationValue(uint8_t calidationIndex, float value);
+float get1KXScaledCalibrationValue(uint8_t calidationIndex);
+int32_t get1KXScalableCalibrationValue(float value);
+
+void set10KXScaledCalibrationValue(uint8_t calidationIndex, float value);
+float get10KXScaledCalibrationValue(uint8_t calidationIndex);
+
 
 #endif

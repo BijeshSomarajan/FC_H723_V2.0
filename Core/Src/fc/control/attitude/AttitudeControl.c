@@ -19,38 +19,38 @@ PID attitudePitchPID, attitudeRollPID, attitudeYawPID, attitudePitchRatePID, att
 uint8_t initAttitudeControl() {
 
 	/* Attitude Master PID initiation*/
-	pidInit(&attitudePitchPID, getScaledCalibrationValue(CALIB_PROP_PID_KP_PITCH_ADDR), 0, 0, 0);
-	pidInit(&attitudeRollPID, getScaledCalibrationValue(CALIB_PROP_PID_KP_ROLL_ADDR), 0, 0, 0);
-	pidInit(&attitudeYawPID, getScaledCalibrationValue(CALIB_PROP_PID_KP_YAW_ADDR), 0, 0, 0);
+	pidInit(&attitudePitchPID, get1KXScaledCalibrationValue(CALIB_PROP_PID_KP_PITCH_ADDR), 0, 0, 0);
+	pidInit(&attitudeRollPID, get1KXScaledCalibrationValue(CALIB_PROP_PID_KP_ROLL_ADDR), 0, 0, 0);
+	pidInit(&attitudeYawPID, get1KXScaledCalibrationValue(CALIB_PROP_PID_KP_YAW_ADDR), 0, 0, 0);
 	//Set overall limit
-	pidSetPIDOutputLimits(&attitudePitchPID, -getCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR));
-	pidSetPIDOutputLimits(&attitudeRollPID, -getCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR));
-	pidSetPIDOutputLimits(&attitudeYawPID, -getCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR));
+	pidSetPIDOutputLimits(&attitudePitchPID, -get10XScaledCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR));
+	pidSetPIDOutputLimits(&attitudeRollPID, -get10XScaledCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR));
+	pidSetPIDOutputLimits(&attitudeYawPID, -get10XScaledCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR));
 	//Set P limit
-	pidSetPOutputLimits(&attitudePitchPID, -getCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR));
-	pidSetPOutputLimits(&attitudeRollPID, -getCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR));
-	pidSetPOutputLimits(&attitudeYawPID, -getCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR));
+	pidSetPOutputLimits(&attitudePitchPID, -get10XScaledCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR));
+	pidSetPOutputLimits(&attitudeRollPID, -get10XScaledCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR));
+	pidSetPOutputLimits(&attitudeYawPID, -get10XScaledCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR));
 
 	/* Attitude Rate PID Settings*/
-	pidInit(&attitudePitchRatePID, getScaledCalibrationValue(CALIB_PROP_RATE_PID_KP_PITCH_ADDR), getScaledCalibrationValue(CALIB_PROP_RATE_PID_KI_PITCH_ADDR), getScaledCalibrationValue(CALIB_PROP_RATE_PID_KD_PITCH_ADDR), ATT_CONTROL_D_RATE_LPF_FREQ);
-	pidInit(&attitudeRollRatePID, getScaledCalibrationValue(CALIB_PROP_RATE_PID_KP_ROLL_ADDR), getScaledCalibrationValue(CALIB_PROP_RATE_PID_KI_ROLL_ADDR), getScaledCalibrationValue(CALIB_PROP_RATE_PID_KD_ROLL_ADDR), ATT_CONTROL_D_RATE_LPF_FREQ);
-	pidInit(&attitudeYawRatePID, getScaledCalibrationValue(CALIB_PROP_RATE_PID_KP_YAW_ADDR), getScaledCalibrationValue(CALIB_PROP_RATE_PID_KI_YAW_ADDR), getScaledCalibrationValue(CALIB_PROP_RATE_PID_KD_YAW_ADDR), ATT_CONTROL_D_RATE_LPF_FREQ);
+	pidInit(&attitudePitchRatePID, get1KXScaledCalibrationValue(CALIB_PROP_RATE_PID_KP_PITCH_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_RATE_PID_KI_PITCH_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_RATE_PID_KD_PITCH_ADDR), ATT_CONTROL_D_RATE_LPF_FREQ);
+	pidInit(&attitudeRollRatePID, get1KXScaledCalibrationValue(CALIB_PROP_RATE_PID_KP_ROLL_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_RATE_PID_KI_ROLL_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_RATE_PID_KD_ROLL_ADDR), ATT_CONTROL_D_RATE_LPF_FREQ);
+	pidInit(&attitudeYawRatePID, get1KXScaledCalibrationValue(CALIB_PROP_RATE_PID_KP_YAW_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_RATE_PID_KI_YAW_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_RATE_PID_KD_YAW_ADDR), ATT_CONTROL_D_RATE_LPF_FREQ);
 	//Set overall limit
-	pidSetPIDOutputLimits(&attitudePitchRatePID, -getCalibrationValue(CALIB_PROP_RATE_PID_PITCH_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_RATE_PID_PITCH_LIMIT_ADDR));
-	pidSetPIDOutputLimits(&attitudeRollRatePID, -getCalibrationValue(CALIB_PROP_RATE_PID_ROLL_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_RATE_PID_ROLL_LIMIT_ADDR));
-	pidSetPIDOutputLimits(&attitudeYawRatePID, -getCalibrationValue(CALIB_PROP_RATE_PID_YAW_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_RATE_PID_YAW_LIMIT_ADDR));
+	pidSetPIDOutputLimits(&attitudePitchRatePID, -get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_PITCH_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_PITCH_LIMIT_ADDR));
+	pidSetPIDOutputLimits(&attitudeRollRatePID, -get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_ROLL_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_ROLL_LIMIT_ADDR));
+	pidSetPIDOutputLimits(&attitudeYawRatePID, -get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_YAW_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_YAW_LIMIT_ADDR));
 	//Set P limit
-	pidSetPOutputLimits(&attitudePitchRatePID, -getCalibrationValue(CALIB_PROP_RATE_PID_PITCH_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_RATE_PID_PITCH_LIMIT_ADDR));
-	pidSetPOutputLimits(&attitudeRollRatePID, -getCalibrationValue(CALIB_PROP_RATE_PID_ROLL_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_RATE_PID_ROLL_LIMIT_ADDR));
-	pidSetPOutputLimits(&attitudeYawRatePID, -getCalibrationValue(CALIB_PROP_RATE_PID_YAW_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_RATE_PID_YAW_LIMIT_ADDR));
+	pidSetPOutputLimits(&attitudePitchRatePID, -get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_PITCH_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_PITCH_LIMIT_ADDR));
+	pidSetPOutputLimits(&attitudeRollRatePID, -get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_ROLL_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_ROLL_LIMIT_ADDR));
+	pidSetPOutputLimits(&attitudeYawRatePID, -get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_YAW_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_RATE_PID_YAW_LIMIT_ADDR));
 	//Set I limit
-	pidSetIOutputLimits(&attitudePitchRatePID, -getCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO);
-	pidSetIOutputLimits(&attitudeRollRatePID, -getCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO);
-	pidSetIOutputLimits(&attitudeYawRatePID, -getCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_YAW_I_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_YAW_I_LIMIT_RATIO);
+	pidSetIOutputLimits(&attitudePitchRatePID, -get10XScaledCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO, get10XScaledCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO);
+	pidSetIOutputLimits(&attitudeRollRatePID, -get10XScaledCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO, get10XScaledCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO);
+	pidSetIOutputLimits(&attitudeYawRatePID, -get10XScaledCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_YAW_I_LIMIT_RATIO, get10XScaledCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_YAW_I_LIMIT_RATIO);
 	//Set D limit
-	pidSetDOutputLimits(&attitudePitchRatePID, -getCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_D_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_D_LIMIT_RATIO);
-	pidSetDOutputLimits(&attitudeRollRatePID, -getCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_D_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_D_LIMIT_RATIO);
-	pidSetDOutputLimits(&attitudeYawRatePID, -getCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_YAW_D_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_YAW_D_LIMIT_RATIO);
+	pidSetDOutputLimits(&attitudePitchRatePID, -get10XScaledCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_D_LIMIT_RATIO, get10XScaledCalibrationValue(CALIB_PROP_PID_PITCH_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_D_LIMIT_RATIO);
+	pidSetDOutputLimits(&attitudeRollRatePID, -get10XScaledCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_D_LIMIT_RATIO, get10XScaledCalibrationValue(CALIB_PROP_PID_ROLL_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_PITCH_ROLL_D_LIMIT_RATIO);
+	pidSetDOutputLimits(&attitudeYawRatePID, -get10XScaledCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_YAW_D_LIMIT_RATIO, get10XScaledCalibrationValue(CALIB_PROP_PID_YAW_LIMIT_ADDR) * ATT_CONTROL_RATE_PID_YAW_D_LIMIT_RATIO);
 	return 1;
 }
 

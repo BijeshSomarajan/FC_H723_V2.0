@@ -175,10 +175,10 @@ void resetRCManager() {
  * Configure the stick rate PIDs
  */
 void configureRCStickControl() {
-	rcStickThrottleGain = getScaledCalibrationValue(CALIB_PROP_RC_THROTTLE_RATE_P_ADDR);
-	rcStickPitchGain = getScaledCalibrationValue(CALIB_PROP_RC_PITCH_RATE_P_ADDR);
-	rcStickRollGain = getScaledCalibrationValue(CALIB_PROP_RC_ROLL_RATE_P_ADDR);
-	rcStickYawGain = getScaledCalibrationValue(CALIB_PROP_RC_YAW_RATE_P_ADDR);
+	rcStickThrottleGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_THROTTLE_RATE_P_ADDR);
+	rcStickPitchGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_PITCH_RATE_P_ADDR);
+	rcStickRollGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_ROLL_RATE_P_ADDR);
+	rcStickYawGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_YAW_RATE_P_ADDR);
 }
 
 int16_t getThrottleChannelValue() {

@@ -11,37 +11,41 @@
 PID positionXPID, positionYPID, positionXRatePID, positionYRatePID;
 float positionControlXVelDist = 0.0f, positionControlYVelDist = 0.0f;
 float positionControlXAccDist = 0.0f, positionControlYAccDist = 0.0f;
-
+float posHoldRatePIDLimit,posHoldPIDLimit ;
 /**
  * Initializes the attitude control
  */
 uint8_t initPositionControl(float masterControlFrequency, float rateControlFrequency) {
 	/* Attitude Master PID initiation*/
-	pidInit(&positionXPID, getScaledCalibrationValue(CALIB_PROP_POS_HOLD_PID_KP_ADDR), 0, 0, 0);
-	pidInit(&positionYPID, getScaledCalibrationValue(CALIB_PROP_POS_HOLD_PID_KP_ADDR), 0, 0, 0);
+	pidInit(&positionXPID, get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_PID_KP_ADDR), 0, 0, 0);
+	pidInit(&positionYPID, get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_PID_KP_ADDR), 0, 0, 0);
+
+	posHoldPIDLimit = get10XScaledCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR);
 	//Set overall limit
-	pidSetPIDOutputLimits(&positionXPID, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
-	pidSetPIDOutputLimits(&positionYPID, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
+	pidSetPIDOutputLimits(&positionXPID, -posHoldPIDLimit, posHoldPIDLimit);
+	pidSetPIDOutputLimits(&positionYPID, -posHoldPIDLimit, posHoldPIDLimit);
 	//Set P limit
-	pidSetPOutputLimits(&positionXPID, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
-	pidSetPOutputLimits(&positionYPID, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
+	pidSetPOutputLimits(&positionXPID, -posHoldPIDLimit, posHoldPIDLimit);
+	pidSetPOutputLimits(&positionYPID, -posHoldPIDLimit, posHoldPIDLimit);
+
+	posHoldRatePIDLimit = get10XScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR);
 
 	/* Attitude Rate PID Settings*/
-	pidInit(&positionXRatePID, getScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KP_ADDR), getScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KI_ADDR), getScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR), POSITION_CONTROL_D_RATE_LPF_FREQ);
-	pidInit(&positionYRatePID, getScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KP_ADDR), getScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KI_ADDR), getScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR), POSITION_CONTROL_D_RATE_LPF_FREQ);
+	pidInit(&positionXRatePID, get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KP_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KI_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR), POSITION_CONTROL_D_RATE_LPF_FREQ);
+	pidInit(&positionYRatePID, get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KP_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KI_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR), POSITION_CONTROL_D_RATE_LPF_FREQ);
 	//Set overall limit
-	pidSetPIDOutputLimits(&positionXRatePID, -getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR));
-	pidSetPIDOutputLimits(&positionYRatePID, -getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR));
+	pidSetPIDOutputLimits(&positionXRatePID, -posHoldRatePIDLimit, posHoldRatePIDLimit);
+	pidSetPIDOutputLimits(&positionYRatePID, -posHoldRatePIDLimit, posHoldRatePIDLimit);
 	//Set P limit
-	pidSetPOutputLimits(&positionXRatePID, -getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR));
-	pidSetPOutputLimits(&positionYRatePID, -getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR));
+	pidSetPOutputLimits(&positionXRatePID, -posHoldRatePIDLimit, posHoldRatePIDLimit);
+	pidSetPOutputLimits(&positionYRatePID, -posHoldRatePIDLimit, posHoldRatePIDLimit);
 	//Set I limit
-	pidSetIOutputLimits(&positionXRatePID, -getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR) * POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR) * POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO);
-	pidSetIOutputLimits(&positionYRatePID, -getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR) * POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR) * POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO);
+	pidSetIOutputLimits(&positionXRatePID, -posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO, posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO);
+	pidSetIOutputLimits(&positionYRatePID, -posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO, posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO);
 
 	//Set D limit
-	pidSetDOutputLimits(&positionXRatePID, -getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR) * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR) * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO);
-	pidSetDOutputLimits(&positionYRatePID, -getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR) * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO, getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR) * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO);
+	pidSetDOutputLimits(&positionXRatePID, -posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO, posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO);
+	pidSetDOutputLimits(&positionYRatePID, -posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO, posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO);
 
 	return 1;
 }
@@ -132,9 +136,9 @@ void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, fl
 #endif
 
 	/*---------------- Final clamp ----------------*/
-	float rateLimit = getCalibrationValue(CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR);
-	outputX = constrainToRangeF(outputX, -rateLimit, rateLimit);
-	outputY = constrainToRangeF(outputY, -rateLimit, rateLimit);
+
+	outputX = constrainToRangeF(outputX, -posHoldRatePIDLimit, posHoldRatePIDLimit);
+	outputY = constrainToRangeF(outputY, -posHoldRatePIDLimit, posHoldRatePIDLimit);
 
 #if DISABLE_POSITION_CONTROL_FOR_DEBUG == 1
 	controlData.positionXControl = 0;
@@ -148,8 +152,8 @@ void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, fl
 
 __ATTR_ITCM_TEXT
 void setExpectedPositionVelocity(float dt, float expectedVelX, float expectedVelY) {
-	positionXPID.pid = constrainToRangeF(expectedVelX, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
-	positionYPID.pid = constrainToRangeF(expectedVelY, -getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR), getCalibrationValue(CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR));
+	positionXPID.pid = constrainToRangeF(expectedVelX, -posHoldPIDLimit, posHoldPIDLimit);
+	positionYPID.pid = constrainToRangeF(expectedVelY, -posHoldPIDLimit, posHoldPIDLimit);
 }
 
 __ATTR_ITCM_TEXT
