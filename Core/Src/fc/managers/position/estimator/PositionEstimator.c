@@ -26,9 +26,9 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 		ekf->rejectCount[axis] = 0;
 		ekf->axisInitialized[axis] = 0;
 
-		ekf->P[i + 0][i + 0] = 5.0f;
-		ekf->P[i + 1][i + 1] = 2.0f;
-		ekf->P[i + 2][i + 2] = 0.1f;
+		ekf->P[i + 0][i + 0] = 0.1f;
+		ekf->P[i + 1][i + 1] = 0.1f;
+		ekf->P[i + 2][i + 2] = 0.01f;
 	}
 	ekf->initialized = 0;
 

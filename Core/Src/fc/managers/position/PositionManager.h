@@ -66,44 +66,20 @@
 // =============================================================================
 #define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
 #define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          1
+// Define the number of samples to capture (e.g., 50 samples)
+#define POSITION_MGR_HOME_POS_STAB_COUNT   50
 
 // =============================================================================
 // 6. LOITER BRAKING & SETTLING CONFIGURATIONS
 // =============================================================================
-/* Higher: Allows faster maximum counter-flight velocities when stopping. Lower: Gentler, smoother deceleration profiles over longer physical distances. */
+#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD      0.5f
+#define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD    0.5f
+#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH           1.0f
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY       4.0f
-/* Higher: Snappier, more rigid pitch/roll corrections while slowing down. Lower: Soft, "spongey" braking feel that risks slipping past target bounds. */
+#define POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED   0.15f
 #define POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN       1.0f
-/* Higher: Sharp, immediate tilt opposition the instant sticks center. Lower: Glassy, delayed onset of the initial braking sequence. */
-#define POSITION_MGR_POS_HOLD_MIN_BRAKE_STRENGTH       0.1f
-/* Higher: Massive deceleration authority during high-speed stops. Lower: Caps braking response, preventing hard pitch-backs but risking overshoot. */
-#define POSITION_MGR_POS_HOLD_MAX_BRAKE_LIMIT          1.00f
-/* Higher: Dynamically commands a much stiffer brake angle if exiting a high-speed sprint versus a slow hover. Lower: Uniform braking response across all entry speeds. */
-#define POSITION_MGR_BRAKE_VEL_SCALE_GAIN              0.15f
-/* Higher: More aggressive velocity integration , chances of overshooting. Lower: less aggressive velocity integration , chances snapback */
-#define POSITION_MGR_BRAKE_POS_EST_VEL_SCALE_GAIN       0.25f
-/* Higher: Gives sluggish or heavy aircraft more time to shed velocity. Lower: Sharp safety cutout; cuts braking command early even if the drone is still sliding. */
-#define POSITION_MGR_BRAKE_RAMP_DURATION_SEC           0.5f
-/* Higher: Exits braking state earlier, handing off to settling while still moving slightly. Lower: Demands a near-perfect halt before transitioning states. */
-#define POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED   0.08f
-/* Higher: Swallows sensor jitter early, but allows small residual drifts. Lower: Continuous active braking down to zero; can cause micro-stuttering if EKF has noise. */
-#define POSITION_MGR_POS_HOLD_BRAKE_VEL_DEADBAND       0.03f
-/* Higher: Gives aerodynamic wake and frame inertia more time to stabilize before locking spatial coordinates. Lower: Snaps position lock instantly, risking an offset lock. */
-#define POSITION_MGR_POS_HOLD_POST_BRAKE_SETTLING_PERIOD 0.3f
-/* Higher: Swallows EKF/GPS velocity jitter earlier, but leaves minor residual drift. Lower: Keeps braking active down to a near-perfect halt. */
-#define POSITION_MGR_BRAKE_TERMINAL_VEL_DEADBAND       0.03f   // m/s
-
-#define POSITION_MGR_POS_HOLD_BALLISTIC_SCALE                10.2f
-#define POSITION_MGR_POS_HOLD_EKF_LAG_SEC                    0.06f
-#define POSITION_MGR_POS_HOLD_NATURAL_DECEL                  6.0f//0.7f
-#define POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET               12.0f//0.3f
-#define POSITION_MGR_POS_HOLD_BRAKE_REF_EST_VELOCITY_GAIN    0.33f
-#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD            0.15f
-#define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD          0.5f
-#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH                 1.25f //1.5f
-
-// Define the number of samples you want to capture (e.g., 50 samples)
-#define POSITION_MGR_HOME_SAMPLE_TARGET   50
+#define POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_GAIN      6.0f
+#define POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_LIMIT     100.0f
 
 // =============================================================================
 // 7. RETURN TO HOME (RTH) NAVIGATION PROFILE

@@ -20,7 +20,6 @@ void motorControlTask(void);
 
 PWM_DATA __ATTR_DTCM_BSS pwmData;
 uint8_t motorControlInitStatus = 0;
-float pitchRollRatio = 1;
 
 uint8_t initMotorManager(void) {
 	uint8_t status = 1;
@@ -33,7 +32,6 @@ uint8_t initMotorManager(void) {
 	if (status) {
 		initGPTimer6(MOTOR_CONTROL_FREQUENCY, motorControlTask, 5);
 		startGPTimer6();
-		pitchRollRatio = get1KXScaledCalibrationValue(CALIB_PROP_PITCH_ROLL_RATIO_ADDR);
 		motorControlInitStatus = status;
 		logString("[Motor Manager] >> Init > Success\n");
 	} else {
@@ -98,7 +96,7 @@ void motorControlTask() {
 #endif
 	if (fcStatusData.canFly) {
 		float throttleControl = controlData.throttleControl;
-		float pitchControl = controlData.pitchControl * pitchRollRatio;
+		float pitchControl = controlData.pitchControl;
 		float rollControl = controlData.rollControl;
 		float yawControl = controlData.yawControl;
 		pwmData.PWM_VALUES[0] = throttleControl - pitchControl - rollControl + yawControl;

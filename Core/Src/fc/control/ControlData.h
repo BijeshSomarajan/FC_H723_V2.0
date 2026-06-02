@@ -18,6 +18,7 @@ struct _CONTROL_DATA {
 
 	float altitudeControlDt;
 	float tiltCompThDelta;
+	float posBrakeCompThDelta;
 };
 
 

@@ -20,6 +20,7 @@
 #include "estimator/VenturiBiasEstimator.h"
 #include "helpers/PositionManagerHelper.h"
 #include "../../sensors/rc/RCSensor.h"
+#include "../../control/ControlData.h"
 
 POSITION_EKF positionEkf;
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
@@ -124,14 +125,13 @@ __ATTR_ITCM_TEXT
 void resetPositionCommands() {
 	positionCommandData.pitchCommand = 0.0f;
 	positionCommandData.rollCommand = 0.0f;
+	controlData.posBrakeCompThDelta = 0.0f;
 	positionMgrRTHVxCommand = 0;
 	positionMgrRTHVyCommand = 0;
 	fcStatusData.isRTHComplete = 0;
 	positionMgrRTHCompleteDt = 0;
 	resetPositionControl(1);
 }
-
-
 
 __ATTR_ITCM_TEXT
 void updateRTHVelocityCommand(float dt) {
@@ -201,93 +201,9 @@ void updateRTHCompletionStatus(float dt) {
 	}
 }
 
-__ATTR_ITCM_TEXT
-void calculateBrakeAnchorBallistic(void) {
-	float vx = positionCordinateData.xVelocity;
-	float vy = positionCordinateData.yVelocity;
-	// Calculate total ground speed squared and magnitude
-	float speedSq = (vx * vx) + (vy * vy);
-	// Protection against zero-velocity noise or division-by-zero during hover
-	if (speedSq < 0.001f) {
-		fcStatusData.positionXRef = positionCordinateData.xPosition;
-		fcStatusData.positionYRef = positionCordinateData.yPosition;
-		return;
-	}
-	float speed = sqrtf(speedSq); // Single precise sqrtf inside ITCM
-	// -------------------------------------------------
-	// 1. Effective braking authority (Vector Bounded)
-	// -------------------------------------------------
-	float brakeGain = fmaxf(POSITION_MGR_POS_HOLD_BRAKE_STRENGTH, 0.1f);
-	float effectiveDecel = POSITION_MGR_POS_HOLD_NATURAL_DECEL * brakeGain;
-	effectiveDecel = fmaxf(effectiveDecel, 0.1f);
-	// -------------------------------------------------
-	// 2. Vector Ballistic & Lag Magnitude Calculation
-	// -------------------------------------------------
-	// Total scalar distance required to stop based on vector speed
-	float invDenominator = 1.0f / (2.0f * effectiveDecel);
-	float scalarBrakeOffset = (speedSq * invDenominator) * POSITION_MGR_POS_HOLD_BALLISTIC_SCALE;
-	float scalarLagOffset = speed * POSITION_MGR_POS_HOLD_EKF_LAG_SEC;
-	float totalTargetOffset = scalarBrakeOffset + scalarLagOffset;
-	// -------------------------------------------------
-	// 3. Safety Magnitude Clamp (Preserves Heading Angle)
-	// -------------------------------------------------
-	if (totalTargetOffset > POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET) {
-		totalTargetOffset = POSITION_MGR_POS_HOLD_MAX_BRAKE_OFFSET;
-	}
-	// -------------------------------------------------
-	// 4. Directional Projection & Final Anchor Assignment
-	// -------------------------------------------------
-	// Compute the unit directional vectors of motion
-	float dirX = vx / speed;
-	float dirY = vy / speed;
-	// Distribute the safe, combined magnitude back to the world coordinate components
-	fcStatusData.positionXRef = positionCordinateData.xPosition + (dirX * totalTargetOffset);
-	fcStatusData.positionYRef = positionCordinateData.yPosition + (dirY * totalTargetOffset);
-}
-
-__ATTR_ITCM_TEXT
-void handlePositionBraking(float dt) {
-	positionMgrPosHoldElapseDtSum += dt;
-
-	// 1. Calculate progress from 0.0 to 1.0 over the active period
-	float progress = positionMgrPosHoldElapseDtSum / POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD;
-	progress = constrainToRangeF(progress, 0.0f, 1.0f);
-
-	// 2. Compute progressive brake strength (Ramp up from floor to max)
-	// Defines the starting baseline authority (25% of maximum strength)
-	float minBrakeStrength = POSITION_MGR_POS_HOLD_BRAKE_STRENGTH * 0.25f;
-
-	// Linearly interpolate from minBrakeStrength to max POSITION_MGR_POS_HOLD_BRAKE_STRENGTH over the duration
-	float brakeStrength = minBrakeStrength + (progress * (POSITION_MGR_POS_HOLD_BRAKE_STRENGTH - minBrakeStrength));
-
-	// Safety clamp to ensure numeric bounds match constraints perfectly
-	brakeStrength = constrainToRangeF(brakeStrength, minBrakeStrength, POSITION_MGR_POS_HOLD_BRAKE_STRENGTH);
-
-	// 3. Generate a progressive counter-velocity command based on ground speed
-	float vxCmd = -positionCordinateData.xVelocity * brakeStrength;
-	float vyCmd = -positionCordinateData.yVelocity * brakeStrength;
-
-	// Clamp maximum permitted feed-forward command velocity components
-	vxCmd = constrainToRangeF(vxCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
-	vyCmd = constrainToRangeF(vyCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
-
-	// Pipe the generated target velocity directly into the inner position controller
-	setExpectedPositionVelocity(dt, vxCmd, vyCmd);
-
-	// 4. Check termination conditions
-	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED);
-	uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
-
-	if (lowGroundSpeed || timeoutReached) {
-		positionMgrPosHoldElapseDtSum = 0.0f;
-		resetPositionControl(1);
-		fcStatusData.postionHoldState = POS_HOLD_STATE_SETTLING;
-	}
-}
 
 __ATTR_ITCM_TEXT
 void handleRTHNavigation(float dt) {
-	// Allow coordinates to stabilize briefly before beginning transition
 	if (positionMgrPosHoldElapseDtSum < POSITION_MGR_RTH_SETTLING_PERIOD) {
 		positionMgrPosHoldElapseDtSum += dt;
 		controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
@@ -345,6 +261,32 @@ void updatePositionRateCommand(float dt) {
 }
 
 __ATTR_ITCM_TEXT
+void doBraking(float dt) {
+	positionMgrPosHoldElapseDtSum += dt;
+	float brakeStrength = POSITION_MGR_POS_HOLD_BRAKE_STRENGTH;
+	float vxCmd = -positionCordinateData.xVelocity * brakeStrength;
+	float vyCmd = -positionCordinateData.yVelocity * brakeStrength;
+	vxCmd = constrainToRangeF(vxCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+	vyCmd = constrainToRangeF(vyCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+	setExpectedPositionVelocity(dt, vxCmd, vyCmd);
+	// Calculate the magnitude of the counter-velocity command vector
+	float brakingMagnitude = sqrtf((vxCmd * vxCmd) + (vyCmd * vyCmd));
+	// Map the magnitude to a proactive throttle boost factor
+	// Adjust the 8.0f scalar depending on how aggressively your airframe reacts
+	float brakingThrustKick = brakingMagnitude * POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_GAIN;
+	controlData.posBrakeCompThDelta = fminf(brakingThrustKick, POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_LIMIT);
+	// Termination conditions
+	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED);
+	uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
+	if (lowGroundSpeed || timeoutReached) {
+		positionMgrPosHoldElapseDtSum = 0.0f;
+		controlData.posBrakeCompThDelta = 0.0f;
+		resetPositionControl(1);
+		fcStatusData.postionHoldState = POS_HOLD_STATE_SETTLING;
+	}
+}
+
+__ATTR_ITCM_TEXT
 void updatePositionCordinateCommand(float dt) {
 	if (!rcData.pitchCentered || !rcData.rollCentered) {
 		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
@@ -355,20 +297,21 @@ void updatePositionCordinateCommand(float dt) {
 	case POS_HOLD_STATE_IDLE:
 		positionMgrPosHoldElapseDtSum = 0.0f;
 		if (fcStatusData.isPositionHoldModeActive || fcStatusData.isRTHModeActive) {
-			calculateBrakeAnchorBallistic();
 			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
 		}
 		resetPositionCommands();
 		break;
 	case POS_HOLD_STATE_BRAKING:
-		handlePositionBraking(dt);
+		doBraking(dt);
 		break;
 	case POS_HOLD_STATE_SETTLING:
 		positionMgrPosHoldElapseDtSum += dt;
-		//updatePositionReference();
-		controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 0.5f);
+		setExpectedPositionVelocity(dt, 0.0f, 0.0f);
 		if (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD) {
+			updatePositionReference();
+			positionMgrPosHoldElapseDtSum = 0.0f;
 			fcStatusData.postionHoldState = POS_HOLD_STATE_LOCKED;
+			resetPositionControl(1);
 		}
 		break;
 	case POS_HOLD_STATE_LOCKED:
@@ -427,9 +370,6 @@ void managePositionTask(void) {
 	positionCordinateData.positionProcessDt = dt;
 }
 
-// Define the number of samples you want to capture (e.g., 50 samples)
-#define POSITION_MGR_HOME_SAMPLE_TARGET   50
-
 __ATTR_ITCM_TEXT
 void doPositionManagement() {
 	if (fcStatusData.hasCrashed) {
@@ -441,7 +381,6 @@ void doPositionManagement() {
 		positionManagerWasInStabMode = 0;
 		positionEKFSetMode(&positionEkf, 0);
 	}
-
 	if (readGNSSData()) {
 		float dt = getDeltaTime(POSITION_MANAGER_GPS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
@@ -456,9 +395,9 @@ void doPositionManagement() {
 				positionMgrHomeRefLatSum += gnssData.latitude;
 				positionMgrHomeRefLongSum += gnssData.longitude;
 				positionMgrHomeRefSampleCount++;
-				if (positionMgrHomeRefSampleCount >= POSITION_MGR_HOME_SAMPLE_TARGET) {
-					fcStatusData.positionLatHome = positionMgrHomeRefLatSum / POSITION_MGR_HOME_SAMPLE_TARGET;
-					fcStatusData.positionLongHome = positionMgrHomeRefLongSum / POSITION_MGR_HOME_SAMPLE_TARGET;
+				if (positionMgrHomeRefSampleCount >= POSITION_MGR_HOME_POS_STAB_COUNT) {
+					fcStatusData.positionLatHome = positionMgrHomeRefLatSum / POSITION_MGR_HOME_POS_STAB_COUNT;
+					fcStatusData.positionLongHome = positionMgrHomeRefLongSum / POSITION_MGR_HOME_POS_STAB_COUNT;
 					fcStatusData.isPositionHomeSet = 1;
 					wasHomeJustSet = 1;
 					positionMgrHomeRefSampleCount = 0;
@@ -468,9 +407,8 @@ void doPositionManagement() {
 			if (fcStatusData.isPositionHomeSet) {
 				convertGNSSToSICordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
 				if (wasHomeJustSet) {
-					positionEKFInvalidateAxis(&positionEkf,POS_EKF_X_AXIS);
-					positionEKFInvalidateAxis(&positionEkf,POS_EKF_Y_AXIS);
-
+					positionEKFInvalidateAxis(&positionEkf, POS_EKF_X_AXIS);
+					positionEKFInvalidateAxis(&positionEkf, POS_EKF_Y_AXIS);
 					fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
 					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
 				}
@@ -479,12 +417,11 @@ void doPositionManagement() {
 				float velN = applyDeadBandFloat(0.0f, gnssData.velN, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
 				float velE = applyDeadBandFloat(0.0f, gnssData.velE, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
 				positionEKFUpdateXYVel(&positionEkf, velN, velE, dynamicRv);
-
 				// Calculate dynamic R for Position
-				float dynamicRp = getEstimatedXYDynamicRV(gnssData.hAcc);
+				float dynamicRp = getEstimatedXYDynamicRP(gnssData.hAcc);
 				positionEKFSetDymamicRP(&positionEkf, POS_EKF_X_AXIS, dynamicRp);
 				positionEKFSetDymamicRP(&positionEkf, POS_EKF_Y_AXIS, dynamicRp);
-				updatePositionManagerXYPosition(positionCordinateData.xPositionRaw,positionCordinateData.yPositionRaw, dt);
+				updatePositionManagerXYPosition(positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
 			}
 
 		}
@@ -500,9 +437,9 @@ void resetPositionManager(void) {
 	lowPassFilterReset(&positionMgrVelYLPF);
 	lowPassFilterReset(&positionMgrVelZLPF);
 
-	positionEKFInvalidateAxis(&positionEkf,POS_EKF_X_AXIS);
-	positionEKFInvalidateAxis(&positionEkf,POS_EKF_Y_AXIS);
-	positionEKFInvalidateAxis(&positionEkf,POS_EKF_Z_AXIS);
+	positionEKFInvalidateAxis(&positionEkf, POS_EKF_X_AXIS);
+	positionEKFInvalidateAxis(&positionEkf, POS_EKF_Y_AXIS);
+	positionEKFInvalidateAxis(&positionEkf, POS_EKF_Z_AXIS);
 
 	resetVenturiBiasEstimator();
 	resetPositionControl(1);
@@ -518,6 +455,7 @@ void resetPositionManager(void) {
 	positionMgrRTHVxCommand = 0;
 	positionMgrRTHVyCommand = 0;
 	positionMgrRTHCompleteDt = 0;
+	controlData.posBrakeCompThDelta = 0.0f;
 
 	positionEKFResetXYVel(&positionEkf);
 }

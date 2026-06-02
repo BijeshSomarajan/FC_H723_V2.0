@@ -26,37 +26,64 @@
  //HORIZONTAL AXIS (X,Y) - GNSS & IMU Fusion
  =======================================================================================================*/
 // [+] Faster position updates but jittery | [-] Smoother track but introduces position lag
-#define POS_EKF_X_Q_POS   0.0001f
-#define POS_EKF_Y_Q_POS   0.0001f
+//#define POS_EKF_X_Q_POS   0.0001f
+//#define POS_EKF_Y_Q_POS   0.0001f
+
+#define POS_EKF_X_Q_POS   0.006f
+#define POS_EKF_Y_Q_POS   0.006f
+
 // [+] Trusts raw GNSS velocity more | [-] Trusts IMU short-term (smoother, but drifts if IMU is bad)
-#define POS_EKF_X_Q_VEL   0.0065f//0.0015f
-#define POS_EKF_Y_Q_VEL   0.0065f//0.0015f
+#define POS_EKF_X_Q_VEL   0.015f
+#define POS_EKF_Y_Q_VEL   0.015f
+
 // [+] Fast adaptation to changing sensor bias | [-] Locks bias firmly down but fails to track drift
-#define POS_EKF_X_Q_BIAS  0.002f//0.001f
-#define POS_EKF_Y_Q_BIAS  0.002f//0.001f
+//#define POS_EKF_X_Q_BIAS  0.0002f//0.001f
+//#define POS_EKF_Y_Q_BIAS  0.0002f//0.001f
+#define POS_EKF_X_Q_BIAS  0.001f
+#define POS_EKF_Y_Q_BIAS  0.001f
+
 // [+] Ignores GPS noise (smoother, high drift) | [-] Follows GPS precisely (twitchy if GPS has jitter)
+//#define POS_EKF_X_R_MEAS  0.09f//0.01f
+//#define POS_EKF_Y_R_MEAS  0.09f//0.01f
+
 #define POS_EKF_X_R_MEAS  0.01f
 #define POS_EKF_Y_R_MEAS  0.01f
+
 // [+] Accepts larger GPS glitches | [-] Rejects valid aggressive movements as anomalies (causes freeze)
-#define POS_EKF_X_GATE    6.0f
-#define POS_EKF_Y_GATE    6.0f
+#define POS_EKF_X_GATE    4.0f
+#define POS_EKF_Y_GATE    4.0f
 // [+] Patient with bad GNSS drops | [-] Panics and hard-resets EKF quickly during minor glitches
 #define POS_EKF_X_PANIC   8
 #define POS_EKF_Y_PANIC   8
 
 /* Dynamic Position Scaling */
+/*
 #define POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_SCALE        1.2f
 #define POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_MIN          0.6f
 #define POS_ESTIMATOR_DYNAMIC_XY_RP_BASE         POS_EKF_X_R_MEAS
 #define POS_ESTIMATOR_DYNAMIC_XY_RP_MAX          POS_EKF_X_R_MEAS * 100
-
+*/
 /* Dynamic Velocity Scaling */
+/*
 #define POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_SCALE        0.1f
 #define POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_MIN          0.1f
 #define POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND          0.0f
 #define POS_ESTIMATOR_DYNAMIC_XY_RV_BASE         0.12f
 #define POS_ESTIMATOR_DYNAMIC_XY_RV_RESET        0.20f
 #define POS_ESTIMATOR_DYNAMIC_XY_RV_MAX          POS_ESTIMATOR_DYNAMIC_XY_RV_BASE * 100
+*/
+/* Dynamic Position Scaling */
+#define POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_SCALE        2.0f//1.2f
+#define POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_MIN          0.1f//0.6f
+#define POS_ESTIMATOR_DYNAMIC_XY_RP_BASE               POS_EKF_X_R_MEAS
+#define POS_ESTIMATOR_DYNAMIC_XY_RP_MAX                (POS_EKF_X_R_MEAS * 100.0f)
+/* Dynamic Velocity Scaling */
+#define POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_SCALE        1.0f
+#define POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_MIN          0.05f
+#define POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND          0.0f
+#define POS_ESTIMATOR_DYNAMIC_XY_RV_BASE               0.5f//0.03f
+#define POS_ESTIMATOR_DYNAMIC_XY_RV_RESET              0.5f//0.15f
+#define POS_ESTIMATOR_DYNAMIC_XY_RV_MAX                (POS_ESTIMATOR_DYNAMIC_XY_RV_BASE * 300.0f)
 
 /*=======================================================================================================
  VERTICAL AXIS (Z) - Barometer & IMU Fusion

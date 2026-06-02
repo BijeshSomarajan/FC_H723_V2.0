@@ -212,51 +212,8 @@ float getClampedCurrentAltitude() {
 	return fcStatusData.altitudeSLRef + altitudeDelta;
 }
 
-__ATTR_ITCM_TEXT
-void calculateTiltCompThrottleOld(float dt) {
-	float target = 0.0f;
-	// 1. Get attitude and convert to radians
-	float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
-	float rollRad = convertDegToRadF(sensorAttitudeData.roll);
-	// 2. Compute the composite vertical lift scaling vector
-	float cosP = cosApproxF(pitchRad);
-	float cosR = cosApproxF(rollRad);
-	float liftComponent = cosP * cosR;
-	// 3. Pre-calculate physical macro boundaries into cosine float space
-	float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MIN_ANGLE)); // e.g., cos(1.5 deg) -> ~0.9996
-	float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE)); // e.g., cos(30.0 deg) -> ~0.8660
-	// 4. Check if the vehicle has tilted past the minimum deadband threshold
-	if (liftComponent < deadbandComponent) {
-		// Clamp the lift component to the max physical angle boundary to prevent
-		// exponential mathematical explosion if the airframe over-rotates.
-		float clampedLift = fmaxf(liftComponent, maxAngleComponent);
-		// Calculate the exact percentage of vertical thrust lost due to tilt
-		float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
-		// Convert current dynamic hover scale to actual mixer throttle units
-		float hoverThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
-		// Apply physics tracking adjusted by your user authority gain
-		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_GAIN;
-		// Hard clamp target to your safe physical limit ceiling before filtering
-		target = fminf(target, ALT_MGR_TILT_COMP_MAX_LIMIT);
-	}
-
-	// 5. Asymmetrical Low-Pass Filter State Machine
-	// If target is increasing, use high-speed TAU_RISE to stomp out sag instantly.
-	// If target is decreasing, use a slower TAU_FADE to seamlessly unroll RPM.
-	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TAU_RISE : ALT_MGR_TILT_COMP_TAU_FADE;
-	float alpha = dt / (activeTau + dt);
-	// Double sanity-check constraints on target bounds
-	target = constrainToRangeF(target, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
-	// Execute the IIR filter step
-	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
-	// 6. Pipe the filtered delta directly into the actuator mixer matrix
-	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
-}
-
-
 // Add this to your global/struct state definitions alongside your other tracker:
 float altMgrTiltCompIntermediate = 0.0f;
-
 __ATTR_ITCM_TEXT
 void calculateTiltCompThrottle(float dt) {
 	float target = 0.0f;
@@ -364,7 +321,7 @@ void manageAltitude(float dt) {
 	}
 
 	// High-rate mixer equation now perfectly protected against stale values
-	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta;
+	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta + controlData.posBrakeCompThDelta;
 	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttleControlPercent = controlData.throttleControl / MAX_PERMISSIBLE_THROTTLE_DELTA;
 	altMgrPreviousCurrentThrottle = fcStatusData.currentThrottle;

@@ -32,7 +32,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_MAX_ALT_DELTA 2.5f //Mts
 #define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 20.0f//5.0f
 
-// Altitude estimate Complementary filter alpha constraints
+// Tilt compensation constants
 #define ALT_MGR_TILT_COMP_ENABLED      1
 #define ALT_MGR_TILT_COMP_MIN_ANGLE    1.0f
 #define ALT_MGR_TILT_COMP_MAX_ANGLE    30.0f
