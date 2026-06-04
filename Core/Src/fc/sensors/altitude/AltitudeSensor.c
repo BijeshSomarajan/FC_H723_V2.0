@@ -52,27 +52,22 @@ void filterSeaLevelAlt(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void updateAltitudeSensorData(float dt) {
-	scaleSeaLevelAlt();
-	filterSeaLevelAlt(dt);
-	sensorAltitudeData.altUpdateDt = dt;
-}
-
-__ATTR_ITCM_TEXT
-uint8_t loadAltitudeSensorsData() {
-	uint8_t status = 0;
+uint8_t loadAltitudeSensorsData(void) {
+	uint8_t flags = SENSOR_DATA_NONE;
 	if (deviceBaroLoadData()) {
-		status = 1;
+		flags |= SENSOR_DATA_BARO;
+		scaleSeaLevelAlt();
+		filterSeaLevelAlt(SENSOR_BARO_READ_PERIOD);
 		sensorAltitudeData.altitudeSL = deviceAltitudeData.altitudeSL;
 	}
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 	if (deviceLidarLoadData()) {
+		flags |= SENSOR_DATA_LIDAR;
 		sensorAltitudeData.altitudeTerrain = deviceAltitudeData.altitudeTerrain;
 		sensorAltitudeData.altitudeTerrainQlty = deviceAltitudeData.altitudeTerrainQlty;
-
 	}
 #endif
-	return status;
+	return flags;
 }
 
 __ATTR_ITCM_TEXT
@@ -83,13 +78,15 @@ uint8_t readAltitudeSensors(float dt) {
 		sensorBaroReadDt = 0;
 		status = deviceBaroRead();
 	}
+
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
-	sensorLidarReadDt+=dt;
+	sensorLidarReadDt += dt;
 	if (sensorLidarReadDt >= SENSOR_LIDAR_READ_PERIOD) {
 		sensorLidarReadDt = 0;
 		status |= deviceLidarRead();
 	}
 #endif
+
 	return status;
 }
 

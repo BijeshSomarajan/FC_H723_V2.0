@@ -173,20 +173,14 @@ extern float clampedAlt;
 extern LOWPASSFILTER altMgrThrottleControlLPF;
 
 void debugAltitude() {
-	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeSLFiltered * 1000;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPositionRaw * 1000;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPosition * 1000;
-	DEBUG_DATA_BUFFER[3] = fcStatusData.altitudeSLRef * 1000;
-	DEBUG_DATA_BUFFER[4] = (positionCordinateData.zPosition - fcStatusData.altitudeSLRef) * 1000;
-	DEBUG_DATA_BUFFER[5] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeSLScaled * 1000;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 1000;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPositionRawTerrain * 1000;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.positionZTerrainUpdateDt <= 0 ? 1 : 1 / positionCordinateData.positionZTerrainUpdateDt;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.positionZSLUpdateDt <= 0 ? 1 : 1 / positionCordinateData.positionZSLUpdateDt;
 
-	DEBUG_DATA_BUFFER[6] = altPID.pid;
-	DEBUG_DATA_BUFFER[7] = altRatePID.pid;
-	DEBUG_DATA_BUFFER[8] = altAccPID.pid;
-	DEBUG_DATA_BUFFER[9] = fcStatusData.currentThrottle;
-	DEBUG_DATA_BUFFER[10] = controlData.throttleControl;
-	DEBUG_DATA_BUFFER[11] = altMgrThrottleControlLPF.output;
-	sendConfigData(DEBUG_DATA_BUFFER, 12, CMD_FC_DATA);
+	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
 }
 
 void debugAltitudeDevice() {
@@ -194,7 +188,7 @@ void debugAltitudeDevice() {
 	DEBUG_DATA_BUFFER[1] = deviceAltitudeData.altitudeSL * 100;
 	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altitudeTerrain * 100;
 	DEBUG_DATA_BUFFER[3] = sensorAltitudeData.altitudeTerrainQlty * 100;
-	DEBUG_DATA_BUFFER[4] = (10.0f/sensorAltitudeData.altUpdateDt);
+	DEBUG_DATA_BUFFER[4] = (10.0f / sensorAltitudeData.altUpdateDt);
 	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
 
@@ -210,6 +204,6 @@ void debugTask() {
 //	debugNoise();
 //  debugGNSS();
 //  debugPosition();
-//	debugAltitude();
-	debugAltitudeDevice();
+	debugAltitude();
+//	debugAltitudeDevice();
 }

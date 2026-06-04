@@ -19,15 +19,12 @@
 #include "../../util/CommonUtil.h"
 #include "../../imu/IMU.h"
 #include "../../managers/position/PositionManager.h"
+#include "../../managers/position/estimator/PositionEstimatorHelper.h"
 
 // Inner state variables
-float altitudeUpdateDt = 0;
-
 float altMgrAltHoldActivationDt = 0;
 float altStabilizationDt = 0;
-
 float altMgrMaxHeight = 0;
-
 uint8_t altMgrWasInStabMode = 0;
 
 ALTITUDE_CONTROL_GAINS altControlGains;
@@ -51,6 +48,9 @@ float altMgrCurrentTiltCompThDelta = 0.0f;
 uint8_t altMgrLandingPulseActive = 0;
 float altMgrLandingPulseDt = 0;
 float altMgrLandingCommand = 0;
+
+float altMgrSLAltUpdateDt = 0;
+float altMgrTerrainAltUpdateDt = 0;
 
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
@@ -377,22 +377,42 @@ void manageAltitudeTask(void) {
 
 __ATTR_ITCM_TEXT
 void doAltitudeManagement(void) {
-	if (!fcStatusData.isConfigMode) {
-		if (fcStatusData.canStabilize) {
-			altMgrWasInStabMode = 1;
-		} else if (altMgrWasInStabMode && fcStatusData.isStabilized) {
-			altMgrWasInStabMode = 0;
+	if (fcStatusData.isConfigMode) {
+		return;
+	}
+	if (fcStatusData.hasCrashed) {
+		resetAltitudeManager();
+		return; // Stop execution immediately if crashed
+	}
+	if (fcStatusData.canStabilize) {
+		altMgrWasInStabMode = 1;
+	} else if (altMgrWasInStabMode && fcStatusData.isStabilized) {
+		altMgrWasInStabMode = 0;
+	}
+
+	uint8_t dataAvailableMask = loadAltitudeSensorsData();
+	float dt = getDeltaTime(SENSOR_ALT_READ_TIMER_CHANNEL);
+
+	altMgrSLAltUpdateDt += dt;
+	altMgrSLAltUpdateDt = constrainToRangeF(altMgrSLAltUpdateDt, 0.0001, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
+
+#if SENSOR_ALT_LIDAR_AVAILABLE == 1
+	altMgrTerrainAltUpdateDt += dt;
+	altMgrTerrainAltUpdateDt = constrainToRangeF(altMgrTerrainAltUpdateDt, 0.0001, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
+#endif
+
+	if (dataAvailableMask != SENSOR_DATA_NONE) {
+		if (dataAvailableMask & SENSOR_DATA_BARO) {
+			updateZPositionSL(sensorAltitudeData.altitudeSLFiltered, altMgrSLAltUpdateDt);
+			altMgrSLAltUpdateDt = 0;
 		}
-		if (loadAltitudeSensorsData()) {
-			float dt = getDeltaTime(SENSOR_BARO_READ_TIMER_CHANNEL);
-			dt = constrainToRangeF(dt, SENSOR_BARO_READ_PERIOD * 0.001f, SENSOR_BARO_READ_PERIOD * 4.0f);
-			sensorAltitudeData.altUpdateDt = dt;
-			updateAltitudeSensorData(dt);
-			updatePositionManagerZPosition(sensorAltitudeData.altitudeSLFiltered, dt);
+
+#if SENSOR_ALT_LIDAR_AVAILABLE == 1
+		if (dataAvailableMask & SENSOR_DATA_LIDAR) {
+			updateZPositionTerrain(sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQlty, altMgrTerrainAltUpdateDt);
+			altMgrTerrainAltUpdateDt = 0;
 		}
-		if (fcStatusData.hasCrashed) {
-			resetAltitudeManager();
-		}
+#endif
 	}
 }
 

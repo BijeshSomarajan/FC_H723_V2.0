@@ -6,7 +6,7 @@
 typedef struct _POSITION_CORDINATE_DATA POSITION_CORDINATE_DATA;
 struct _POSITION_CORDINATE_DATA {
 
-	float xPositionRaw, yPositionRaw,zPositionRaw;
+	float xPositionRaw, yPositionRaw,zPositionRawSL,zPositionRawTerrain;
 	float xPosition, yPosition, zPosition;
 
 	float xVelocity, yVelocity, zVelocity;
@@ -16,7 +16,9 @@ struct _POSITION_CORDINATE_DATA {
 
 	float positionProcessDt;
 	float positionXYUpdateDt;
-	float positionZUpdateDt;
+
+	float positionZSLUpdateDt;
+	float positionZTerrainUpdateDt;
 };
 extern POSITION_CORDINATE_DATA positionCordinateData;
 

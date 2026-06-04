@@ -13,7 +13,6 @@ void __deviceLidarTFMiniDataReadCallback(uint8_t *buf, uint16_t len) {
 		memcpy(tfMini.buffer, buf, len);
 		tfMiniHasData = 1;
 	}
-	tfMiniDataRequestComplete = 0;
 }
 
 uint8_t tfMiniReadDataAsync() {
@@ -25,15 +24,6 @@ void __deviceLidarTFMiniDataRequestCallback(uint8_t *buf, uint16_t len) {
 }
 
 uint8_t tfMiniRequestDataAsync() {
-	tfMiniDataRequestComplete = 0;
-	/*
-	tfMini.buffer[0] = 0x5A;
-	tfMini.buffer[1] = 0x05;
-	tfMini.buffer[2] = 0x00;
-	tfMini.buffer[3] = 0x01;
-	tfMini.buffer[4] = 0x60;
-	return i2c1WriteAsync(TFMINI_DEFAULT_ADDRESS, tfMini.buffer, 5, __deviceLidarTFMiniDataRequestCallback);
-	*/
 	return i2c1WriteAsync(TFMINI_DEFAULT_ADDRESS, tfMiniCmdRequestData, 5, __deviceLidarTFMiniDataRequestCallback);
 }
 
@@ -144,6 +134,7 @@ void deviceLidarDataProcess(void) {
 uint8_t deviceLidarRead(void) {
 #if TFMINI_READ_ASYNC == 1
 	if(tfMiniDataRequestComplete){
+		tfMiniDataRequestComplete = 0;
 		tfMiniReadDataAsync();
 	}else{
 		tfMiniRequestDataAsync();

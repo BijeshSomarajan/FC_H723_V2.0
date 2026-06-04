@@ -17,12 +17,13 @@
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "estimator/PositionEstimator.h"
+#include "estimator/PositionEstimatorHelper.h"
+
 #include "estimator/VenturiBiasEstimator.h"
 #include "helpers/PositionManagerHelper.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../control/ControlData.h"
 
-POSITION_EKF positionEkf;
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
 LOWPASSFILTER positionMgrVelXLPF, positionMgrVelYLPF, positionMgrVelZLPF;
 
@@ -200,7 +201,6 @@ void updateRTHCompletionStatus(float dt) {
 		fcStatusData.isRTHComplete = 0;
 	}
 }
-
 
 __ATTR_ITCM_TEXT
 void handleRTHNavigation(float dt) {
@@ -412,16 +412,9 @@ void doPositionManagement() {
 					fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
 					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
 				}
-				// Adaptive Velocity Measurement Noise Logic
-				float dynamicRv = getEstimatedXYDynamicRV(gnssData.sAcc);
-				float velN = applyDeadBandFloat(0.0f, gnssData.velN, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
-				float velE = applyDeadBandFloat(0.0f, gnssData.velE, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
-				positionEKFUpdateXYVel(&positionEkf, velN, velE, dynamicRv);
-				// Calculate dynamic R for Position
-				float dynamicRp = getEstimatedXYDynamicRP(gnssData.hAcc);
-				positionEKFSetDymamicRP(&positionEkf, POS_EKF_X_AXIS, dynamicRp);
-				positionEKFSetDymamicRP(&positionEkf, POS_EKF_Y_AXIS, dynamicRp);
-				updatePositionManagerXYPosition(positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
+				// Update Velocity and Position
+				updateXYVelovity(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
+				updateXYPosition(gnssData.hAcc, positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
 			}
 
 		}
@@ -457,31 +450,5 @@ void resetPositionManager(void) {
 	positionMgrRTHCompleteDt = 0;
 	controlData.posBrakeCompThDelta = 0.0f;
 
-	positionEKFResetXYVel(&positionEkf);
-}
-
-__ATTR_ITCM_TEXT
-void updatePositionManagerZPosition(float zPos, float dt) {
-	positionCordinateData.positionZUpdateDt = dt;
-	positionCordinateData.zPositionRaw = zPos;
-
-#if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
-	float venturiBias = updateVenturiBiasEstimate(dt);
-#else
-	float venturiBias = 0.0f;
-#endif
-
-#if POSITION_MGR_Z_ENABLE_DYNAMIC_R  == 1
-	float dynamicR = getEstimatedZDynamicRP(&positionEkf, zPos, venturiBias, imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
-	positionEKFSetDymamicRP(&positionEkf, POS_EKF_Z_AXIS, dynamicR);
-#endif
-
-	positionEKFUpdateZMeasureWithBias(&positionEkf, zPos, venturiBias);
-}
-
-__ATTR_ITCM_TEXT
-void updatePositionManagerXYPosition(float xPos, float yPos, float dt) {
-	positionCordinateData.positionXYUpdateDt = dt;
-	positionEKFUpdateXYMeasure(&positionEkf, xPos, yPos);
 }
 

@@ -50,7 +50,7 @@
 /* Higher: Prevents tiny tracking errors from translating to motor twitches. Lower: Tighter control near zero velocity, but can cause micro-oscillations. */
 #define POSITION_MGR_X_VEL_DEADBAND                    0.0f   // m/s
 #define POSITION_MGR_Y_VEL_DEADBAND                    0.0f   // m/s
-#define POSITION_MGR_Z_VEL_DEADBAND                    0.01f  // m/s
+#define POSITION_MGR_Z_VEL_DEADBAND                    0.0f  // m/s
 
 /* Safety ceilings. Limits maximum values processed by low pass filters to prevent math blowups from sensor glitches. */
 #define POSITION_MGR_X_VEL_MAX                         5.0f   // m/s
@@ -64,8 +64,6 @@
 // =============================================================================
 // 5. GNSS EKF MEASUREMENT TRUST (Tuned for Standard GNSS - POST-FIX TUNE)
 // =============================================================================
-#define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
-#define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          1
 // Define the number of samples to capture (e.g., 50 samples)
 #define POSITION_MGR_HOME_POS_STAB_COUNT   50
 
@@ -111,8 +109,6 @@ typedef enum {
 
 uint8_t initPositionManager(void);
 void doPositionManagement(void);
-void updatePositionManagerZPosition(float zPos, float dt);
-void updatePositionManagerXYPosition(float xPos, float yPos, float dt);
 void resetPositionManager(void);
 
 #endif /* SRC_FC_MANAGERS_POSITION_POSITIONMANAGER_H_ */
