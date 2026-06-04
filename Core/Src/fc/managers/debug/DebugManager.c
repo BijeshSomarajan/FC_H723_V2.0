@@ -38,16 +38,16 @@ uint8_t initDebugManager(void) {
 	return 1;
 }
 
- void debugNoise() {
- DEBUG_DATA_BUFFER[0] = sensorAttitudeData.gxDS * 10;
- DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDSFiltered * 10;
- DEBUG_DATA_BUFFER[2] = sensorAttitudeData.gyDS * 10;
- DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gyDSFiltered * 10;
- DEBUG_DATA_BUFFER[4] = sensorAttitudeData.gzDS * 10;
- DEBUG_DATA_BUFFER[5] = sensorAttitudeData.gzDSFiltered * 10;
- DEBUG_DATA_BUFFER[6] = sensorAttitudeData.heading * 10;
- sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
- }
+void debugNoise() {
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.gxDS * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDSFiltered * 10;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.gyDS * 10;
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gyDSFiltered * 10;
+	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.gzDS * 10;
+	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.gzDSFiltered * 10;
+	DEBUG_DATA_BUFFER[6] = sensorAttitudeData.heading * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+}
 
 /*
  void debugLeverArm() {
@@ -183,10 +183,19 @@ void debugAltitude() {
 	DEBUG_DATA_BUFFER[6] = altPID.pid;
 	DEBUG_DATA_BUFFER[7] = altRatePID.pid;
 	DEBUG_DATA_BUFFER[8] = altAccPID.pid;
-	DEBUG_DATA_BUFFER[9]  = fcStatusData.currentThrottle;
+	DEBUG_DATA_BUFFER[9] = fcStatusData.currentThrottle;
 	DEBUG_DATA_BUFFER[10] = controlData.throttleControl;
 	DEBUG_DATA_BUFFER[11] = altMgrThrottleControlLPF.output;
 	sendConfigData(DEBUG_DATA_BUFFER, 12, CMD_FC_DATA);
+}
+
+void debugAltitudeDevice() {
+	DEBUG_DATA_BUFFER[0] = deviceAltitudeData.altitudeSLGround * 100;
+	DEBUG_DATA_BUFFER[1] = deviceAltitudeData.altitudeSL * 100;
+	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altitudeTerrain * 100;
+	DEBUG_DATA_BUFFER[3] = sensorAltitudeData.altitudeTerrainQlty * 100;
+	DEBUG_DATA_BUFFER[4] = (10.0f/sensorAltitudeData.altUpdateDt);
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
 
 void debugTask() {
@@ -198,8 +207,9 @@ void debugTask() {
 //	debugVenturi();
 //	debugAttitude();
 //	debugLeverArm();
- debugNoise();
+//	debugNoise();
 //  debugGNSS();
 //  debugPosition();
 //	debugAltitude();
+	debugAltitudeDevice();
 }

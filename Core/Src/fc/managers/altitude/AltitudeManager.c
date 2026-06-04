@@ -85,12 +85,12 @@ uint8_t initAltitudeManager(void) {
 }
 
 __ATTR_ITCM_TEXT
-void readBaroSensorTimerCallback() {
-	readAltitudeSensors();
+void readAltitudeSensorTimerCallback() {
+	readAltitudeSensors(ALTITUDE_SENSOR_READ_PERIOD);
 }
 
 void startAltitudeSensorsRead() {
-	initGPTimer3(BARO_SENSOR_READ_FREQUENCY, readBaroSensorTimerCallback, 4);
+	initGPTimer3(ALTITUDE_SENSOR_READ_FREQUENCY, readAltitudeSensorTimerCallback, 4);
 	startGPTimer3();
 }
 
@@ -385,7 +385,7 @@ void doAltitudeManagement(void) {
 		}
 		if (loadAltitudeSensorsData()) {
 			float dt = getDeltaTime(SENSOR_BARO_READ_TIMER_CHANNEL);
-			dt = constrainToRangeF(dt, BARO_SENSOR_READ_PERIOD * 0.001f, BARO_SENSOR_READ_PERIOD * 4.0f);
+			dt = constrainToRangeF(dt, SENSOR_BARO_READ_PERIOD * 0.001f, SENSOR_BARO_READ_PERIOD * 4.0f);
 			sensorAltitudeData.altUpdateDt = dt;
 			updateAltitudeSensorData(dt);
 			updatePositionManagerZPosition(sensorAltitudeData.altitudeSLFiltered, dt);

@@ -13,6 +13,9 @@ extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
 LOWPASSFILTER sensorAltBaroLPF;
 LOWPASSFILTER sensorAltBaroLPFSmoothest;
 
+float sensorBaroReadDt = 0;
+float sensorLidarReadDt = 0;
+
 uint8_t initAltitudeSensors(void) {
 	uint8_t status = 1;
 	status = deviceBaroInit();
@@ -22,7 +25,18 @@ uint8_t initAltitudeSensors(void) {
 		logString("[Altitude Sensor] Baro Sensor Init > Success\n");
 	} else {
 		logString("[Altitude Sensor] Baro Sensor Init > Failed\n");
+		return 0;
 	}
+
+#if SENSOR_ALT_LIDAR_AVAILABLE == 1
+	status = deviceLidarInit();
+	if (status) {
+		logString("[Altitude Sensor] TF Mini Init > Success\n");
+	} else {
+		logString("[Altitude Sensor] TF Mini Init > Failed\n");
+	}
+#endif
+
 	return status;
 }
 
@@ -46,15 +60,37 @@ void updateAltitudeSensorData(float dt) {
 
 __ATTR_ITCM_TEXT
 uint8_t loadAltitudeSensorsData() {
+	uint8_t status = 0;
 	if (deviceBaroLoadData()) {
-		sensorAltitudeData.altitudeSL = deviceAltitudeData.altitude;
-		return 1;
+		status = 1;
+		sensorAltitudeData.altitudeSL = deviceAltitudeData.altitudeSL;
 	}
-	return 0;
+#if SENSOR_ALT_LIDAR_AVAILABLE == 1
+	if (deviceLidarLoadData()) {
+		sensorAltitudeData.altitudeTerrain = deviceAltitudeData.altitudeTerrain;
+		sensorAltitudeData.altitudeTerrainQlty = deviceAltitudeData.altitudeTerrainQlty;
+
+	}
+#endif
+	return status;
 }
 
-uint8_t readAltitudeSensors() {
-	return deviceBaroRead();
+__ATTR_ITCM_TEXT
+uint8_t readAltitudeSensors(float dt) {
+	uint8_t status = 0;
+	sensorBaroReadDt += dt;
+	if (sensorBaroReadDt >= SENSOR_BARO_READ_PERIOD) {
+		sensorBaroReadDt = 0;
+		status = deviceBaroRead();
+	}
+#if SENSOR_ALT_LIDAR_AVAILABLE == 1
+	sensorLidarReadDt+=dt;
+	if (sensorLidarReadDt >= SENSOR_LIDAR_READ_PERIOD) {
+		sensorLidarReadDt = 0;
+		status |= deviceLidarRead();
+	}
+#endif
+	return status;
 }
 
 void resetAltitudeSensors(uint8_t hard) {
@@ -62,9 +98,14 @@ void resetAltitudeSensors(uint8_t hard) {
 	lowPassFilterResetToValue(&sensorAltBaroLPFSmoothest, 0);
 	sensorAltitudeData.altitudeSLFiltered = 0;
 	sensorAltitudeData.altitudeSLScaled = 0;
-	sensorAltitudeData.altitudeSLScaled = 0;
+	sensorAltitudeData.altitudeSL = 0;
+	sensorAltitudeData.altitudeTerrain = 0;
+	sensorAltitudeData.altitudeTerrainQlty = 0;
+	sensorBaroReadDt = 0;
+	sensorLidarReadDt = 0;
 	if (hard) {
 		deviceBaroReset(hard);
+		deviceLidarReset(hard);
 	}
 }
 

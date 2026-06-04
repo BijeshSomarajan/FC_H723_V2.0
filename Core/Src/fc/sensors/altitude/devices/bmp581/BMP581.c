@@ -234,7 +234,7 @@ uint8_t bmp581Configure(void) {
 void bmp581CalculateAltitude(void) {
 	float currentPreassure = deviceAltitudeData.pressure;
 	if (currentPreassure <= 0.0f) {
-		deviceAltitudeData.altitude = 0.0f;
+		deviceAltitudeData.altitudeSL = 0.0f;
 		return;
 	}
 	if (!bmp581IsCalibrated) {
@@ -243,17 +243,17 @@ void bmp581CalculateAltitude(void) {
 		if (bmp581CalibCount >= CALIB_SAMPLES) {
 			bmp581GroundPressure = bmp581CalibPSum / bmp581CalibCount;
 			float ratio = bmp581GroundPressure / convertPascalToHectoPascal(BMP581_SEALEVEL_PRESSURE);
-			deviceAltitudeData.altitudeGround = BMP581_PRESSURE_GAS_CONST * (1.0f - powf(ratio, BMP581_PRESSURE_PWR_CONST));
+			deviceAltitudeData.altitudeSLGround = BMP581_PRESSURE_GAS_CONST * (1.0f - powf(ratio, BMP581_PRESSURE_PWR_CONST));
 			bmp581CalibPSum = 0.0f;
 			bmp581CalibCount = 0;
 			bmp581IsCalibrated = 1;
 		}
-		deviceAltitudeData.altitude = 0.0f;
+		deviceAltitudeData.altitudeSL = 0.0f;
 		return;
 	}
 	float ratio = currentPreassure / bmp581GroundPressure;
 	if (ratio > 0.9f && ratio < 1.2f) {
-		deviceAltitudeData.altitude = BMP581_PRESSURE_GAS_CONST * (1.0f - powf(ratio, BMP581_PRESSURE_PWR_CONST));
+		deviceAltitudeData.altitudeSL = BMP581_PRESSURE_GAS_CONST * (1.0f - powf(ratio, BMP581_PRESSURE_PWR_CONST));
 	}
 
 }
@@ -302,19 +302,13 @@ void __deviceBaroBMP581Callback(uint8_t *buf, uint16_t len) {
 /* ------------------------------------------------------------------ */
 uint8_t deviceBaroRead(void) {
 #if BMP581_READ_ASYNC == 1
-	if (spi4ReadRegisterAsync(
-	BMP581_REG_TEMP_DATA_XLSB, 6,
-	BMP581_DEVICE, __deviceBaroBMP581Callback)) {
+	if (spi4ReadRegisterAsync(BMP581_REG_TEMP_DATA_XLSB, 6,	BMP581_DEVICE, __deviceBaroBMP581Callback)) {
 		return 1;
 	} else {
 		return 0;
 	}
 #else
-    if (!spi4ReadRegister(
-            BMP581_REG_TEMP_DATA_XLSB,
-            deviceAltitudeData.buffer,
-            6,
-            BMP581_DEVICE)) {
+    if (!spi4ReadRegister( BMP581_REG_TEMP_DATA_XLSB, deviceAltitudeData.buffer, 6,  BMP581_DEVICE)) {
         return 0;
     }
     deviceBaroDataProcess();
