@@ -328,6 +328,7 @@ void updatePositionCordinateCommand(float dt) {
 	}
 }
 
+
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
 	float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);

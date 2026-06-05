@@ -173,14 +173,13 @@ extern float clampedAlt;
 extern LOWPASSFILTER altMgrThrottleControlLPF;
 
 void debugAltitude() {
-	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeSLScaled * 1000;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 1000;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 1000;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPositionRawTerrain * 1000;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.positionZTerrainUpdateDt <= 0 ? 1 : 1 / positionCordinateData.positionZTerrainUpdateDt;
-	DEBUG_DATA_BUFFER[5] = positionCordinateData.positionZSLUpdateDt <= 0 ? 1 : 1 / positionCordinateData.positionZSLUpdateDt;
-
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = imuData.axEarthLinear * 1000;
+	DEBUG_DATA_BUFFER[1] = imuData.ayEarthLinear * 1000;
+	DEBUG_DATA_BUFFER[2] = imuData.azEarthLinear * 1000;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPosition * 1000;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.zPositionRawSL * 1000;
+	sendConfigData(DEBUG_DATA_BUFFER, 10, CMD_FC_DATA);
 }
 
 void debugAltitudeDevice() {

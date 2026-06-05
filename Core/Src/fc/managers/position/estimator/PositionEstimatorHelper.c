@@ -28,6 +28,7 @@ float getEstimatedXYRV(float sAcc) {
 	return dynamicRv;
 }
 
+
 __ATTR_ITCM_TEXT
 float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float bias, float ax, float ay, float az) {
 	float zPred = ekf->x[6];
@@ -62,6 +63,7 @@ float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float bias, float ax, fl
 
 	return dynamicR;
 }
+
 
 __ATTR_ITCM_TEXT
 float getEstimatedZRPTerrain(POSITION_EKF *ekf, float zTerrain, float quality) {

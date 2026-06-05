@@ -26,36 +26,31 @@
 
 //Adaptive Q Tuning
 #define POS_EKF_DYNAMIC_Q_ENABLED   1
-#define POS_EKF_ACC_THRESH_XY       2.0f
-#define POS_EKF_ACC_THRESH_Z        2.0f
-#define POS_EKF_Q_MAX_SCALE         1e3f
+#define POS_EKF_ACC_THRESH_XY       15.0f //3.5f  //0.35g
+#define POS_EKF_ACC_THRESH_Z        20.0f  //3.5f  //0.35g
+#define POS_EKF_Q_MAX_SCALE         30.0f //1e3f
 #define POS_EKF_Q_POS_STRESS_GAIN   6.0f   // Max 7x scale (1.0 + 1.0 * 6.0)
 #define POS_EKF_Q_VEL_STRESS_GAIN   15.0f  // Max 16x scale (1.0 + 1.0 * 15.0)
-#define POS_EKF_Q_BIAS_STRESS_GAIN  0.0f   // Max 2.5x scale (1.0 + 1.0 * 1.5)
+#define POS_EKF_Q_BIAS_STRESS_GAIN  1.5f
 
 /* =========================================================================
  * Tuning Parameters: Horizontal Axis (X, Y) - GNSS & IMU Fusion
  * ========================================================================= */
 // [+] Faster position tracking response   | [-] Jittery position state estimates
-#define POS_EKF_X_Q_POS           0.006f
-#define POS_EKF_Y_Q_POS           0.006f
-
+#define POS_EKF_X_Q_POS           0.0006f
+#define POS_EKF_Y_Q_POS           0.0006f
 // [+] High trust in raw GNSS velocity    | [-] High trust in short-term IMU prediction
-#define POS_EKF_X_Q_VEL           0.015f
-#define POS_EKF_Y_Q_VEL           0.015f
-
+#define POS_EKF_X_Q_VEL           0.002f
+#define POS_EKF_Y_Q_VEL           0.002f
 // [+] Fast adaptation to IMU thermal bias | [-] Locks bias firmly down (slow drift tracking)
 #define POS_EKF_X_Q_BIAS          0.001f
 #define POS_EKF_Y_Q_BIAS          0.001f
-
 // [+] Smooth track (ignores GPS jitter)   | [-] Aggressively snaps to raw GPS data (twitchy)
-#define POS_EKF_X_R_MEAS          0.01f
-#define POS_EKF_Y_R_MEAS          0.01f
-
+#define POS_EKF_X_R_MEAS          1.5f //0.01f
+#define POS_EKF_Y_R_MEAS          1.5f //0.01f
 // [+] Accepts larger GPS steps/glitches   | [-] Rejects valid aggressive maneuvers as outliers
 #define POS_EKF_X_GATE            4.0f
 #define POS_EKF_Y_GATE            4.0f
-
 // [+] Tolerant of brief GNSS signal drops  | [-] Rapidly panics and resets filter during glitches
 #define POS_EKF_X_PANIC           8
 #define POS_EKF_Y_PANIC           8
@@ -65,21 +60,16 @@
  * ========================================================================= */
 // [+] Snappier altitude tracking response | [-] Smooth but noticeably delayed altitude estimation
 #define POS_EKF_Z_Q_POS           0.0000001f
-
 // [+] Quicker vertical velocity updates  | [-] Smoother vertical transitions
 #define POS_EKF_Z_Q_VEL           0.000002f
-
 // [+] Rapid adaptation to weather shifts  | [-] Solid baseline calculation (slow drift tracking)
 #define POS_EKF_Z_Q_BIAS          0.0000005f
-
 // [+] Smooth altitude (low trust in baro) | [-] Razor-sharp hold (twitches in ground effect/wind)
-#define POS_EKF_Z_R_MEAS          0.02f
-
+#define POS_EKF_Z_R_MEAS          0.05f
 // [+] Tolerates sudden wind/pressure spikes| [-] Rejects fast vertical maneuvers (climb/descend lag)
-#define POS_EKF_Z_GATE            6.0f
-
+#define POS_EKF_Z_GATE            8.0f
 // [+] Tolerates longer pressure anomalies  | [-] Aggressively resets filter at minor baro glitches
-#define POS_EKF_Z_PANIC           8
+#define POS_EKF_Z_PANIC           10
 
 /* =========================================================================
  * Core State Structure Definition

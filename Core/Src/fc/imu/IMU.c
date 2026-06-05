@@ -56,7 +56,7 @@ void updateLinearMovements(float dt) {
 
 	imuData.axEarthLinear = axGEarth * GRAVITY_MSS;
 	imuData.ayEarthLinear = ayGEarth * GRAVITY_MSS;
-	imuData.azEarthLinear = azGEarth * GRAVITY_MSS;
+	imuData.azEarthLinear = (azGEarth * GRAVITY_MSS)+GRAVITY_MSS;
 
 	// 2. Body Frame Linear Acceleration (Gravity Compensation)
 	// We project the Earth gravity vector [0, 0, 1] into the Body frame.

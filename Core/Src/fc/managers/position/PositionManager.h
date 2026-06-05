@@ -43,9 +43,9 @@
 #define POSITION_MGR_Z_ACC_DEADBAND                    0.01f   // m/s²
 
 /* Higher: EKF ignores subtle sensor changes, creating lag. Lower: EKF captures micro-movements, but risks integrating sensor bias during steady hover. */
-#define POSITION_MGR_X_ESTIMATION_ACC_DEADBAND         0.001f    // m/s²
-#define POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND         0.001f    // m/s²
-#define POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND         0.001f    // m/s²
+#define POSITION_MGR_X_ESTIMATION_ACC_DEADBAND         0.0f    // m/s²
+#define POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND         0.0f    // m/s²
+#define POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND         0.0f    // m/s²
 
 /* Higher: Prevents tiny tracking errors from translating to motor twitches. Lower: Tighter control near zero velocity, but can cause micro-oscillations. */
 #define POSITION_MGR_X_VEL_DEADBAND                    0.0f   // m/s

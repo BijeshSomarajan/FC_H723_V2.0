@@ -59,7 +59,7 @@ void positionEKFSetMode(POSITION_EKF *ekf, uint8_t stabilize) {
 }
 
 __ATTR_ITCM_TEXT
-static inline void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axis, float ax, float ay, float az, float *out_q00, float *out_q11, float *out_q22) {
+void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axis, float ax, float ay, float az, float *out_q00, float *out_q11, float *out_q22) {
 	const int i = axis * POS_EKF_AXIS_DIM;
 
 	// Cache baselines from pristine configuration matrix
@@ -72,12 +72,14 @@ static inline void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axi
 	float accZ = fabsf(az); // Assumes linear acceleration (gravity-stripped)
 
 	float imuStressXY = accXY / POS_EKF_ACC_THRESH_XY;
-	if (imuStressXY > 1.0f)
+	if (imuStressXY > 1.0f) {
 		imuStressXY = 1.0f;
+	}
 
 	float imuStressZ = accZ / POS_EKF_ACC_THRESH_Z;
-	if (imuStressZ > 1.0f)
+	if (imuStressZ > 1.0f) {
 		imuStressZ = 1.0f;
+	}
 
 	// Peak-hold risk selection. If either plane goes crazy, protect the filter.
 	float imuStress = (imuStressXY > imuStressZ) ? imuStressXY : imuStressZ;
@@ -109,6 +111,7 @@ static inline void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axi
 	*out_q00 = q00;
 	*out_q11 = q11;
 	*out_q22 = q22;
+
 }
 
 __ATTR_ITCM_TEXT
@@ -246,7 +249,8 @@ void _axisPositionUpdate(POSITION_EKF *ekf, int axis, float meas, float bias) {
 	float rValue = ekf->R[axis];
 
 	// S = H * P * H^T + R
-	float S = (H0 * ekf->P[i + 0][i + 0] + H1 * ekf->P[i + 1][0] + H2 * ekf->P[i + 2][0]) * H0 + (H0 * ekf->P[i + 0][i + 1] + H1 * ekf->P[i + 1][1] + H2 * ekf->P[i + 2][1]) * H1 + (H0 * ekf->P[i + 0][i + 2] + H1 * ekf->P[i + 1][2] + H2 * ekf->P[i + 2][2]) * H2 + rValue;
+	//float S = (H0 * ekf->P[i + 0][i + 0] + H1 * ekf->P[i + 1][0] + H2 * ekf->P[i + 2][0]) * H0 + (H0 * ekf->P[i + 0][i + 1] + H1 * ekf->P[i + 1][1] + H2 * ekf->P[i + 2][1]) * H1 + (H0 * ekf->P[i + 0][i + 2] + H1 * ekf->P[i + 1][2] + H2 * ekf->P[i + 2][2]) * H2 + rValue;
+	float S = (H0 * ekf->P[i + 0][i + 0] + H1 * ekf->P[i + 1][i + 0] + H2 * ekf->P[i + 2][i + 0]) * H0 + (H0 * ekf->P[i + 0][i + 1] + H1 * ekf->P[i + 1][i + 1] + H2 * ekf->P[i + 2][i + 1]) * H1 + (H0 * ekf->P[i + 0][i + 2] + H1 * ekf->P[i + 1][i + 2] + H2 * ekf->P[i + 2][i + 2]) * H2 + rValue;
 
 	if (S < POS_EKF_P_MIN) {
 		S = POS_EKF_P_MIN;
@@ -364,7 +368,8 @@ void _axisVelocityUpdate(POSITION_EKF *ekf, int axis, float meas, float rValue) 
 	float y = meas - ekf->x[i + POS_EKF_STATE_V];
 
 	// S = H * P * H^T + R
-	float S = (H0 * ekf->P[i + 0][i + 0] + H1 * ekf->P[i + 1][0] + H2 * ekf->P[i + 2][0]) * H0 + (H0 * ekf->P[i + 0][i + 1] + H1 * ekf->P[i + 1][1] + H2 * ekf->P[i + 2][1]) * H1 + (H0 * ekf->P[i + 0][i + 2] + H1 * ekf->P[i + 1][2] + H2 * ekf->P[i + 2][2]) * H2 + rValue;
+	//float S = (H0 * ekf->P[i + 0][i + 0] + H1 * ekf->P[i + 1][0] + H2 * ekf->P[i + 2][0]) * H0 + (H0 * ekf->P[i + 0][i + 1] + H1 * ekf->P[i + 1][1] + H2 * ekf->P[i + 2][1]) * H1 + (H0 * ekf->P[i + 0][i + 2] + H1 * ekf->P[i + 1][2] + H2 * ekf->P[i + 2][2]) * H2 + rValue;
+	float S = (H0 * ekf->P[i + 0][i + 0] + H1 * ekf->P[i + 1][i + 0] + H2 * ekf->P[i + 2][i + 0]) * H0 + (H0 * ekf->P[i + 0][i + 1] + H1 * ekf->P[i + 1][i + 1] + H2 * ekf->P[i + 2][i + 1]) * H1 + (H0 * ekf->P[i + 0][i + 2] + H1 * ekf->P[i + 1][i + 2] + H2 * ekf->P[i + 2][i + 2]) * H2 + rValue;
 
 	if (S < POS_EKF_P_MIN) {
 		S = POS_EKF_P_MIN;
