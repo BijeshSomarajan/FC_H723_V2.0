@@ -37,17 +37,17 @@
  * Tuning Parameters: Horizontal Axis (X, Y) - GNSS & IMU Fusion
  * ========================================================================= */
 // [+] Faster position tracking response   | [-] Jittery position state estimates
-#define POS_EKF_X_Q_POS           0.0006f
-#define POS_EKF_Y_Q_POS           0.0006f
+#define POS_EKF_X_Q_POS           0.005f
+#define POS_EKF_Y_Q_POS           0.005f
 // [+] High trust in raw GNSS velocity    | [-] High trust in short-term IMU prediction
-#define POS_EKF_X_Q_VEL           0.002f
-#define POS_EKF_Y_Q_VEL           0.002f
+#define POS_EKF_X_Q_VEL           0.12f
+#define POS_EKF_Y_Q_VEL           0.12f
 // [+] Fast adaptation to IMU thermal bias | [-] Locks bias firmly down (slow drift tracking)
 #define POS_EKF_X_Q_BIAS          0.001f
 #define POS_EKF_Y_Q_BIAS          0.001f
 // [+] Smooth track (ignores GPS jitter)   | [-] Aggressively snaps to raw GPS data (twitchy)
-#define POS_EKF_X_R_MEAS          1.5f //0.01f
-#define POS_EKF_Y_R_MEAS          1.5f //0.01f
+#define POS_EKF_X_R_MEAS          2.5f //0.01f
+#define POS_EKF_Y_R_MEAS          2.5f //0.01f
 // [+] Accepts larger GPS steps/glitches   | [-] Rejects valid aggressive maneuvers as outliers
 #define POS_EKF_X_GATE            4.0f
 #define POS_EKF_Y_GATE            4.0f
@@ -59,17 +59,17 @@
  * Tuning Parameters: Vertical Axis (Z) - Barometer & IMU Fusion
  * ========================================================================= */
 // [+] Snappier altitude tracking response | [-] Smooth but noticeably delayed altitude estimation
-#define POS_EKF_Z_Q_POS           0.0000001f
+#define POS_EKF_Z_Q_POS           0.000005f
 // [+] Quicker vertical velocity updates  | [-] Smoother vertical transitions
 #define POS_EKF_Z_Q_VEL           0.000002f
 // [+] Rapid adaptation to weather shifts  | [-] Solid baseline calculation (slow drift tracking)
-#define POS_EKF_Z_Q_BIAS          0.0000005f
+#define POS_EKF_Z_Q_BIAS          0.000005f
 // [+] Smooth altitude (low trust in baro) | [-] Razor-sharp hold (twitches in ground effect/wind)
-#define POS_EKF_Z_R_MEAS          0.05f
+#define POS_EKF_Z_R_MEAS          5.0f
 // [+] Tolerates sudden wind/pressure spikes| [-] Rejects fast vertical maneuvers (climb/descend lag)
-#define POS_EKF_Z_GATE            8.0f
+#define POS_EKF_Z_GATE            3.0f
 // [+] Tolerates longer pressure anomalies  | [-] Aggressively resets filter at minor baro glitches
-#define POS_EKF_Z_PANIC           10
+#define POS_EKF_Z_PANIC           6
 
 /* =========================================================================
  * Core State Structure Definition

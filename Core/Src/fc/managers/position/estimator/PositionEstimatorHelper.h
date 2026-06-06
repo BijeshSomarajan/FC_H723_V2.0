@@ -3,17 +3,17 @@
 #include "PositionEstimator.h"
 
 /* Dynamic Position Scaling XY Axis*/
-#define POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_SCALE        2.0f//1.2f
-#define POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_MIN          0.1f//0.6f
+#define POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_SCALE        1.5f//1.2f
+#define POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_MIN          0.3f//0.6f
 #define POS_ESTIMATOR_DYNAMIC_XY_RP_BASE               POS_EKF_X_R_MEAS
-#define POS_ESTIMATOR_DYNAMIC_XY_RP_MAX                (POS_EKF_X_R_MEAS * 50.0f)
+#define POS_ESTIMATOR_DYNAMIC_XY_RP_MAX                (POS_EKF_X_R_MEAS * 20.0f)
 /* Dynamic Velocity Scaling */
-#define POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_SCALE        1.0f
+#define POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_SCALE        0.8f
 #define POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_MIN          0.05f
 #define POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND          0.0f
-#define POS_ESTIMATOR_DYNAMIC_XY_RV_BASE               0.02f//0.03f
-#define POS_ESTIMATOR_DYNAMIC_XY_RV_RESET              0.5f //0.15f
-#define POS_ESTIMATOR_DYNAMIC_XY_RV_MAX                (POS_ESTIMATOR_DYNAMIC_XY_RV_BASE * 300.0f)
+#define POS_ESTIMATOR_DYNAMIC_XY_RV_BASE               0.12f
+#define POS_ESTIMATOR_DYNAMIC_XY_RV_RESET              0.5f
+#define POS_ESTIMATOR_DYNAMIC_XY_RV_MAX                (POS_ESTIMATOR_DYNAMIC_XY_RV_BASE * 20.0f) // Keep it around 3
 
 /* Dynamic scaling Z */
 #define POS_ESTIMATOR_DYNAMIC_Z_RP_GAIN              0.05f
@@ -31,7 +31,7 @@
 #define TERRAIN_OBSTACLE_GAIN      20.0f    // Sensitivity slider: Higher values reject obstacles faster
 
 #define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
-#define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          1
+#define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          0
 
 
 void updateZPositionSL(float zPos, float dt);
