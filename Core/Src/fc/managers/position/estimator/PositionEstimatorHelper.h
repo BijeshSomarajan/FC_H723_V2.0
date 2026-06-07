@@ -31,7 +31,7 @@
 #define TERRAIN_OBSTACLE_GAIN      20.0f    // Sensitivity slider: Higher values reject obstacles faster
 
 #define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
-#define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          0
+#define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          1
 
 
 void updateZPositionSL(float zPos, float dt);

@@ -37,8 +37,8 @@
  * Tuning Parameters: Horizontal Axis (X, Y) - GNSS & IMU Fusion
  * ========================================================================= */
 // [+] Faster position tracking response   | [-] Jittery position state estimates
-#define POS_EKF_X_Q_POS           0.005f
-#define POS_EKF_Y_Q_POS           0.005f
+#define POS_EKF_X_Q_POS           0.006f
+#define POS_EKF_Y_Q_POS           0.006f
 // [+] High trust in raw GNSS velocity    | [-] High trust in short-term IMU prediction
 #define POS_EKF_X_Q_VEL           0.12f
 #define POS_EKF_Y_Q_VEL           0.12f
