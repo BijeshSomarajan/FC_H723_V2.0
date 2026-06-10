@@ -87,9 +87,9 @@ void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axis, float ax, f
 	// --- Smooth parabolic response curves ---
 	float stress2 = imuStress * imuStress;
 
-	float velScale = 1.0f + stress2 * POS_EKF_Q_VEL_STRESS_GAIN;  // Up to 16x scale
-	float posScale = 1.0f + stress2 * POS_EKF_Q_POS_STRESS_GAIN;   // Up to 7x scale
-	float biasScale = 1.0f + imuStress * POS_EKF_Q_BIAS_STRESS_GAIN; // Up to 2.5x scale
+	float velScale = 1.0f + stress2 * POS_EKF_Q_VEL_STRESS_GAIN;
+	float posScale = 1.0f + stress2 * POS_EKF_Q_POS_STRESS_GAIN;
+	float biasScale = 1.0f + imuStress * POS_EKF_Q_BIAS_STRESS_GAIN;
 
 	float q00 = base_q00 * posScale;
 	float q11 = base_q11 * velScale;

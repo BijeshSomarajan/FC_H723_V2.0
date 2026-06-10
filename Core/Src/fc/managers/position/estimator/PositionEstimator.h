@@ -2,6 +2,7 @@
 #define SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_
 
 #include <stdint.h>
+#include "PositionEstimatorConfig.h"
 
 /* =========================================================================
  * Core EKF Dimensions & Layout Indices
@@ -23,53 +24,6 @@
 /* Numerical Stability Constraints */
 #define POS_EKF_P_MIN             1e-9f
 #define POS_EKF_P_MAX             500.0f
-
-//Adaptive Q Tuning
-#define POS_EKF_DYNAMIC_Q_ENABLED   1
-#define POS_EKF_ACC_THRESH_XY       15.0f //3.5f  //0.35g
-#define POS_EKF_ACC_THRESH_Z        20.0f  //3.5f  //0.35g
-#define POS_EKF_Q_MAX_SCALE         30.0f //1e3f
-#define POS_EKF_Q_POS_STRESS_GAIN   6.0f   // Max 7x scale (1.0 + 1.0 * 6.0)
-#define POS_EKF_Q_VEL_STRESS_GAIN   15.0f  // Max 16x scale (1.0 + 1.0 * 15.0)
-#define POS_EKF_Q_BIAS_STRESS_GAIN  1.5f
-
-/* =========================================================================
- * Tuning Parameters: Horizontal Axis (X, Y) - GNSS & IMU Fusion
- * ========================================================================= */
-// [+] Faster position tracking response   | [-] Jittery position state estimates
-#define POS_EKF_X_Q_POS           0.006f
-#define POS_EKF_Y_Q_POS           0.006f
-// [+] High trust in raw GNSS velocity    | [-] High trust in short-term IMU prediction
-#define POS_EKF_X_Q_VEL           0.12f
-#define POS_EKF_Y_Q_VEL           0.12f
-// [+] Fast adaptation to IMU thermal bias | [-] Locks bias firmly down (slow drift tracking)
-#define POS_EKF_X_Q_BIAS          0.001f
-#define POS_EKF_Y_Q_BIAS          0.001f
-// [+] Smooth track (ignores GPS jitter)   | [-] Aggressively snaps to raw GPS data (twitchy)
-#define POS_EKF_X_R_MEAS          2.5f //0.01f
-#define POS_EKF_Y_R_MEAS          2.5f //0.01f
-// [+] Accepts larger GPS steps/glitches   | [-] Rejects valid aggressive maneuvers as outliers
-#define POS_EKF_X_GATE            4.0f
-#define POS_EKF_Y_GATE            4.0f
-// [+] Tolerant of brief GNSS signal drops  | [-] Rapidly panics and resets filter during glitches
-#define POS_EKF_X_PANIC           8
-#define POS_EKF_Y_PANIC           8
-
-/* =========================================================================
- * Tuning Parameters: Vertical Axis (Z) - Barometer & IMU Fusion
- * ========================================================================= */
-// [+] Snappier altitude tracking response | [-] Smooth but noticeably delayed altitude estimation
-#define POS_EKF_Z_Q_POS           0.000005f
-// [+] Quicker vertical velocity updates  | [-] Smoother vertical transitions
-#define POS_EKF_Z_Q_VEL           0.000002f
-// [+] Rapid adaptation to weather shifts  | [-] Solid baseline calculation (slow drift tracking)
-#define POS_EKF_Z_Q_BIAS          0.000005f
-// [+] Smooth altitude (low trust in baro) | [-] Razor-sharp hold (twitches in ground effect/wind)
-#define POS_EKF_Z_R_MEAS          5.0f
-// [+] Tolerates sudden wind/pressure spikes| [-] Rejects fast vertical maneuvers (climb/descend lag)
-#define POS_EKF_Z_GATE            3.0f
-// [+] Tolerates longer pressure anomalies  | [-] Aggressively resets filter at minor baro glitches
-#define POS_EKF_Z_PANIC           6
 
 /* =========================================================================
  * Core State Structure Definition

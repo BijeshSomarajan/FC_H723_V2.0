@@ -204,6 +204,7 @@ uint8_t updateUBXData(UBX_CONTEXT *p, uint8_t *buffer, uint16_t len) {
 					gnssData.velE = p->velE * 0.01f;
 					gnssData.velD = p->velD * 0.01f;
                     */
+
 					gnssData.velN = p->velN * 1e-3f ;
 					gnssData.velE = p->velE * 1e-3f ;
 					gnssData.velD = p->velD * 1e-3f ;

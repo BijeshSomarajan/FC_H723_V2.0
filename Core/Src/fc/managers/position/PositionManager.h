@@ -22,44 +22,36 @@
 #define POSITION_MGR_MAX_POS_COMMAND                   30.0f   // Maximum tilt angle command allowed by position loop (Degrees)
 
 // =============================================================================
-// 3. LOW-PASS FILTER CUTOFF FREQUENCIES (Hz)
+// SENSOR DEADBANDS , SATURATION LIMITS & LPFs
 // =============================================================================
-/* Higher: Less control phase lag, sharper response; exposes loop to high-frequency frame vibrations. Lower: Smoother commands, but adds lag that causes overshoot. */
-#define POSITION_MGR_X_VEL_LPF_FREQ                    20.00f
-#define POSITION_MGR_Y_VEL_LPF_FREQ                    20.00f
-#define POSITION_MGR_Z_VEL_LPF_FREQ                    20.00f
-
-/* Higher: Fast EKF response to abrupt acceleration changes; passes more structural motor noise. Lower: Cleans up signal, but introduces phase delay to estimation. */
-#define POSITION_MGR_X_ACC_LPF_FREQ                    30.00f
-#define POSITION_MGR_Y_ACC_LPF_FREQ                    30.00f
-#define POSITION_MGR_Z_ACC_LPF_FREQ                    30.00f
-
-// =============================================================================
-// 4. SENSOR DEADBANDS & SATURATION LIMITS
-// =============================================================================
-/* Higher: Suppresses frame resonance feedback. Lower: Captures raw micro-accelerations; if too low, integrates noise into control loops. */
-#define POSITION_MGR_X_ACC_DEADBAND                    0.0f    // m/s²
-#define POSITION_MGR_Y_ACC_DEADBAND                    0.0f    // m/s²
-#define POSITION_MGR_Z_ACC_DEADBAND                    0.01f   // m/s²
-
-/* Higher: EKF ignores subtle sensor changes, creating lag. Lower: EKF captures micro-movements, but risks integrating sensor bias during steady hover. */
+//CAUTION - Setting it to non zero will make EKF blind.
 #define POSITION_MGR_X_ESTIMATION_ACC_DEADBAND         0.0f    // m/s²
 #define POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND         0.0f    // m/s²
 #define POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND         0.0f    // m/s²
 
-/* Higher: Prevents tiny tracking errors from translating to motor twitches. Lower: Tighter control near zero velocity, but can cause micro-oscillations. */
-#define POSITION_MGR_X_VEL_DEADBAND                    0.0f   // m/s
-#define POSITION_MGR_Y_VEL_DEADBAND                    0.0f   // m/s
-#define POSITION_MGR_Z_VEL_DEADBAND                    0.0f  // m/s
+#define POSITION_MGR_X_ACC_DEADBAND                    0.012f    // m/s²
+#define POSITION_MGR_Y_ACC_DEADBAND                    0.012f    // m/s²
+#define POSITION_MGR_Z_ACC_DEADBAND                    0.020f    // m/s²
 
-/* Safety ceilings. Limits maximum values processed by low pass filters to prevent math blowups from sensor glitches. */
-#define POSITION_MGR_X_VEL_MAX                         5.0f   // m/s
-#define POSITION_MGR_Y_VEL_MAX                         5.0f   // m/s
-#define POSITION_MGR_Z_VEL_MAX                         5.0f   // m/s
+#define POSITION_MGR_X_ACC_MAX                         150.0f  // m/s² (~15G)
+#define POSITION_MGR_Y_ACC_MAX                         150.0f  // m/s²
+#define POSITION_MGR_Z_ACC_MAX                         200.0f  // m/s² (~20G)
 
-#define POSITION_MGR_X_ACC_MAX                         50.0f   // m/s²
-#define POSITION_MGR_Y_ACC_MAX                         50.0f   // m/s²
-#define POSITION_MGR_Z_ACC_MAX                         50.0f   // m/s²
+#define POSITION_MGR_X_ACC_LPF_FREQ                    120.00f
+#define POSITION_MGR_Y_ACC_LPF_FREQ                    120.00f
+#define POSITION_MGR_Z_ACC_LPF_FREQ                    120.00f
+
+#define POSITION_MGR_X_VEL_DEADBAND                    0.008f    // m/s
+#define POSITION_MGR_Y_VEL_DEADBAND                    0.008f    // m/s
+#define POSITION_MGR_Z_VEL_DEADBAND                    0.012f    // m/s
+
+#define POSITION_MGR_X_VEL_MAX                         12.0f   // m/s
+#define POSITION_MGR_Y_VEL_MAX                         12.0f   // m/s
+#define POSITION_MGR_Z_VEL_MAX                         12.0f   // m/s
+
+#define POSITION_MGR_X_VEL_LPF_FREQ                    60.00f
+#define POSITION_MGR_Y_VEL_LPF_FREQ                    60.00f
+#define POSITION_MGR_Z_VEL_LPF_FREQ                    60.00f
 
 // =============================================================================
 // 5. GNSS EKF MEASUREMENT TRUST (Tuned for Standard GNSS - POST-FIX TUNE)
@@ -70,9 +62,9 @@
 // =============================================================================
 // 6. LOITER BRAKING & SETTLING CONFIGURATIONS
 // =============================================================================
-#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD      0.5f
-#define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD    0.5f
-#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH           1.0f
+#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD      0.15f
+#define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD    0.25f
+#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH           0.5f
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY       4.0f
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED   0.15f
 #define POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN       1.0f

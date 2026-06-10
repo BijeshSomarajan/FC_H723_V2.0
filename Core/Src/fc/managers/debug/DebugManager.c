@@ -26,6 +26,7 @@
 #include "../../util/MathUtil.h"
 #include "../../util/CommonUtil.h"
 #include "../motor/MotorManager.h"
+#include "../../logger/Logger.h"
 
 int32_t DEBUG_DATA_BUFFER[16];
 extern LOWPASSFILTER thControlRefLPF;
@@ -171,15 +172,76 @@ extern PID altRatePID;
 extern PID altAccPID;
 extern float clampedAlt;
 extern LOWPASSFILTER altMgrThrottleControlLPF;
+extern float dynamicRPSLTest, venturiBiasTest;
+extern float altControlZDisturbanceEstimate, altFFTest;
+void debugAltitudeOld() {
+	DEBUG_DATA_BUFFER[0] = dynamicRPSLTest * 10;
+	DEBUG_DATA_BUFFER[1] = venturiBiasTest * 1000;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.pitch * 10;
+	DEBUG_DATA_BUFFER[3] = (positionCordinateData.zPositionRawSL - (positionCordinateData.zPosition + venturiBiasTest)) * 1000;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.zAccelerationBias * 1000;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[7] = positionCordinateData.zPositionRawSL * 1000;
+	DEBUG_DATA_BUFFER[8] = fcStatusData.altitudeSLRef * 1000;
+	DEBUG_DATA_BUFFER[9] = altPID.pid * 1000;
+	DEBUG_DATA_BUFFER[10] = altRatePID.pid * 1000;
+	DEBUG_DATA_BUFFER[11] = controlData.altitudeControl;
+	DEBUG_DATA_BUFFER[12] = controlData.tiltCompThDelta * 100;
+	sendConfigData(DEBUG_DATA_BUFFER, 13, CMD_FC_DATA);
+}
 
+extern float xDobTest, yDobTest;
+extern float velFFXTest, velFFYTest;
+extern PID positionXPID, positionYPID, positionXRatePID, positionYRatePID;
+
+char buf[1000];
 void debugAltitude() {
-	DEBUG_DATA_BUFFER[0] = imuData.axEarthLinear * 1000;
-	DEBUG_DATA_BUFFER[1] = imuData.ayEarthLinear * 1000;
-	DEBUG_DATA_BUFFER[2] = imuData.azEarthLinear * 1000;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPosition * 1000;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity * 1000;
-	DEBUG_DATA_BUFFER[5] = positionCordinateData.zPositionRawSL * 1000;
-	sendConfigData(DEBUG_DATA_BUFFER, 10, CMD_FC_DATA);
+	/*
+	 DEBUG_DATA_BUFFER[0] = positionCordinateData.zPosition * 1000;
+	 DEBUG_DATA_BUFFER[1] = fcStatusData.altitudeSLRef * 1000;
+
+	 DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 1000;
+	 DEBUG_DATA_BUFFER[3] = altPID.pid * 1000;           // target Z velocity
+
+	 DEBUG_DATA_BUFFER[4] = positionCordinateData.zAcceleration * 1000;
+	 DEBUG_DATA_BUFFER[5] = altRatePID.pid * 1000;       // target Z acceleration
+
+	 DEBUG_DATA_BUFFER[6] = controlData.altitudeControl;
+	 DEBUG_DATA_BUFFER[7] = controlData.tiltCompThDelta * 100;
+
+	 DEBUG_DATA_BUFFER[8] = dynamicRPSLTest * 10;
+	 DEBUG_DATA_BUFFER[9] = venturiBiasTest * 1000;
+
+	 DEBUG_DATA_BUFFER[10] = altControlZDisturbanceEstimate;
+	 DEBUG_DATA_BUFFER[11] = altControlZDisturbanceEstimate;
+	 */
+
+	sprintf(buf,"%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\n",
+			positionCordinateData.xPositionRaw,
+			positionCordinateData.xPosition,
+			positionCordinateData.yPositionRaw,
+			positionCordinateData.yPosition,
+			gnssData.velN,
+			gnssData.velE,
+			positionCordinateData.xVelocity,
+			positionCordinateData.yVelocity,
+			positionXPID.pid,
+			positionYPID.pid,
+			positionXRatePID.pid,
+			positionYRatePID.pid,
+			positionCordinateData.xAcceleration,
+			positionCordinateData.yAcceleration,
+			velFFXTest,
+			velFFYTest,
+			xDobTest,
+			yDobTest,
+			positionCommandData.pitchCommand,
+			positionCommandData.rollCommand
+	);
+
+	logString(buf);
+	//sendConfigData(DEBUG_DATA_BUFFER, 10, CMD_FC_DATA);
 }
 
 void debugAltitudeDevice() {

@@ -130,7 +130,7 @@ void updateXYVelovity(float sAcc, float velN, float velE,float dt) {
 	float velEDb = applyDeadBandFloat(0.0f, velE, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
 	positionEKFUpdateXYVelocity(&positionEkf, velNDb, velEDb, dynamicRv);
 }
-
+float dynamicRPSLTest,venturiBiasTest;
 __ATTR_ITCM_TEXT
 void updateZPositionSL(float zPos, float dt) {
 	positionCordinateData.positionZSLUpdateDt = dt;
@@ -143,8 +143,10 @@ void updateZPositionSL(float zPos, float dt) {
 #endif
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R  == 1
 	float dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, venturiBias, imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
+	dynamicRPSLTest = dynamicRPSL;
 	positionEKFUpdateRPosition(&positionEkf, POS_EKF_Z_AXIS, dynamicRPSL);
 #endif
+	venturiBiasTest = venturiBias;
 	positionEKFUpdateZPosition(&positionEkf, zPos, venturiBias);
 }
 

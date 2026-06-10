@@ -121,12 +121,14 @@ void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 
 }
 
+float altFFTest;
 __ATTR_ITCM_TEXT
 void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
 	pidUpdateWithGains(&altAccPID, positionCordinateData.zAcceleration, altRatePID.pid, dt, altControlGains.accPGain, 0.0f, altControlGains.accDGain);
 	float output = altAccPID.pid;
 #if ALT_CONTROL_VEL_FEED_FWD_ENABLED == 1
-	output += (altRatePID.p + altRatePID.i) * ALT_CONTROL_VEL_FEED_FWD_GAIN;
+	output += altPID.pid * ALT_CONTROL_VEL_FEED_FWD_GAIN; // Feeding back the velocity requited
+	altFFTest = output;
 #endif
 #if	ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED == 1
 	float expectedAcc = altRatePID.pid;
