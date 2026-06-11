@@ -18,9 +18,6 @@
 #define POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY 75
 #define POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD    (1.0f / POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY)
 
-/* Higher: Allows aggressive tilt angles to fight heavy wind or brake violently. Lower: Safer flight envelope, but drone will drift in stiff breezes. */
-#define POSITION_MGR_MAX_POS_COMMAND                   30.0f   // Maximum tilt angle command allowed by position loop (Degrees)
-
 // =============================================================================
 // SENSOR DEADBANDS , SATURATION LIMITS & LPFs
 // =============================================================================

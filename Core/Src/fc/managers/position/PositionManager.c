@@ -219,6 +219,14 @@ void handleRTHNavigation(float dt) {
 }
 
 __ATTR_ITCM_TEXT
+void updateEffectivePosControls(float heading) {
+	float actualExecutedEarthX, actualExecutedEarthY;
+	convertBodyToEarthCordinates(positionCommandData.pitchCommand, positionCommandData.rollCommand, heading, &actualExecutedEarthX, &actualExecutedEarthY);
+	controlData.previousEffectiveXControl = actualExecutedEarthX;
+	controlData.previousEffectiveYControl = actualExecutedEarthY;
+}
+
+__ATTR_ITCM_TEXT
 void updatePositionRateCommand(float dt) {
 	if ((fcStatusData.isRTHModeActive || fcStatusData.isPositionHoldModeActive) && fcStatusData.isPositionDataReliable) {
 		if (fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
@@ -230,25 +238,11 @@ void updatePositionRateCommand(float dt) {
 
 			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f);
 			float pitchCommand, rollCommand;
-			float positionXControl = controlData.positionXControl;
-			float positionYControl = controlData.positionYControl;
 
-			convertEarthToBodyCordinates(positionXControl, positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
+			convertEarthToBodyCordinates(controlData.positionXControl,controlData.positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
 
-			float scaledPitchCommand = pitchCommand;
-			float scaledRollCommand = rollCommand;
-
-			float magnitudeSq = (scaledPitchCommand * scaledPitchCommand) + (scaledRollCommand * scaledRollCommand);
-			float maxLimit = POSITION_MGR_MAX_POS_COMMAND;
-			if (magnitudeSq > (maxLimit * maxLimit)) {
-				float magnitude = fastSqrtf(magnitudeSq);
-				float scale = maxLimit / magnitude;
-				scaledPitchCommand *= scale;
-				scaledRollCommand *= scale;
-			}
-
-			positionCommandData.pitchCommand = constrainToRangeF(scaledPitchCommand, -maxLimit, maxLimit);
-			positionCommandData.rollCommand = constrainToRangeF(scaledRollCommand, -maxLimit, maxLimit);
+			positionCommandData.pitchCommand = pitchCommand;
+			positionCommandData.rollCommand = rollCommand;
 
 		} else {
 			positionMgrPosHoldRatePIDGain = 1.0f;
@@ -327,7 +321,6 @@ void updatePositionCordinateCommand(float dt) {
 		break;
 	}
 }
-
 
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
