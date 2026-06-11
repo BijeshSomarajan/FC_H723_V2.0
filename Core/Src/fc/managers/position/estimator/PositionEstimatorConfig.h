@@ -27,11 +27,11 @@
  * Tuning Parameters: Vertical Axis (Z) - Barometer & IMU Fusion
  * ========================================================================= */
 // [+] Snappier altitude tracking response    | [-] Smooth but noticeably delayed altitude estimation
-#define POS_EKF_Z_Q_POS           0.0001f
+#define POS_EKF_Z_Q_POS           0.001f
 // [+] Quicker vertical velocity updates     | [-] Heavy vertical lag (causes massive punch overshoots)
-#define POS_EKF_Z_Q_VEL           0.0003f
+#define POS_EKF_Z_Q_VEL           0.002f
 // [+] Rapid adaptation to weather/baro shift| [-] Solid baseline calculation (slow drift tracking)
-#define POS_EKF_Z_Q_BIAS          0.0000001f  //0.001
+#define POS_EKF_Z_Q_BIAS          0.00001f
 // [+] Smooth altitude (low trust in baro)   | [-] Razor-sharp hold (twitches in ground effect/wind)
 #define POS_EKF_Z_R_MEAS          40.0f
 // [+] Tolerates sudden wind/pressure spikes  | [-] Rejects fast vertical maneuvers (climb/descend lag)

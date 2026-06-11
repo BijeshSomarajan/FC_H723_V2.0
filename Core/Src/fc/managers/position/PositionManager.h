@@ -25,33 +25,33 @@
 // SENSOR DEADBANDS , SATURATION LIMITS & LPFs
 // =============================================================================
 //CAUTION - Setting it to non zero will make EKF blind.
-#define POSITION_MGR_X_ESTIMATION_ACC_DEADBAND         0.0f    // m/s²
-#define POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND         0.0f    // m/s²
-#define POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND         0.0f    // m/s²
+#define POSITION_MGR_X_EST_INPUT_ACC_DEADBAND         0.0f    // m/s²
+#define POSITION_MGR_Y_EST_INPUT_ACC_DEADBAND         0.0f    // m/s²
+#define POSITION_MGR_Z_EST_INPUT_ACC_DEADBAND         0.0f    // m/s²
 
-#define POSITION_MGR_X_ACC_DEADBAND                    0.012f    // m/s²
-#define POSITION_MGR_Y_ACC_DEADBAND                    0.012f    // m/s²
-#define POSITION_MGR_Z_ACC_DEADBAND                    0.020f    // m/s²
+#define POSITION_MGR_X_EST_OUTPUT_ACC_DEADBAND        0.012f    // m/s²
+#define POSITION_MGR_Y_EST_OUTPUT_ACC_DEADBAND        0.012f    // m/s²
+#define POSITION_MGR_Z_EST_OUTPUT_ACC_DEADBAND        0.020f    // m/s²
 
-#define POSITION_MGR_X_ACC_MAX                         150.0f  // m/s² (~15G)
-#define POSITION_MGR_Y_ACC_MAX                         150.0f  // m/s²
-#define POSITION_MGR_Z_ACC_MAX                         200.0f  // m/s² (~20G)
+#define POSITION_MGR_X_EST_OUTPUT_VEL_DEADBAND        0.008f    // m/s
+#define POSITION_MGR_Y_EST_OUTPUT_VEL_DEADBAND        0.008f    // m/s
+#define POSITION_MGR_Z_EST_OUTPUT_VEL_DEADBAND        0.012f    // m/s
 
-#define POSITION_MGR_X_ACC_LPF_FREQ                    120.00f
-#define POSITION_MGR_Y_ACC_LPF_FREQ                    120.00f
-#define POSITION_MGR_Z_ACC_LPF_FREQ                    120.00f
+#define POSITION_MGR_X_EST_OUTPUT_ACC_LPF_FREQ        30.00f
+#define POSITION_MGR_Y_EST_OUTPUT_ACC_LPF_FREQ        30.00f
+#define POSITION_MGR_Z_EST_OUTPUT_ACC_LPF_FREQ        30.00f
 
-#define POSITION_MGR_X_VEL_DEADBAND                    0.008f    // m/s
-#define POSITION_MGR_Y_VEL_DEADBAND                    0.008f    // m/s
-#define POSITION_MGR_Z_VEL_DEADBAND                    0.012f    // m/s
+#define POSITION_MGR_X_EST_OUTPUT_VEL_LPF_FREQ        60.00f
+#define POSITION_MGR_Y_EST_OUTPUT_VEL_LPF_FREQ        60.00f
+#define POSITION_MGR_Z_EST_OUTPUT_VEL_LPF_FREQ        60.00f
 
-#define POSITION_MGR_X_VEL_MAX                         12.0f   // m/s
-#define POSITION_MGR_Y_VEL_MAX                         12.0f   // m/s
-#define POSITION_MGR_Z_VEL_MAX                         12.0f   // m/s
+#define POSITION_MGR_X_EST_OUTPUT_VEL_MAX             16.0f   // m/s
+#define POSITION_MGR_Y_EST_OUTPUT_VEL_MAX             16.0f   // m/s
+#define POSITION_MGR_Z_EST_OUTPUT_VEL_MAX             16.0f   // m/s
 
-#define POSITION_MGR_X_VEL_LPF_FREQ                    60.00f
-#define POSITION_MGR_Y_VEL_LPF_FREQ                    60.00f
-#define POSITION_MGR_Z_VEL_LPF_FREQ                    60.00f
+#define POSITION_MGR_X_EST_OUTPUT_ACC_MAX             150.0f  // m/s² (~15G)
+#define POSITION_MGR_Y_EST_OUTPUT_ACC_MAX             150.0f  // m/s²
+#define POSITION_MGR_Z_EST_OUTPUT_ACC_MAX             200.0f  // m/s² (~20G)
 
 // =============================================================================
 // 5. GNSS EKF MEASUREMENT TRUST (Tuned for Standard GNSS - POST-FIX TUNE)

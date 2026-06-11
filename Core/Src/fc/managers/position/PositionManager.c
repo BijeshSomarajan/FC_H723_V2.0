@@ -57,13 +57,13 @@ uint8_t initPositionManager(void) {
 	if (status) {
 		logString("[Position Manager] EKF Init > Success\n");
 
-		lowPassFilterInit(&positionMgrAccXLPF, POSITION_MGR_X_ACC_LPF_FREQ);
-		lowPassFilterInit(&positionMgrAccYLPF, POSITION_MGR_Y_ACC_LPF_FREQ);
-		lowPassFilterInit(&positionMgrAccZLPF, POSITION_MGR_Z_ACC_LPF_FREQ);
+		lowPassFilterInit(&positionMgrAccXLPF, POSITION_MGR_X_EST_OUTPUT_ACC_LPF_FREQ);
+		lowPassFilterInit(&positionMgrAccYLPF, POSITION_MGR_Y_EST_OUTPUT_ACC_LPF_FREQ);
+		lowPassFilterInit(&positionMgrAccZLPF, POSITION_MGR_Z_EST_OUTPUT_ACC_LPF_FREQ);
 
-		lowPassFilterInit(&positionMgrVelXLPF, POSITION_MGR_X_VEL_LPF_FREQ);
-		lowPassFilterInit(&positionMgrVelYLPF, POSITION_MGR_Y_VEL_LPF_FREQ);
-		lowPassFilterInit(&positionMgrVelZLPF, POSITION_MGR_Z_VEL_LPF_FREQ);
+		lowPassFilterInit(&positionMgrVelXLPF, POSITION_MGR_X_EST_OUTPUT_VEL_LPF_FREQ);
+		lowPassFilterInit(&positionMgrVelYLPF, POSITION_MGR_Y_EST_OUTPUT_VEL_LPF_FREQ);
+		lowPassFilterInit(&positionMgrVelZLPF, POSITION_MGR_Z_EST_OUTPUT_VEL_LPF_FREQ);
 
 		schedulerAddTask(managePositionTask, POSITION_MANAGEMENT_TASK_FREQUENCY, POSITION_MANAGEMENT_TASK_PRIORITY);
 		logString("[Position Manager] All tasks   > Started\n");
@@ -80,18 +80,18 @@ __ATTR_ITCM_TEXT
 void updatePositionVelocity(float vx, float vy, float vz, float dt) {
 	float vel;
 	// X Axis
-	vel = applyDeadBandFloat(0.0f, vx, POSITION_MGR_X_VEL_DEADBAND);
-	vel = constrainToRangeF(vel, -POSITION_MGR_X_VEL_MAX, POSITION_MGR_X_VEL_MAX);
+	vel = applyDeadBandFloat(0.0f, vx, POSITION_MGR_X_EST_OUTPUT_VEL_DEADBAND);
+	vel = constrainToRangeF(vel, -POSITION_MGR_X_EST_OUTPUT_VEL_MAX, POSITION_MGR_X_EST_OUTPUT_VEL_MAX);
 	positionCordinateData.xVelocity = lowPassFilterUpdate(&positionMgrVelXLPF, vel, dt);
 
 	// Y Axis
-	vel = applyDeadBandFloat(0.0f, vy, POSITION_MGR_Y_VEL_DEADBAND);
-	vel = constrainToRangeF(vel, -POSITION_MGR_Y_VEL_MAX, POSITION_MGR_Y_VEL_MAX);
+	vel = applyDeadBandFloat(0.0f, vy, POSITION_MGR_Y_EST_OUTPUT_VEL_DEADBAND);
+	vel = constrainToRangeF(vel, -POSITION_MGR_Y_EST_OUTPUT_VEL_MAX, POSITION_MGR_Y_EST_OUTPUT_VEL_MAX);
 	positionCordinateData.yVelocity = lowPassFilterUpdate(&positionMgrVelYLPF, vel, dt);
 
 	// Z Axis
-	vel = applyDeadBandFloat(0.0f, vz, POSITION_MGR_Z_VEL_DEADBAND);
-	vel = constrainToRangeF(vel, -POSITION_MGR_Z_VEL_MAX, POSITION_MGR_Z_VEL_MAX);
+	vel = applyDeadBandFloat(0.0f, vz, POSITION_MGR_Z_EST_OUTPUT_VEL_DEADBAND);
+	vel = constrainToRangeF(vel, -POSITION_MGR_Z_EST_OUTPUT_VEL_MAX, POSITION_MGR_Z_EST_OUTPUT_VEL_MAX);
 	positionCordinateData.zVelocity = lowPassFilterUpdate(&positionMgrVelZLPF, vel, dt);
 }
 
@@ -99,18 +99,18 @@ __ATTR_ITCM_TEXT
 void updatePositionAcceleration(float ax, float ay, float az, float dt) {
 	float acc;
 	// X Axis
-	acc = applyDeadBandFloat(0.0f, ax, POSITION_MGR_X_ACC_DEADBAND);
-	acc = constrainToRangeF(acc, -POSITION_MGR_X_ACC_MAX, POSITION_MGR_X_ACC_MAX);
+	acc = applyDeadBandFloat(0.0f, ax, POSITION_MGR_X_EST_OUTPUT_ACC_DEADBAND);
+	acc = constrainToRangeF(acc, -POSITION_MGR_X_EST_OUTPUT_ACC_MAX, POSITION_MGR_X_EST_OUTPUT_ACC_MAX);
 	positionCordinateData.xAcceleration = lowPassFilterUpdate(&positionMgrAccXLPF, acc, dt);
 
 	// Y Axis
-	acc = applyDeadBandFloat(0.0f, ay, POSITION_MGR_Y_ACC_DEADBAND);
-	acc = constrainToRangeF(acc, -POSITION_MGR_Y_ACC_MAX, POSITION_MGR_Y_ACC_MAX);
+	acc = applyDeadBandFloat(0.0f, ay, POSITION_MGR_Y_EST_OUTPUT_ACC_DEADBAND);
+	acc = constrainToRangeF(acc, -POSITION_MGR_Y_EST_OUTPUT_ACC_MAX, POSITION_MGR_Y_EST_OUTPUT_ACC_MAX);
 	positionCordinateData.yAcceleration = lowPassFilterUpdate(&positionMgrAccYLPF, acc, dt);
 
 	// Z Axis
-	acc = applyDeadBandFloat(0.0f, az, POSITION_MGR_Z_ACC_DEADBAND);
-	acc = constrainToRangeF(acc, -POSITION_MGR_Z_ACC_MAX, POSITION_MGR_Z_ACC_MAX);
+	acc = applyDeadBandFloat(0.0f, az, POSITION_MGR_Z_EST_OUTPUT_ACC_DEADBAND);
+	acc = constrainToRangeF(acc, -POSITION_MGR_Z_EST_OUTPUT_ACC_MAX, POSITION_MGR_Z_EST_OUTPUT_ACC_MAX);
 	positionCordinateData.zAcceleration = lowPassFilterUpdate(&positionMgrAccZLPF, acc, dt);
 }
 
@@ -334,9 +334,9 @@ void managePositionTask(void) {
 	float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
 	dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
 
-	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_ESTIMATION_ACC_DEADBAND);
-	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_ESTIMATION_ACC_DEADBAND);
-	float azEarth = applyDeadBandFloat(0, imuData.azEarthLinear, POSITION_MGR_Z_ESTIMATION_ACC_DEADBAND);
+	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_EST_INPUT_ACC_DEADBAND);
+	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_EST_INPUT_ACC_DEADBAND);
+	float azEarth = applyDeadBandFloat(0, imuData.azEarthLinear, POSITION_MGR_Z_EST_INPUT_ACC_DEADBAND);
 
 	// 1. Prediction (Using raw or slightly scaled earth-frame acc)
 	positionEKFPredict(&positionEkf, axEarth, ayEarth, azEarth, dt);
