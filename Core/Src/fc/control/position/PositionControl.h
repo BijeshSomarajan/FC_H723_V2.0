@@ -3,14 +3,14 @@
 
 #include <sys/_stdint.h>
 
-#define POSITION_CONTROL_D_RATE_LPF_FREQ 15.0f
+#define POSITION_CONTROL_D_RATE_LPF_FREQ 32.0f
 #define POSITION_CONTROL_RATE_PID_I_LIMIT_RATIO 1.0f
 #define POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO 1.0f
 #define POSITION_CONTROL_RATE_PID_I_AW_GAIN 0.4f // The antiwindup gain
 
 /*------ FF Configurations -----*/
 #define POSITION_CONTROL_VEL_FF_ENABLED 1
-#define POSITION_CONTROL_VEL_FF_GAIN  0.125f
+#define POSITION_CONTROL_VEL_FF_GAIN  0.25f // 0.0125f
 /*------ Disturbance Estimations -----*/
 #define POSITION_CONTROL_DOB_ENABLED     1
 #define POSITION_CONTROL_DOB_ACC_TAU     0.04f//

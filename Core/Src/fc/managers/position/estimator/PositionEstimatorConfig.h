@@ -8,8 +8,8 @@
 #define POS_EKF_X_Q_POS           0.01f
 #define POS_EKF_Y_Q_POS           0.01f
 // [+] Zero-latency velocity response         | [-] Smoothes velocity state (adds phase lag)
-#define POS_EKF_X_Q_VEL           0.4f/100.0f
-#define POS_EKF_Y_Q_VEL           0.4f/100.0f
+#define POS_EKF_X_Q_VEL           0.1f/100.0f
+#define POS_EKF_Y_Q_VEL           0.1f/100.0f
 // [+] Fast adaptation to IMU thermal bias    | [-] Locks bias firmly down (slow drift tracking)
 #define POS_EKF_X_Q_BIAS          0.001f  //0.001
 #define POS_EKF_Y_Q_BIAS          0.001f  //0.001

@@ -203,12 +203,11 @@ void updateAltitudeReferences() {
 	fcStatusData.altitudeSLHome = fcStatusData.altitudeSLRef;
 	fcStatusData.altitudeSLMax = fcStatusData.altitudeSLHome + altMgrMaxHeight;
 }
-float clampedAlt = 0;
+
 __ATTR_ITCM_TEXT
 float getClampedCurrentAltitude() {
 	float altitudeDelta = positionCordinateData.zPosition - fcStatusData.altitudeSLRef;
 	altitudeDelta = constrainToRangeF(altitudeDelta, -ALT_MGR_MAX_ALT_DELTA, ALT_MGR_MAX_ALT_DELTA);
-	clampedAlt = fcStatusData.altitudeSLRef + altitudeDelta;
 	return fcStatusData.altitudeSLRef + altitudeDelta;
 }
 
