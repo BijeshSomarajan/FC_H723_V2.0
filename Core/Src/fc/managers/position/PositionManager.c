@@ -42,6 +42,7 @@ float positionMgrRTHCompleteDt = 0;
 uint16_t positionMgrHomeRefSampleCount = 0;
 double positionMgrHomeRefLatSum = 0.0;
 double positionMgrHomeRefLongSum = 0.0;
+double positionMgrHomeRefhMSLSum = 0.0;
 
 void managePositionTask(void);
 
@@ -131,9 +132,9 @@ void resetPositionCommands() {
 	positionMgrRTHVyCommand = 0;
 	fcStatusData.isRTHComplete = 0;
 	positionMgrRTHCompleteDt = 0;
+	positionMgrPosHoldElapseDtSum = 0.0f;
 	resetPositionControl(1);
 }
-
 
 __ATTR_ITCM_TEXT
 void updatePositionRateCommand(float dt) {
@@ -271,13 +272,12 @@ void handleRTHNavigation(float dt) {
 __ATTR_ITCM_TEXT
 void updatePositionCordinateCommand(float dt) {
 	if (!rcData.pitchCentered || !rcData.rollCentered) {
-		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		resetPositionCommands();
+		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		return;
 	}
 	switch (fcStatusData.postionHoldState) {
 	case POS_HOLD_STATE_IDLE:
-		positionMgrPosHoldElapseDtSum = 0.0f;
 		resetPositionCommands();
 		if (fcStatusData.isPositionHoldModeActive || fcStatusData.isRTHModeActive) {
 			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
@@ -290,14 +290,13 @@ void updatePositionCordinateCommand(float dt) {
 		positionMgrPosHoldElapseDtSum += dt;
 		setExpectedPositionVelocity(dt, 0.0f, 0.0f);
 		if (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD) {
-			positionMgrPosHoldElapseDtSum = 0.0f;
 			updatePositionReference();
 			resetPositionControl(1);
+			positionMgrPosHoldElapseDtSum = 0.0f;
 			fcStatusData.postionHoldState = POS_HOLD_STATE_LOCKED;
 		}
 		break;
 	case POS_HOLD_STATE_LOCKED:
-		positionMgrPosHoldElapseDtSum = 0;
 		if (fcStatusData.isRTHModeActive) {
 			handleRTHNavigation(dt);
 		} else {
@@ -373,10 +372,12 @@ void doPositionManagement() {
 				}
 				positionMgrHomeRefLatSum += gnssData.latitude;
 				positionMgrHomeRefLongSum += gnssData.longitude;
+				positionMgrHomeRefhMSLSum += gnssData.heightMSL;
 				positionMgrHomeRefSampleCount++;
 				if (positionMgrHomeRefSampleCount >= POSITION_MGR_HOME_POS_STAB_COUNT) {
 					fcStatusData.positionLatHome = positionMgrHomeRefLatSum / POSITION_MGR_HOME_POS_STAB_COUNT;
 					fcStatusData.positionLongHome = positionMgrHomeRefLongSum / POSITION_MGR_HOME_POS_STAB_COUNT;
+					fcStatusData.positionZHome = positionMgrHomeRefhMSLSum / POSITION_MGR_HOME_POS_STAB_COUNT;
 					fcStatusData.isPositionHomeSet = 1;
 					wasHomeJustSet = 1;
 					positionMgrHomeRefSampleCount = 0;
@@ -392,8 +393,10 @@ void doPositionManagement() {
 					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
 				}
 				// Update Velocity and Position
-				updateXYVelovity(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
+				updateXYVelocity(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
+				updateZVelocity(gnssData.sAcc, -gnssData.velD, dt); //GNSS is +ve down ( NED )
 				updateXYPosition(gnssData.hAcc, positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
+				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, dt);
 			}
 
 		}
@@ -422,6 +425,7 @@ void resetPositionManager(void) {
 	fcStatusData.isPositionHomeSet = 0;
 	positionMgrHomeRefSampleCount = 0;
 	positionMgrPosHoldElapseDtSum = 0;
+	positionMgrHomeRefhMSLSum = 0;
 	positionMgrPosHoldRatePIDGain = 1.0f;
 	fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 	positionMgrRTHVxCommand = 0;

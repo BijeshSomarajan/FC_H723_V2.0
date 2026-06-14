@@ -22,7 +22,8 @@ struct _FC_STATUS_DATA {
 	double positionXRef, positionYRef;
 	//The home position
 	double positionLatHome, positionLongHome;
-	double positionXHome, positionYHome;
+	float positionXHome, positionYHome;
+	float positionZHome;
 
 	double positionLatHomeEffective, positionLongHomeEffective;
 	double positionXHomeEffective, positionYHomeEffective;

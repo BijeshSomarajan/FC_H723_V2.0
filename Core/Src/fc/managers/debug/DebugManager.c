@@ -39,15 +39,22 @@ uint8_t initDebugManager(void) {
 	return 1;
 }
 
+char buf[256];
+extern float testGNSSRV, testGNSSRP;
 void debug() {
-	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.gxDS * 10;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDSFiltered * 10;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.gyDS * 10;
-	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gyDSFiltered * 10;
-	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.gzDS * 10;
-	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.gzDSFiltered * 10;
-	DEBUG_DATA_BUFFER[6] = sensorAttitudeData.heading * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+	sprintf(buf, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n",
+			positionCordinateData.zVelocity,
+			-gnssData.velD,
+			positionCordinateData.zPosition,
+			positionCordinateData.zPositionRawSL,
+			(gnssData.heightMSL - fcStatusData.positionZHome),
+			gnssData.hAcc,
+			gnssData.vAcc,
+			gnssData.sAcc,
+			testGNSSRV,
+			testGNSSRP,
+			fcStatusData.isPositionDataReliable);
+	logString(buf);
 }
 
 void debugTask() {

@@ -12,7 +12,7 @@ float posManagerGNSSStableTime = 0;
 __ATTR_ITCM_TEXT
 void updatePositionDataReliability(float dt) {
 	// 1. Basic threshold check (Must be a 3D fix or higher)
-	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.sAcc <= POSITION_GNSS_MIN_SACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
+	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.vAcc <= POSITION_GNSS_MIN_VACC) && (gnssData.sAcc <= POSITION_GNSS_MIN_SACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
 	if (valid) {
 		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
 		posManagerGNSSStableTime += dt;
@@ -69,7 +69,6 @@ void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, flo
 	*xBody = (xEarth * headingCosValue) + (yEarth * headingSinValue);
 	*yBody = (-xEarth * headingSinValue) + (yEarth * headingCosValue);
 }
-
 
 __ATTR_ITCM_TEXT
 void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth) {

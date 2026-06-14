@@ -7,6 +7,7 @@
 // GNSS Quality Gates (Tightened for safe autonomous flight)
 #define POSITION_GNSS_MIN_NSAT                  8       // Modern multi-GNSS easily gets 12+ sats out in the open
 #define POSITION_GNSS_MIN_HACC                  2.5f    // Meters (Ceiling for acceptable horizontal position scatter)
+#define POSITION_GNSS_MIN_VACC                  3.0f    // Meters (Ceiling for acceptable vertical position scatter)
 #define POSITION_GNSS_MIN_SACC                  0.7f    // Meter/Sec (Ceiling for speed estimation chatter)
 #define POSITION_GNSS_MIN_FIX                   2       // MANDATORY: 3 = 3D Fix
 // Hysteresis Configuration
