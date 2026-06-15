@@ -102,12 +102,9 @@ void processRCData(float dt) {
 	// Apply RC stick rates
 	applyRCStickEffectiveness();
 	// Set the FC status
-	fcStatusData.enableAltitudeHold = canEnableAltHold();
-	// Note order is important
-	fcStatusData.isRTHModeActive = isRTHModeActive();
-	fcStatusData.isPositionHoldModeActive = isGlobalPosHoldModeActive();
-	fcStatusData.enablePositionHold = canEnableGlobalPosHold();
-	fcStatusData.enableRTH = canEnableRTH();
+	fcStatusData.isNavigationRTHModeActive = isNavigationRTHModeActive();
+	fcStatusData.isNavigationModeActive = isNavigationModeActive();
+
 	fcStatusData.isTerrainAltModeActive = isTerrainAltModeActive();
 	fcStatusData.isLandingModeActive = canEnableLandingMode();
 	fcStatusData.isHeadLessModeActive = isHeadLessModeActive();
@@ -281,42 +278,18 @@ uint8_t isHeadLessModeActive() {
 uint8_t isTerrainAltModeActive() {
 	return (rcData.RC_DELTA_DATA[RC_HOME_POS_SET_CHANNEL_INDEX] > ALT_MODE_MODE_ACT_TSH);
 }
-/**
- * Checks if Altitude hold can be enabled
- **/
-uint8_t canEnableAltHold() {
-	// If throttle stick is stable
-	if (rcData.throttleCentered) {
-		return 1;
-	} else {
-		return 0;
-	}
-}
 
 /**
  * Checks if Position Hold mode is active
  */
-uint8_t isGlobalPosHoldModeActive() {
+uint8_t isNavigationModeActive() {
 	return (rcData.RC_DELTA_DATA[RC_POS_CHANNEL_INDEX] > POS_HOLD_MODE_ACT_TSH);
-}
-
-/**
- * Checks if Position hold can be enabled
- */
-uint8_t canEnableGlobalPosHold() {
-	//&& rcData.throttleStable
-	// if (fcStatusData.isGlobalPosHoldModeActive && rcData.pitchCentered && rcData.rollCentered && rcData.yawCentered) {
-	if (fcStatusData.isPositionHoldModeActive && rcData.pitchCentered && rcData.rollCentered) {
-		return 1;
-	} else {
-		return 0;
-	}
 }
 
 /**
  * Checks if RTH Mode is active
  */
-uint8_t isRTHModeActive() {
+uint8_t isNavigationRTHModeActive() {
 	return (rcData.RC_DELTA_DATA[RC_POS_CHANNEL_INDEX] > RTH_HOLD_MODE_ACT_TSH);
 }
 
@@ -329,18 +302,6 @@ uint8_t canEnableLandingMode() {
 
 uint8_t canReSetHomePosition() {
 	return (rcData.RC_DELTA_DATA[RC_HOME_POS_SET_CHANNEL_INDEX] > HOME_RESET_ACT_TSH);
-}
-
-/**
- * Checks if return to home can be enabled
- */
-uint8_t canEnableRTH() {
-	//&& rcData.throttleStable
-	if (fcStatusData.isRTHModeActive && rcData.pitchCentered && rcData.rollCentered && rcData.yawCentered) {
-		return 1;
-	} else {
-		return 0;
-	}
 }
 
 /**

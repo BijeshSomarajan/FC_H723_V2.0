@@ -6,10 +6,10 @@
 #define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          1
 
 void updateXYPosition(float hAcc, float xPos, float yPos, float dt);
-void updateZPositionSL(float zPos, float dt);
-void updateZPositionGNSS(float vAcc, float hMSL, float dt);
+void updateZPositionSL(float zPos, uint8_t gnssAvailable, float dt);
+void updateZPositionGNSS(float vAcc, float hMSL, uint8_t navigationModeActive, float dt);
 
 void updateXYVelocity(float sAcc, float velN, float velE,float dt);
-void updateZVelocity(float sAcc, float velD,float dt);
+void updateZVelocity(float sAcc, float velD,uint8_t navigationModeActive,float dt);
 
 #endif /* SRC_FC_MANAGERS_POSITION_ESTIMATOR_POSITIONESTIMATORHELPER_H_ */

@@ -16,7 +16,7 @@
 // Clear thresholds matching real-world time requirements
 #define POSITION_GNSS_TRUST_THRESHOLD           1.0f    // Cross this boundary to change states
 
-void updatePositionDataReliability(float dt);
+void updateNavidationDataReliability(float dt);
 void convertGNSSToSICordinates( double latDeg, double longDeg, double latRef, double longRef, float *xCordinate, float *yCordinate);
 
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody);

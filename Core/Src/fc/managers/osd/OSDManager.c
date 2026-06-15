@@ -19,7 +19,7 @@ void osdUpdateTask() {
 	if (fcStatusData.isOSDEnabled && !fcStatusData.isConfigMode && !fcStatusData.isDebugEnabled) {
 
 		OSD_DATA_BUFFER[0] = fcStatusData.canStart | fcStatusData.canStabilize << 8 | fcStatusData.canFly << 16 | fcStatusData.hasCrashed << 24;
-		OSD_DATA_BUFFER[1] = fcStatusData.isTxOn   | fcStatusData.isPositionDataReliable << 8 | fcStatusData.isPositionHoldModeActive << 16 | fcStatusData.isRTHModeActive << 24;
+		OSD_DATA_BUFFER[1] = fcStatusData.isTxOn   | fcStatusData.isNavigationDataReliable << 8 | fcStatusData.isNavigationModeActive << 16 | fcStatusData.isNavigationRTHModeActive << 24;
 		OSD_DATA_BUFFER[2] = fcStatusData.throttleControlPercent * 100;
 
 		OSD_DATA_BUFFER[3] = sensorAttitudeData.pitch   * 10;

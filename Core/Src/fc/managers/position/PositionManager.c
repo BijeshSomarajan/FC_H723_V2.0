@@ -31,6 +31,10 @@ uint8_t positionManagerWasInStabMode;
 POSITION_CORDINATE_DATA positionCordinateData;
 POSITION_COMMAND_DATA positionCommandData;
 
+uint8_t postionEKFXIndex = POS_EKF_X_AXIS * POS_EKF_AXIS_DIM;
+uint8_t postionEKFYIndex = POS_EKF_Y_AXIS * POS_EKF_AXIS_DIM;
+uint8_t postionEKFZIndex = POS_EKF_Z_AXIS * POS_EKF_AXIS_DIM;
+
 float postionMgrRateDtSum, postionMgrPositionDtSum;
 float positionMgrPosHoldElapseDtSum;
 float positionMgrPosHoldRatePIDGain;
@@ -117,7 +121,7 @@ void updatePositionAcceleration(float ax, float ay, float az, float dt) {
 
 __ATTR_ITCM_TEXT
 void updatePositionReference() {
-	if (fcStatusData.canFly && fcStatusData.isPositionDataReliable && fcStatusData.isPositionHomeSet) {
+	if (fcStatusData.canFly && fcStatusData.isNavigationDataReliable && fcStatusData.isPositionHomeSet) {
 		fcStatusData.positionXRef = positionCordinateData.xPosition;
 		fcStatusData.positionYRef = positionCordinateData.yPosition;
 	}
@@ -138,7 +142,7 @@ void resetPositionCommands() {
 
 __ATTR_ITCM_TEXT
 void updatePositionRateCommand(float dt) {
-	if ((fcStatusData.isRTHModeActive || fcStatusData.isPositionHoldModeActive) && fcStatusData.isPositionDataReliable) {
+	if ((fcStatusData.isNavigationRTHModeActive || fcStatusData.isNavigationModeActive) && fcStatusData.isNavigationDataReliable) {
 		if (fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
 			if (fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING) {
 				positionMgrPosHoldRatePIDGain = POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
@@ -279,7 +283,7 @@ void updatePositionCordinateCommand(float dt) {
 	switch (fcStatusData.postionHoldState) {
 	case POS_HOLD_STATE_IDLE:
 		resetPositionCommands();
-		if (fcStatusData.isPositionHoldModeActive || fcStatusData.isRTHModeActive) {
+		if (fcStatusData.isNavigationModeActive || fcStatusData.isNavigationRTHModeActive) {
 			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
 		}
 		break;
@@ -297,7 +301,7 @@ void updatePositionCordinateCommand(float dt) {
 		}
 		break;
 	case POS_HOLD_STATE_LOCKED:
-		if (fcStatusData.isRTHModeActive) {
+		if (fcStatusData.isNavigationRTHModeActive) {
 			handleRTHNavigation(dt);
 		} else {
 			controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
@@ -319,20 +323,19 @@ void managePositionTask(void) {
 	positionEKFPredict(&positionEkf, axEarth, ayEarth, azEarth, dt);
 
 	float *x = positionEkf.x;
-	positionCordinateData.xPosition = x[0]; // X Pos
-	positionCordinateData.xAccelerationBias = x[2]; // X Bias
+	positionCordinateData.xPosition = x[postionEKFXIndex + POS_EKF_STATE_P];
+	positionCordinateData.xAccelerationBias = x[postionEKFXIndex + POS_EKF_STATE_B];
 
-	positionCordinateData.yPosition = x[3]; // Y Pos
-	positionCordinateData.yAccelerationBias = x[5]; // Y Bias
+	positionCordinateData.yPosition = x[postionEKFYIndex + POS_EKF_STATE_P];
+	positionCordinateData.yAccelerationBias = x[postionEKFYIndex + POS_EKF_STATE_B];
 
-	positionCordinateData.zPosition = x[6]; // Z Pos
-	positionCordinateData.zAccelerationBias = x[8]; // Z Bias
-
+	positionCordinateData.zPosition = x[postionEKFZIndex + POS_EKF_STATE_P];
+	positionCordinateData.zAccelerationBias = x[postionEKFZIndex + POS_EKF_STATE_B];
 	// 2. Filtered Acceleration
 	updatePositionAcceleration(axEarth - positionCordinateData.xAccelerationBias, ayEarth - positionCordinateData.yAccelerationBias, azEarth - positionCordinateData.zAccelerationBias, dt);
 
 	// 3. Filtered Velocity
-	updatePositionVelocity(x[1], x[4], x[7], dt);
+	updatePositionVelocity(x[postionEKFXIndex + POS_EKF_STATE_V], x[postionEKFYIndex + POS_EKF_STATE_V], x[postionEKFZIndex + POS_EKF_STATE_V], dt);
 
 	postionMgrRateDtSum += dt;
 	while (postionMgrRateDtSum >= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD) {
@@ -354,16 +357,15 @@ void doPositionManagement() {
 		resetPositionManager();
 	} else if (fcStatusData.canStabilize && !positionManagerWasInStabMode) {
 		positionManagerWasInStabMode = 1;
-		positionEKFSetMode(&positionEkf, 1);
 	} else if (positionManagerWasInStabMode && fcStatusData.isStabilized) {
 		positionManagerWasInStabMode = 0;
-		positionEKFSetMode(&positionEkf, 0);
 	}
+
 	if (readGNSSData()) {
 		float dt = getDeltaTime(POSITION_MANAGER_GPS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
-		updatePositionDataReliability(dt);
-		if (fcStatusData.isPositionDataReliable && fcStatusData.canFly) {
+		updateNavidationDataReliability(dt);
+		if (fcStatusData.isNavigationDataReliable && fcStatusData.canFly) {
 			uint8_t wasHomeJustSet = 0;
 			if (!fcStatusData.isPositionHomeSet) {
 				if (positionMgrHomeRefSampleCount == 0) {
@@ -387,16 +389,16 @@ void doPositionManagement() {
 			if (fcStatusData.isPositionHomeSet) {
 				convertGNSSToSICordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
 				if (wasHomeJustSet) {
-					positionEKFInvalidateAxis(&positionEkf, POS_EKF_X_AXIS);
-					positionEKFInvalidateAxis(&positionEkf, POS_EKF_Y_AXIS);
+					positionEKFInvalidate(&positionEkf, POS_EKF_X_AXIS);
+					positionEKFInvalidate(&positionEkf, POS_EKF_Y_AXIS);
 					fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
 					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
 				}
 				// Update Velocity and Position
 				updateXYVelocity(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
-				updateZVelocity(gnssData.sAcc, -gnssData.velD, dt); //GNSS is +ve down ( NED )
+				updateZVelocity(gnssData.sAcc, -gnssData.velD, fcStatusData.isNavigationDataReliable && fcStatusData.isNavigationModeActive, dt); //GNSS is +ve down ( NED )
 				updateXYPosition(gnssData.hAcc, positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
-				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, dt);
+				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, fcStatusData.isNavigationDataReliable && fcStatusData.isNavigationModeActive, dt);
 			}
 
 		}
@@ -412,9 +414,9 @@ void resetPositionManager(void) {
 	lowPassFilterReset(&positionMgrVelYLPF);
 	lowPassFilterReset(&positionMgrVelZLPF);
 
-	positionEKFInvalidateAxis(&positionEkf, POS_EKF_X_AXIS);
-	positionEKFInvalidateAxis(&positionEkf, POS_EKF_Y_AXIS);
-	positionEKFInvalidateAxis(&positionEkf, POS_EKF_Z_AXIS);
+	positionEKFInvalidate(&positionEkf, POS_EKF_X_AXIS);
+	positionEKFInvalidate(&positionEkf, POS_EKF_Y_AXIS);
+	positionEKFInvalidate(&positionEkf, POS_EKF_Z_AXIS);
 
 	resetVenturiBiasEstimator();
 	resetPositionControl(1);

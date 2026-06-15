@@ -10,7 +10,7 @@
 float posManagerGNSSStableTime = 0;
 
 __ATTR_ITCM_TEXT
-void updatePositionDataReliability(float dt) {
+void updateNavidationDataReliability(float dt) {
 	// 1. Basic threshold check (Must be a 3D fix or higher)
 	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.vAcc <= POSITION_GNSS_MIN_VACC) && (gnssData.sAcc <= POSITION_GNSS_MIN_SACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
 	if (valid) {
@@ -25,17 +25,17 @@ void updatePositionDataReliability(float dt) {
 	posManagerGNSSStableTime = constrainToRangeF(posManagerGNSSStableTime, 0.0f, POSITION_GNSS_STABILITY_MAX_WINDOW);
 
 	// 2. Clear, Explicit Hysteresis Logic
-	if (fcStatusData.isPositionDataReliable) {
+	if (fcStatusData.isNavigationDataReliable) {
 		// If currently trusted, it must drop below 1.0s to lose trust.
 		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
 		if (posManagerGNSSStableTime < POSITION_GNSS_TRUST_THRESHOLD) {
-			fcStatusData.isPositionDataReliable = 0;
+			fcStatusData.isNavigationDataReliable = 0;
 		}
 	} else {
 		// If not trusted, it must climb above 1.0s to gain trust.
 		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
 		if (posManagerGNSSStableTime > POSITION_GNSS_TRUST_THRESHOLD) {
-			fcStatusData.isPositionDataReliable = 1;
+			fcStatusData.isNavigationDataReliable = 1;
 		}
 	}
 }
@@ -70,12 +70,12 @@ void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, flo
 	*yBody = (-xEarth * headingSinValue) + (yEarth * headingCosValue);
 }
 
+
 __ATTR_ITCM_TEXT
 void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth) {
 	float headingRad = convertDegToRadF(heading);
 	float headingCosValue = cosApproxF(headingRad);
 	float headingSinValue = sinApproxF(headingRad);
-
 	// The transpose rotation matrix operation
 	*xEarth = (xBody * headingCosValue) - (yBody * headingSinValue);
 	*yEarth = (xBody * headingSinValue) + (yBody * headingCosValue);

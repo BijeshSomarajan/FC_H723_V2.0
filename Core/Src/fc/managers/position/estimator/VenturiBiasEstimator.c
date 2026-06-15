@@ -29,14 +29,13 @@ uint8_t initVenturiBiasEstimator(void) {
  * @return float Cleaned, low-pass filtered throttle bias compensation value.
  */
 __ATTR_ITCM_TEXT
-float updateVenturiBiasEstimate(float dt) {
+float getVenturiBiasEstimate(float dt) {
 
     // 1. Safety Guard: Reset and bypass if the vehicle cannot fly or is below liftoff threshold
     if (!fcStatusData.canFly || fcStatusData.throttlePercent <= fcStatusData.liftOffThrottlePercent) {
         resetVenturiBiasEstimator();
         return 0.0f;
     }
-
     // 2. Extract and clamp signed pitch input
     float imuPitch = applyDeadBandFloat(0.0f, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN);
     imuPitch = constrainToRangeF(imuPitch, -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);

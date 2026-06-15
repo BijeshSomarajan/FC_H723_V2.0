@@ -402,13 +402,13 @@ void doAltitudeManagement(void) {
 
 	if (dataAvailableMask != SENSOR_DATA_NONE) {
 		if (dataAvailableMask & SENSOR_DATA_BARO) {
-			updateZPositionSL(sensorAltitudeData.altitudeSLFiltered, altMgrSLAltUpdateDt);
+			updateZPositionSL(sensorAltitudeData.altitudeSLFiltered,fcStatusData.isNavigationDataReliable && fcStatusData.isNavigationModeActive, altMgrSLAltUpdateDt);
 			altMgrSLAltUpdateDt = 0;
 		}
 
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 		if (dataAvailableMask & SENSOR_DATA_LIDAR) {
-			updateZPositionTerrain(sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQlty, altMgrTerrainAltUpdateDt);
+
 			altMgrTerrainAltUpdateDt = 0;
 		}
 #endif
