@@ -19,6 +19,7 @@
 #include "../../util/CommonUtil.h"
 #include "../../imu/IMU.h"
 #include "../../managers/position/PositionManager.h"
+#include "../../managers/position/helpers/PositionManagerHelper.h"
 #include "../../managers/position/estimator/PositionEstimatorHelper.h"
 
 // Inner state variables
@@ -356,11 +357,11 @@ void resetAltMgrStates() {
 	altMgrLandingPulseDt = 0;
 	altMgrLandingCommand = 0;
 
-	/*
 	sensorAltitudeData.altitudeTerrainZOffset = 0;
 	sensorAltitudeData.altitudeSLZOffset = 0;
 	altMgrWasTerrainModeActive = 0;
-    */
+	fcStatusData.isTerrainDataReliable = 0;
+
 	lowPassFilterReset(&altMgrThrottleControlLPF);
 }
 
@@ -380,7 +381,6 @@ void manageAltitudeTask(void) {
 	}
 }
 
-_
 __ATTR_ITCM_TEXT
 void doAltitudeManagement(void) {
 	if (fcStatusData.isConfigMode) {
@@ -407,10 +407,8 @@ void doAltitudeManagement(void) {
 	altMgrTerrainAltUpdateDt = constrainToRangeF(altMgrTerrainAltUpdateDt, 0.0001f, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
 	uint8_t terrainModeActive = fcStatusData.isTerrainAltModeActive;
 
-	if (!altMgrWasTerrainModeActive && terrainModeActive) {
-		if (sensorAltitudeData.altitudeTerrainQlty > POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_STRENGTH_MIN) {
-			sensorAltitudeData.altitudeTerrainZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeTerrainFiltered;
-		}
+	if (!altMgrWasTerrainModeActive && terrainModeActive && fcStatusData.isTerrainDataReliable) {
+		sensorAltitudeData.altitudeTerrainZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeTerrainFiltered;
 	} else if (altMgrWasTerrainModeActive && !terrainModeActive) {
 		sensorAltitudeData.altitudeSLZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeSLFiltered;
 	}
@@ -425,14 +423,14 @@ void doAltitudeManagement(void) {
 		}
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 		if (dataAvailableMask & SENSOR_DATA_LIDAR) {
-			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQlty, terrainModeActive, altMgrTerrainAltUpdateDt);
+			updateTerrainDataReliability(altMgrTerrainAltUpdateDt);
+			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQlty,POSITION_TERRAIN_DIST_MIN,POSITION_TERRAIN_DIST_MAX, fcStatusData.isTerrainDataReliable, altMgrTerrainAltUpdateDt);
 			altMgrTerrainAltUpdateDt = 0.0f;
 		}
 #endif
 	}
 
 }
-
 
 void resetAltitudeManager(void) {
 	resetAltitudeControl(1);

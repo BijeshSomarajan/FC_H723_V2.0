@@ -8,7 +8,7 @@
 typedef struct _FC_STATUS_DATA FC_STATUS_DATA;
 struct _FC_STATUS_DATA {
 	//FC Statues
-	uint8_t hasInitialized, isTxOn, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized, isFlying, isNavigationDataReliable;
+	uint8_t hasInitialized, isTxOn, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized, isFlying, isNavigationDataReliable , isTerrainDataReliable;
 	//FC Modes
 	uint8_t isNavigationModeActive, isNavigationRTHModeActive, isTerrainAltModeActive;
 	//Flag to state if landing landing mode is active

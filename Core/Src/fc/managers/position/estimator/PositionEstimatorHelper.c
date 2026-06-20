@@ -94,11 +94,11 @@ float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float motionScale) {
 }
 
 __ATTR_ITCM_TEXT
-float getEstimatedTerrainRP(float distance, float quality, uint8_t terrainModeActive) {
+float getEstimatedTerrainRP(float distance, float quality, float minDistance, float maxDistance, uint8_t terrainDataValid) {
 	/*---------------------------------------------------------
 	 * Reject invalid measurements
 	 *---------------------------------------------------------*/
-	if (!terrainModeActive || quality < POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_STRENGTH_MIN || distance < POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MIN) {
+	if (!terrainDataValid) {
 		return POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED;
 	}
 	/*---------------------------------------------------------
@@ -107,7 +107,7 @@ float getEstimatedTerrainRP(float distance, float quality, uint8_t terrainModeAc
 	 * DIST_MIN -> 0.0
 	 * DIST_MAX -> 1.0
 	 *---------------------------------------------------------*/
-	float distScale = (distance - POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MIN) / (POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MAX - POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MIN);
+	float distScale = (distance - minDistance) / (maxDistance - minDistance);
 	distScale = constrainToRangeF(distScale, 0.0f, 1.0f);
 	/*---------------------------------------------------------
 	 * Quality scaling
@@ -195,10 +195,10 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 
 float testTerrainR = 0;
 __ATTR_ITCM_TEXT
-void updateZPositionTerrain(float offset, float distance, float strength, uint8_t terrainModeActive, float dt) {
+void updateZPositionTerrain(float offset, float distance, float strength, float minDistance, float maxDistance, uint8_t terrainDataValid, float dt) {
 	positionCordinateData.positionZTerrainUpdateDt = dt;
 	positionCordinateData.zPositionRawTerrain = distance;
-	float terrainR = getEstimatedTerrainRP(distance, strength, terrainModeActive);
+	float terrainR = getEstimatedTerrainRP(distance, strength, minDistance, maxDistance, terrainDataValid);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + distance, terrainR, H_TERRAIN);
 	testTerrainR = terrainR;
 }

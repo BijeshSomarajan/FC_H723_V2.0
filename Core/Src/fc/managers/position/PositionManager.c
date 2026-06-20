@@ -364,7 +364,7 @@ void doPositionManagement() {
 	if (readGNSSData()) {
 		float dt = getDeltaTime(POSITION_MANAGER_GPS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
-		updateNavidationDataReliability(dt);
+		updateNavigationDataReliability(dt);
 		if (fcStatusData.isNavigationDataReliable && fcStatusData.canFly) {
 			uint8_t wasHomeJustSet = 0;
 			if (!fcStatusData.isPositionHomeSet) {

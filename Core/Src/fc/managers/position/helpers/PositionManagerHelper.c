@@ -5,14 +5,42 @@
 #include "../../../status/FCStatus.h"
 #include "../../../sensors/position/GNSS.h"
 #include "../../../sensors/attitude/AttitudeSensor.h"
+#include "../../../sensors/altitude/AltitudeSensor.h"
 #include "PositionManagerHelper.h"
 
 float posManagerGNSSStableTime = 0;
+float posManagerTerrainStableTime = 0;
+__ATTR_ITCM_TEXT
+void updateTerrainDataReliability(float dt) {
+	uint8_t valid = sensorAltitudeData.altitudeTerrainQlty >= POSITION_TERRAIN_STRENGTH_MIN && sensorAltitudeData.altitudeTerrain >= POSITION_TERRAIN_DIST_MIN && sensorAltitudeData.altitudeTerrain <= POSITION_TERRAIN_DIST_MAX;
+	if (valid) {
+		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
+		posManagerTerrainStableTime += dt;
+	} else {
+		// Decay trust aggressively (1.0s of real time = 2.0s of trust loss)
+		posManagerTerrainStableTime -= POSITION_TERRAIN_STABILITY_INVALID_GAIN * dt;
+	}
+	posManagerTerrainStableTime = constrainToRangeF(posManagerTerrainStableTime, 0.0f, POSITION_TERRAIN_STABILITY_MAX_WINDOW);
+	// 2. Clear, Explicit Hysteresis Logic
+	if (fcStatusData.isTerrainDataReliable) {
+		// If currently trusted, it must drop below 1.0s to lose trust.
+		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
+		if (posManagerTerrainStableTime < POSITION_TERRAIN_TRUST_THRESHOLD) {
+			fcStatusData.isTerrainDataReliable = 0;
+		}
+	} else {
+		// If not trusted, it must climb above 1.0s to gain trust.
+		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
+		if (posManagerTerrainStableTime > POSITION_TERRAIN_TRUST_THRESHOLD) {
+			fcStatusData.isTerrainDataReliable = 1;
+		}
+	}
+}
 
 __ATTR_ITCM_TEXT
-void updateNavidationDataReliability(float dt) {
+void updateNavigationDataReliability(float dt) {
 	// 1. Basic threshold check (Must be a 3D fix or higher)
-	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.vAcc <= POSITION_GNSS_MIN_VACC)  && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
+	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.vAcc <= POSITION_GNSS_MIN_VACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
 	if (valid) {
 		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
 		posManagerGNSSStableTime += dt;
@@ -69,7 +97,6 @@ void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, flo
 	*xBody = (xEarth * headingCosValue) + (yEarth * headingSinValue);
 	*yBody = (-xEarth * headingSinValue) + (yEarth * headingCosValue);
 }
-
 
 __ATTR_ITCM_TEXT
 void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth) {
