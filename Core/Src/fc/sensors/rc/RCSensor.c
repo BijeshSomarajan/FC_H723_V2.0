@@ -33,6 +33,10 @@ uint16_t getRCValue(uint8_t channel) {
 	return getFSIAChannelValue(channel);
 }
 
+void setRCValue(uint8_t channel,uint16_t value) {
+	return setFSIAChannelValue(channel,value);
+}
+
 void resetRCSensor() {
 
 }

@@ -47,6 +47,7 @@ float convertRadToDeg(float rads);
 float convertDegToRadF(float deg);
 double convertDegToRad(double deg);
 float mapToRangeFloat(float inValue, float minInRange, float maxInRange, float minOutRange, float maxOutRange);
+float mapAndClampToRangeFloat(float inValue, float minInRange, float maxInRange, float minOutRange, float maxOutRange);
 
 /* --- Constraints & Deadbands --- */
 int32_t constrainToRange(int32_t rawValue, int32_t minValue, int32_t maxValue);

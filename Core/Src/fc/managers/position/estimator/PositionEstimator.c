@@ -347,16 +347,14 @@ void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, f
 	/* ============================================================
 	 * 4. Gating
 	 * ============================================================ */
-
 	float d2 = (y * y) / S;
-
 	if (d2 > ekf->gateSize[axis]) {
-		if (ekf->rejectCount[axis] < ekf->panicLimit[axis]) {
-			ekf->rejectCount[axis]++;
-			return;
-		}
-		positionEKFReset(ekf, axis);
-		return;
+	    if (ekf->rejectCount[axis] < ekf->panicLimit[axis]) {
+	        ekf->rejectCount[axis]++;
+	        return;
+	    }
+	    ekf->rejectCount[axis] = 0;
+	    return;
 	}
 
 	ekf->rejectCount[axis] = 0;

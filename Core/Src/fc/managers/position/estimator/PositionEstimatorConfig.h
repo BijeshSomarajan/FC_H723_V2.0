@@ -17,8 +17,8 @@
 #define POS_EKF_X_R_MEAS          1.0f/100.0f
 #define POS_EKF_Y_R_MEAS          1.0f/100.0f
 // [+] Accepts larger GPS steps/glitches      | [-] Rejects valid aggressive maneuvers as outliers
-#define POS_EKF_X_GATE            5.0f
-#define POS_EKF_Y_GATE            5.0f
+#define POS_EKF_X_GATE            6.0f
+#define POS_EKF_Y_GATE            6.0f
 // [+] Tolerant of brief GNSS signal drops    | [-] Rapidly panics and resets filter during glitches
 #define POS_EKF_X_PANIC           10
 #define POS_EKF_Y_PANIC           10
@@ -38,7 +38,7 @@
 #define POS_EKF_Z_Q_POS_BIAS      0.00001f
 
 // [+] Tolerates sudden wind/pressure spikes  | [-] Rejects fast vertical maneuvers (climb/descend lag)
-#define POS_EKF_Z_GATE            5.0f
+#define POS_EKF_Z_GATE            6.0f
 // [+] Tolerates longer pressure anomalies     | [-] Aggressively resets filter at minor baro glitches
 #define POS_EKF_Z_PANIC           10
 
@@ -64,6 +64,13 @@
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE         7000.0f
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MAX          70000.0f
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MUTED        700000.0f
+
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE      0.01f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX       1.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED     100.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_STRENGTH_MIN 0.01f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MIN     0.01f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MAX     1.5f
 
 #define POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE    0.1f
 #define POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX     2.0f

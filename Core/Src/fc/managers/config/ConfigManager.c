@@ -80,6 +80,7 @@ uint8_t hasNewConfiguration() {
  */
 void manageConfigDataPacket() {
 	ConfigDataPacket dataPacket = getConfigDataPacket();
+	uint8_t wasDebugEnabled = fcStatusData.isDebugEnabled;
 	fcStatusData.isDebugEnabled = 0;
 	fcStatusData.isOSDEnabled = 0;
 	fcStatusData.isConfigMode = 1;
@@ -109,8 +110,14 @@ void manageConfigDataPacket() {
 	} else if (dataPacket.cmd == CMD_CALIBRATE_RC) {
 		calibrateRCSensor();
 		sendConfigData(FC_CONFIG_DATA_BUFFER, 0, CMD_ACK_CALIBRATE_RC);
-
+	}else if (dataPacket.cmd == CMD_RC_DATA) {
+		setRCData(dataPacket.data,dataPacket.length);
+		//sendConfigData(FC_CONFIG_DATA_BUFFER, 0, CMD_ACK_RC_DATA);
+		if(wasDebugEnabled){
+			fcStatusData.isDebugEnabled = 1;
+		}
 	}
+
 	fcStatusData.isConfigMode = 0;
 }
 

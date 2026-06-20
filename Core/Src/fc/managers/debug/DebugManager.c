@@ -17,6 +17,7 @@
 #include "../../FCConfig.h"
 #include "../../dsp/BiQuadFilter.h"
 #include "../../dsp/FFT.h"
+#include "../../sensors/altitude/devices/tfmini/TFMini.h"
 #include "../../sensors/attitude/noisefilter/AdaptiveNotchFilter.h"
 #include "../../managers/position/common/PositionCommon.h"
 #include "../../managers/position/estimator/VenturiBiasEstimator.h"
@@ -53,16 +54,18 @@ extern float testBaroR;
 extern float testVenturiR;
 extern float testVenturiBias;
 extern float testGnssRp;
+extern float testTerrainR;
 
 void debugGraph() {
-	DEBUG_DATA_BUFFER[0] = testVenturiBias * 1000;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.zVelocity * 1000;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPosition * 1000;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPositionRawSL * 1000;
-	DEBUG_DATA_BUFFER[4] = (gnssData.vAcc * 100);
-	DEBUG_DATA_BUFFER[5] = testGnssRp;
-	DEBUG_DATA_BUFFER[6] = (gnssData.heightMSL - fcStatusData.positionZHome);
-	sendConfigData(DEBUG_DATA_BUFFER,7, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.zPositionRawTerrain * 100;
+	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeTerrainFiltered * 100;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPositionRawSL * 100;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[5] = fcStatusData.isTerrainAltModeActive * 100;
+	DEBUG_DATA_BUFFER[6] = testVenturiBias * 100;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
 }
 
 void debugTask() {

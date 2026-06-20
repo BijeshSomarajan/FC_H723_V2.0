@@ -9,7 +9,7 @@
 const float H_BARO_WITH_BIAS[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
 const float H_BARO[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 const float H_BIAS[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-
+const float H_TERRAIN[4] = { 1, 0, 0, 0 };
 const float H_GNSS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 const float H_VEL[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
 const float H_POS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
@@ -94,18 +94,42 @@ float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float motionScale) {
 }
 
 __ATTR_ITCM_TEXT
-float getEstimatedVenturiRPOld(float motionScale) {
-	// Map motionScale 0.0 -> 1.0 to R_venturi [MAX_UNCERTAINTY -> MIN_UNCERTAINTY]
-	float R_venturi = POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX - (motionScale * (POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX - POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE));
-	return constrainToRangeF(R_venturi, POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX);
+float getEstimatedTerrainRP(float distance, float quality, uint8_t terrainModeActive) {
+	/*---------------------------------------------------------
+	 * Reject invalid measurements
+	 *---------------------------------------------------------*/
+	if (!terrainModeActive || quality < POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_STRENGTH_MIN || distance < POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MIN) {
+		return POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED;
+	}
+	/*---------------------------------------------------------
+	 * Distance scaling
+	 *
+	 * DIST_MIN -> 0.0
+	 * DIST_MAX -> 1.0
+	 *---------------------------------------------------------*/
+	float distScale = (distance - POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MIN) / (POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MAX - POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_DIST_MIN);
+	distScale = constrainToRangeF(distScale, 0.0f, 1.0f);
+	/*---------------------------------------------------------
+	 * Quality scaling
+	 *
+	 * quality = 1.0 -> 0.0
+	 * quality = 0.0 -> 1.0
+	 *---------------------------------------------------------*/
+	float qualityScale = 1.0f - quality;
+	/*---------------------------------------------------------
+	 * Conservative: trust the worse of the two
+	 *---------------------------------------------------------*/
+	float scale = fmaxf(distScale, qualityScale);
+	float R = POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE + scale * (POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX - POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE);
+	return constrainToRangeF(R, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX);
 }
 
 __ATTR_ITCM_TEXT
 float getEstimatedVenturiRP(float motionScale) {
-	// motionScale 0.0 (Smooth) -> R = BASE (0.1f)  => High Trust
-	// motionScale 1.0 (Rough)  -> R = MAX (1.0f)   => Low Trust
+// motionScale 0.0 (Smooth) -> R = BASE (0.1f)  => High Trust
+// motionScale 1.0 (Rough)  -> R = MAX (1.0f)   => Low Trust
 	float R_venturi = POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE + (motionScale * (POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX - POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE));
-	// Ensure we are strictly bounded within our defined tuning limits
+// Ensure we are strictly bounded within our defined tuning limits
 	return constrainToRangeF(R_venturi, POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX);
 }
 
@@ -147,7 +171,7 @@ float testVenturiR = 0;
 float testVenturiBias = 0;
 
 __ATTR_ITCM_TEXT
-void updateZPositionSL(float zPos, uint8_t navigationModeActive, float dt) {
+void updateZPositionSL(float offset, float zPos, float dt) {
 	positionCordinateData.positionZSLUpdateDt = dt;
 	positionCordinateData.zPositionRawSL = zPos;
 	float motionScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
@@ -158,7 +182,7 @@ void updateZPositionSL(float zPos, uint8_t navigationModeActive, float dt) {
 	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
 	testBaroR = dynamicRPSL;
 #endif
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, zPos, dynamicRPSL, H_BARO_WITH_BIAS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
 	/* ---------------- VENTURI ---------------- */
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
 	float venturiBias = getVenturiBiasEstimate(dt);
@@ -167,6 +191,16 @@ void updateZPositionSL(float zPos, uint8_t navigationModeActive, float dt) {
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, venturiBias, venturiR, H_BIAS);
 	testVenturiR = venturiR;
 #endif
+}
+
+float testTerrainR = 0;
+__ATTR_ITCM_TEXT
+void updateZPositionTerrain(float offset, float distance, float strength, uint8_t terrainModeActive, float dt) {
+	positionCordinateData.positionZTerrainUpdateDt = dt;
+	positionCordinateData.zPositionRawTerrain = distance;
+	float terrainR = getEstimatedTerrainRP(distance, strength, terrainModeActive);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + distance, terrainR, H_TERRAIN);
+	testTerrainR = terrainR;
 }
 
 float testGNSSRP = 0;

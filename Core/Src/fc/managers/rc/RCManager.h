@@ -24,6 +24,7 @@ uint8_t initRCManager(void);
 void doRCManagement();
 void resetRCManager(void);
 void processRCData(float dt);
+void setRCData(int32_t *data,int32_t length);
 
 int16_t getThrottleChannelValue();
 int16_t getPitchChannelValue();
@@ -37,10 +38,10 @@ int16_t applyStickDeadBand(int16_t rcChannelValue);
 void loadRCStickDelta(void);
 uint8_t canStartModel(void);
 uint8_t canArmModel(void);
-uint8_t isThrottleCentered(void);
-uint8_t isYawCentered(void);
-uint8_t isRollCentered(void);
-uint8_t isPitchCentered(void);
+uint8_t checkThrottleCentered(void);
+uint8_t checkYawCentered(void);
+uint8_t checkRollCentered(void);
+uint8_t checkPitchCentered(void);
 void applyRCStickEffectiveness();
 
 uint8_t canEnableAltHold(void);
@@ -48,12 +49,11 @@ void configureRCStickControl(void);
 uint8_t canEnableGlobalPosHold(void);
 uint8_t canEnableTerrainPosHold(void);
 uint8_t canEnableRTH(void);
-uint8_t isNavigationModeActive(void);
-uint8_t isNavigationRTHModeActive(void);
-uint8_t isHeadLessModeActive(void);
-uint8_t isTerrainAltModeActive(void);
-uint8_t canEnableLandingMode();
-uint8_t canReSetHomePosition();
+uint8_t checkNavModeActivation(void);
+uint8_t checkRTHModeActivation(void);
+uint8_t checkTerrainModeActivation(void);
+uint8_t checkLandingModeActivation();
+uint8_t checkHomePositionReset();
 void checkForFailSafe(float dt);
 
 #endif

@@ -13,9 +13,9 @@
 #include "../../../../util/MathUtil.h"
 
 #define TFMINI_DEFAULT_ADDRESS   (0x10)
-#define TFMINI_MAX_VALID_DISTANCE 10 //10 mts
-#define TFMINI_MIN_STRENGTH 100
-#define TFMINI_MAX_STRENGTH 65535
+#define TFMINI_MAX_VALID_DISTANCE 12 //10 mts
+#define TFMINI_MIN_VALID_STRENGTH 80
+#define TFMINI_MAX_VALID_STRENGTH 20000
 #define TFMINI_READ_ASYNC 1
 
 typedef struct _TFMini TFMini;

@@ -17,9 +17,9 @@
 
 #define RC_LAND_CHANNEL_INDEX        5 //Channel 6  //swd  //Land
 #define RC_START_CHANNEL_INDEX       6 //Channel 7  //swa  //ARM
-#define RC_POS_CHANNEL_INDEX         7 //Channel 8  //swb  //Hold/RTH
-#define RC_HEADING_CHANNEL_INDEX     8 //Channel 9  //swc  //Headless
-#define RC_HOME_POS_SET_CHANNEL_INDEX    9 //Channel 10 //key1 //Home PoS Set
+#define RC_NAV_CHANNEL_INDEX         7 //Channel 8  //swb  //Hold/RTH
+#define RC_ALT_MODE_CHANNEL_INDEX    8 //Channel 9  //swc  //Terrain/ASL
+#define RC_HOME_SET_CHANNEL_INDEX    9 //Channel 10 //key1 //Home PoS Set
 
 #define RC_CHANNEL_MIN_VALUE 1000
 #define RC_CHANNEL_MAX_VALUE 2000
@@ -50,6 +50,7 @@ uint8_t isRCTXxActive(void);
 uint8_t readRCSensor(void);
 uint16_t getRCFrameRate(void);
 uint16_t getRCValue(uint8_t channel);
+void setRCValue(uint8_t channel,uint16_t value);
 void calibrateRCSensor(void);
 
 #endif

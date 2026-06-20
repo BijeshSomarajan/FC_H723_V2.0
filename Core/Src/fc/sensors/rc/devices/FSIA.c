@@ -141,6 +141,11 @@ uint16_t getFSIAChannelValue(uint8_t channel) {
 	return fsiaChannelValue[channel];
 }
 
+
+void setFSIAChannelValue(uint8_t channel,uint16_t value) {
+	fsiaChannelValue[channel] = value;
+}
+
 void resetFSIAState() {
 	fsiaHasData = 0;
 }

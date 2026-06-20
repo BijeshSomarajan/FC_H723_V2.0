@@ -51,6 +51,7 @@ float altMgrLandingCommand = 0;
 
 float altMgrSLAltUpdateDt = 0;
 float altMgrTerrainAltUpdateDt = 0;
+uint8_t altMgrWasTerrainModeActive = 0;
 
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
@@ -199,7 +200,7 @@ void handleLanding(float dt) {
 
 __ATTR_ITCM_TEXT
 void updateAltitudeReferences() {
-	fcStatusData.altitudeSLRef = positionCordinateData.zPosition; //sensorAltitudeData.altitudeSLMaxFiltered;
+	fcStatusData.altitudeSLRef = positionCordinateData.zPosition;
 	fcStatusData.altitudeSLHome = fcStatusData.altitudeSLRef;
 	fcStatusData.altitudeSLMax = fcStatusData.altitudeSLHome + altMgrMaxHeight;
 }
@@ -355,6 +356,11 @@ void resetAltMgrStates() {
 	altMgrLandingPulseDt = 0;
 	altMgrLandingCommand = 0;
 
+	/*
+	sensorAltitudeData.altitudeTerrainZOffset = 0;
+	sensorAltitudeData.altitudeSLZOffset = 0;
+	altMgrWasTerrainModeActive = 0;
+    */
 	lowPassFilterReset(&altMgrThrottleControlLPF);
 }
 
@@ -374,6 +380,7 @@ void manageAltitudeTask(void) {
 	}
 }
 
+_
 __ATTR_ITCM_TEXT
 void doAltitudeManagement(void) {
 	if (fcStatusData.isConfigMode) {
@@ -381,7 +388,7 @@ void doAltitudeManagement(void) {
 	}
 	if (fcStatusData.hasCrashed) {
 		resetAltitudeManager();
-		return; // Stop execution immediately if crashed
+		return;
 	}
 	if (fcStatusData.canStabilize) {
 		altMgrWasInStabMode = 1;
@@ -393,27 +400,39 @@ void doAltitudeManagement(void) {
 	float dt = getDeltaTime(SENSOR_ALT_READ_TIMER_CHANNEL);
 
 	altMgrSLAltUpdateDt += dt;
-	altMgrSLAltUpdateDt = constrainToRangeF(altMgrSLAltUpdateDt, 0.0001, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
+	altMgrSLAltUpdateDt = constrainToRangeF(altMgrSLAltUpdateDt, 0.0001f, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
 
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 	altMgrTerrainAltUpdateDt += dt;
-	altMgrTerrainAltUpdateDt = constrainToRangeF(altMgrTerrainAltUpdateDt, 0.0001, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
+	altMgrTerrainAltUpdateDt = constrainToRangeF(altMgrTerrainAltUpdateDt, 0.0001f, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
+	uint8_t terrainModeActive = fcStatusData.isTerrainAltModeActive;
+
+	if (!altMgrWasTerrainModeActive && terrainModeActive) {
+		if (sensorAltitudeData.altitudeTerrainQlty > POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_STRENGTH_MIN) {
+			sensorAltitudeData.altitudeTerrainZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeTerrainFiltered;
+		}
+	} else if (altMgrWasTerrainModeActive && !terrainModeActive) {
+		sensorAltitudeData.altitudeSLZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeSLFiltered;
+	}
+
+	altMgrWasTerrainModeActive = terrainModeActive;
 #endif
 
 	if (dataAvailableMask != SENSOR_DATA_NONE) {
 		if (dataAvailableMask & SENSOR_DATA_BARO) {
-			updateZPositionSL(sensorAltitudeData.altitudeSLFiltered,fcStatusData.isNavigationDataReliable && fcStatusData.isNavigationModeActive, altMgrSLAltUpdateDt);
-			altMgrSLAltUpdateDt = 0;
+			updateZPositionSL(sensorAltitudeData.altitudeSLZOffset, sensorAltitudeData.altitudeSLScaled, altMgrSLAltUpdateDt);
+			altMgrSLAltUpdateDt = 0.0f;
 		}
-
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 		if (dataAvailableMask & SENSOR_DATA_LIDAR) {
-
-			altMgrTerrainAltUpdateDt = 0;
+			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQlty, terrainModeActive, altMgrTerrainAltUpdateDt);
+			altMgrTerrainAltUpdateDt = 0.0f;
 		}
 #endif
 	}
+
 }
+
 
 void resetAltitudeManager(void) {
 	resetAltitudeControl(1);

@@ -56,10 +56,10 @@ const float atan2PolyCoef7 = 0.6444640676891548f;
  */
 __ATTR_ITCM_TEXT
 float sinApproxF(float x) {
-	while ( x > ONE_PI ) {
+	while (x > ONE_PI) {
 		x -= TWO_PI;
 	}
-	while ( x < -ONE_PI ) {
+	while (x < -ONE_PI) {
 		x += TWO_PI;
 	}
 
@@ -73,13 +73,12 @@ float sinApproxF(float x) {
 	return x + x * x2 * (sinPolyCoef3 + x2 * (sinPolyCoef5 + x2 * sinPolyCoef7));
 }
 
-
 __ATTR_ITCM_TEXT
 double sinApprox(double x) {
-	while ( x > ONE_PI ) {
+	while (x > ONE_PI) {
 		x -= TWO_PI;
 	}
-	while ( x < -ONE_PI ) {
+	while (x < -ONE_PI) {
 		x += TWO_PI;
 	}
 
@@ -105,7 +104,6 @@ __ATTR_ITCM_TEXT
 double cosApprox(double x) {
 	return sinApprox(x + HALF_PI);
 }
-
 
 /* Fast tangent approximation
  * - Returns sin(x)/cos(x) using the fast approximations; clamps to 0 when
@@ -283,6 +281,23 @@ float mapToRangeFloat(float inValue, float minInRange, float maxInRange, float m
 	return minOutRange + ratio * (maxOutRange - minOutRange);
 }
 
+float mapAndClampToRangeFloat(float inValue, float minInRange, float maxInRange, float minOutRange, float maxOutRange) {
+	// 1. Clamp the input so it never goes outside your 100 - 20000 boundary
+	if (inValue < minInRange) {
+		inValue = minInRange;
+	}
+	if (inValue > maxInRange) {
+		inValue = maxInRange;
+	}
+	// 2. Run your original math safely
+	float range = maxInRange - minInRange;
+	if (fabsf(range) < 1e-6f) {
+		return minOutRange;
+	}
+	float ratio = (inValue - minInRange) / range;
+	return minOutRange + ratio * (maxOutRange - minOutRange);
+}
+
 /* constrainToRange
  * - Constrain a signed 32-bit integer to [minValue, maxValue].
  */
@@ -360,10 +375,8 @@ float convertDegToRadF(float deg) {
  */
 __ATTR_ITCM_TEXT
 double convertDegToRad(double deg) {
-	return (double)deg * PI_BY_180;
+	return (double) deg * PI_BY_180;
 }
-
-
 
 /* ============================================================
  BIT OPERATIONS

@@ -6,7 +6,7 @@ TFMini tfMini;
 volatile uint8_t tfMiniHasData = 0;
 volatile uint8_t tfMiniDataRequestComplete = 0;
 
-uint8_t tfMiniCmdRequestData[5] = {0x5A, 0x05, 0x00, 0x01, 0x60};
+uint8_t tfMiniCmdRequestData[5] = { 0x5A, 0x05, 0x00, 0x01, 0x60 };
 
 void __deviceLidarTFMiniDataReadCallback(uint8_t *buf, uint16_t len) {
 	if (!tfMiniHasData) {
@@ -121,22 +121,21 @@ void deviceLidarDataProcess(void) {
 	if ((ckSumCalc & 0xFF) == ckSum) {
 		tfMini.distance = ((float) ((uint16_t) (tfMini.buffer[2] + ((uint16_t) tfMini.buffer[3] << 8)))) / 100.0f;
 		tfMini.strength = (uint16_t) (tfMini.buffer[4] + ((uint16_t) tfMini.buffer[5] << 8));
-		deviceAltitudeData.altitudeTerrain = tfMini.distance;
-		deviceAltitudeData.altitudeTerrainQlty = (float) tfMini.strength / (float) TFMINI_MAX_STRENGTH;
+		deviceAltitudeData.altitudeTerrainQlty = mapAndClampToRangeFloat(tfMini.strength == 65535 ? 0 : tfMini.strength, TFMINI_MIN_VALID_STRENGTH, TFMINI_MAX_VALID_STRENGTH, 0.0f, 1.0f);
+		if (deviceAltitudeData.altitudeTerrainQlty != 0.0f) {
+			deviceAltitudeData.altitudeTerrain = tfMini.distance;
+		}
 	} else {
-		deviceAltitudeData.altitudeTerrain = 0;
 		deviceAltitudeData.altitudeTerrainQlty = 0;
 	}
-
 }
-
 
 uint8_t deviceLidarRead(void) {
 #if TFMINI_READ_ASYNC == 1
-	if(tfMiniDataRequestComplete){
+	if (tfMiniDataRequestComplete) {
 		tfMiniDataRequestComplete = 0;
 		tfMiniReadDataAsync();
-	}else{
+	} else {
 		tfMiniRequestDataAsync();
 	}
 #else

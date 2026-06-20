@@ -11,7 +11,7 @@ SENSOR_ALTITUDE_DATA sensorAltitudeData;
 extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
 
 LOWPASSFILTER sensorAltBaroLPF;
-LOWPASSFILTER sensorAltBaroLPFSmoothest;
+LOWPASSFILTER sensorAltTerrainLPF;
 
 float sensorBaroReadDt = 0;
 float sensorLidarReadDt = 0;
@@ -21,7 +21,8 @@ uint8_t initAltitudeSensors(void) {
 	status = deviceBaroInit();
 	if (status) {
 		lowPassFilterInit(&sensorAltBaroLPF, SENSOR_ALT_BARO_LPF_FREQUENCY);
-		lowPassFilterInit(&sensorAltBaroLPFSmoothest, SENSOR_ALT_BARO_LPF_SMOOTHEST_FREQUENCY);
+		lowPassFilterInit(&sensorAltTerrainLPF, SENSOR_ALT_LIDAR_LPF_FREQUENCY);
+
 		logString("[Altitude Sensor] Baro Sensor Init > Success\n");
 	} else {
 		logString("[Altitude Sensor] Baro Sensor Init > Failed\n");
@@ -48,7 +49,11 @@ void scaleSeaLevelAlt() {
 __ATTR_ITCM_TEXT
 void filterSeaLevelAlt(float dt) {
 	sensorAltitudeData.altitudeSLFiltered = lowPassFilterUpdate(&sensorAltBaroLPF, sensorAltitudeData.altitudeSLScaled, dt);
-	sensorAltitudeData.altitudeSLMaxFiltered = lowPassFilterUpdate(&sensorAltBaroLPFSmoothest, sensorAltitudeData.altitudeSLScaled, dt);
+}
+
+__ATTR_ITCM_TEXT
+void filterTerrainLevelAlt(float dt) {
+	sensorAltitudeData.altitudeTerrainFiltered = lowPassFilterUpdate(&sensorAltTerrainLPF, sensorAltitudeData.altitudeTerrain, dt);
 }
 
 __ATTR_ITCM_TEXT
@@ -64,6 +69,7 @@ uint8_t loadAltitudeSensorsData(void) {
 	if (deviceLidarLoadData()) {
 		flags |= SENSOR_DATA_LIDAR;
 		sensorAltitudeData.altitudeTerrain = deviceAltitudeData.altitudeTerrain;
+		filterTerrainLevelAlt(SENSOR_LIDAR_READ_PERIOD) ;
 		sensorAltitudeData.altitudeTerrainQlty = deviceAltitudeData.altitudeTerrainQlty;
 	}
 #endif
@@ -92,7 +98,7 @@ uint8_t readAltitudeSensors(float dt) {
 
 void resetAltitudeSensors(uint8_t hard) {
 	lowPassFilterResetToValue(&sensorAltBaroLPF, 0);
-	lowPassFilterResetToValue(&sensorAltBaroLPFSmoothest, 0);
+	lowPassFilterResetToValue(&sensorAltTerrainLPF, 0);
 	sensorAltitudeData.altitudeSLFiltered = 0;
 	sensorAltitudeData.altitudeSLScaled = 0;
 	sensorAltitudeData.altitudeSL = 0;

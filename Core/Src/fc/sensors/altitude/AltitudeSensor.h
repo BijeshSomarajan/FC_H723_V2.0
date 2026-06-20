@@ -4,11 +4,9 @@
 #include <sys/_stdint.h>
 
 #define SENSOR_ALT_BARO_LPF_FREQUENCY  5.0f
-#define SENSOR_ALT_BARO_LPF_SMOOTHEST_FREQUENCY  0.65f
 
-#define SENSOR_ALT_LIDAR_AVAILABLE 0
+#define SENSOR_ALT_LIDAR_AVAILABLE 1
 #define SENSOR_ALT_LIDAR_LPF_FREQUENCY  5.0f
-#define SENSOR_ALT_LIDAR_LPF_SMOOTHEST_FREQUENCY  0.65f
 
 #define SENSOR_BARO_READ_FREQUENCY DEVICE_BARO_READ_FREQUENCY
 #define SENSOR_BARO_READ_PERIOD 1.0f/SENSOR_BARO_READ_FREQUENCY
@@ -26,12 +24,16 @@ struct _SENSOR_ALTITUDE_DATA {
 	float altitudeSL;
 	float altitudeSLScaled;
 	float altitudeSLFiltered;
-	float altitudeSLMaxFiltered;
+	float altitudeSLZOffset;
+
 	float altUpdateDt;
 	float altProcessDt;
 
 	float altitudeTerrain;
+	float altitudeTerrainZOffset;
 	float altitudeTerrainQlty;
+
+	float altitudeTerrainFiltered;
 
 };
 extern SENSOR_ALTITUDE_DATA sensorAltitudeData;
