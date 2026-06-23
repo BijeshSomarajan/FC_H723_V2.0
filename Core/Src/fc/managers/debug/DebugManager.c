@@ -25,6 +25,7 @@
 #include "../../control/Pid.h"
 #include "../../io/uart/UART.h"
 #include "../../sensors/position/GNSS.h"
+#include "../../sensors/position/OFlow.h"
 #include "../../util/MathUtil.h"
 #include "../../util/CommonUtil.h"
 #include "../motor/MotorManager.h"
@@ -56,16 +57,21 @@ extern float testVenturiBias;
 extern float testGnssRp;
 extern float testTerrainR;
 
-void debugGraph() {
-	DEBUG_DATA_BUFFER[0] = positionCordinateData.zPositionRawTerrain * 100;
-	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeTerrainFiltered * 100;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPositionRawSL * 100;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPosition * 100;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity * 100;
-	DEBUG_DATA_BUFFER[5] = fcStatusData.isTerrainAltModeActive * 100;
-	DEBUG_DATA_BUFFER[6] = testVenturiBias * 100;
+void debugDTGraph() {
+	DEBUG_DATA_BUFFER[0] = 1.0f / imuData.arhsDt;
+	DEBUG_DATA_BUFFER[1] = 1.0f / sensorAttitudeData.agtDataUpdateDt;
+	DEBUG_DATA_BUFFER[2] = 1.0f / sensorAttitudeData.magDataUpdateDt;
+	DEBUG_DATA_BUFFER[3] = 1.0f / sensorAltitudeData.altitudeSLUpdateDt;
+	DEBUG_DATA_BUFFER[4] = 1.0f / oFlowData.updateDt;
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+}
 
-	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
+void debugGraph() {
+	DEBUG_DATA_BUFFER[0] = oFlowData.deltaRawX;
+	DEBUG_DATA_BUFFER[1] = oFlowData.deltaRawY;
+	DEBUG_DATA_BUFFER[2] = oFlowData.qual;
+	DEBUG_DATA_BUFFER[3] = oFlowData.motion;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
 void debugTask() {
@@ -75,5 +81,6 @@ void debugTask() {
 	float dt = 0.001f;
 	(void) dt;
 	//debugString();
-	debugGraph();
+	//debugGraph();
+	debugDTGraph();
 }

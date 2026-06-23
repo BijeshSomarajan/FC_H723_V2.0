@@ -5,7 +5,7 @@
 
 #define SENSOR_ALT_BARO_LPF_FREQUENCY  5.0f
 
-#define SENSOR_ALT_LIDAR_AVAILABLE 1
+#define SENSOR_ALT_LIDAR_AVAILABLE 0
 #define SENSOR_ALT_LIDAR_LPF_FREQUENCY  5.0f
 
 #define SENSOR_BARO_READ_FREQUENCY DEVICE_BARO_READ_FREQUENCY
@@ -34,6 +34,7 @@ struct _SENSOR_ALTITUDE_DATA {
 	float altitudeTerrainQlty;
 
 	float altitudeTerrainFiltered;
+	float altitudeSLUpdateDt;
 
 };
 extern SENSOR_ALTITUDE_DATA sensorAltitudeData;

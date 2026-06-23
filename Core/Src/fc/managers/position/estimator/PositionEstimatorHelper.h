@@ -11,6 +11,7 @@ void updateZPositionGNSS(float vAcc, float hMSL, uint8_t navigationModeActive, f
 void updateZPositionTerrain(float offset, float distance, float strength, float minDistance, float maxDistance, uint8_t terrainDataValid, float dt);
 
 void updateXYVelocity(float sAcc, float velN, float velE, float dt);
+void updateXYVelocityOFlow(float flowPitchRad, float flowRollRad, float pitchRate, float rollRate, float terrainAltitude, float sQual, float heading, float dt) ;
 void updateZVelocity(float sAcc, float velD, uint8_t navigationModeActive, float dt);
 
 #endif /* SRC_FC_MANAGERS_POSITION_ESTIMATOR_POSITIONESTIMATORHELPER_H_ */

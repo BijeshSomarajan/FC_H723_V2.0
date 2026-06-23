@@ -16,6 +16,7 @@ struct _DEVICE_ALTITUDE_DATA {
 
 	float altitudeTerrain;
 	float altitudeTerrainQlty;
+
 };
 extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
 

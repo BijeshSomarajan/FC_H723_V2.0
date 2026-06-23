@@ -9,7 +9,7 @@
 /* -----------------------------------------------------------
  * 🧩 Timer configuration constants
  * -----------------------------------------------------------*/
-#define DELTA_TIMER_CHANNELS   8U    // Adjust per requirement
+#define DELTA_TIMER_CHANNELS   24    // Adjust per requirement
 
 static const uint32_t TIM23_CLOCK_HZ = 275000000UL;  // APB1 timer clock (verify in RCC)
 static const uint32_t TIM23_PRESCALER = (TIM23_CLOCK_HZ / 1000000UL) - 1UL; // 1 MHz tick (1 µs)

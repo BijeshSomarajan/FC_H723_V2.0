@@ -24,7 +24,8 @@ void ism330Reset(void);
 void ism330ConfigureAcc(void);
 void ism330ConfigureGyro(void);
 
-volatile uint8_t ism330HasAGTData = 0;
+volatile uint8_t ism330TxInFlight = 0; // Blocks the SPI bus from being hammered
+volatile uint8_t ism330DataReady = 0; // Signals to the main loop that data is safe to process
 
 uint8_t memsAGTCheckConnection() {
 	uint8_t status = spi2ReadRegister(ISM330DHCX_WHO_AM_I, deviceAttitudeData.bufferAccRx, 1, ISM330_AG_DEVICE);
@@ -170,17 +171,15 @@ void memsDeriveAccSensitivity() {
 }
 
 void __deviceAGTCallback(uint8_t *buf, uint16_t len) {
-	if (!ism330HasAGTData) {
-		memcpy(deviceAttitudeData.bufferAGTRx, buf, len);
-		ism330HasAGTData = 1;
-	}
+	memcpy(deviceAttitudeData.bufferAGTRx, buf, len);
+	ism330DataReady = 1;   // 1. Data is safely copied and ready
+	ism330TxInFlight = 0;  // 2. Clear the bus lock; hardware is free again
 }
 
 __ATTR_ITCM_TEXT
 uint8_t deviceAccGyroTempLoadData() {
 #if ISM330_AGT_READ_ASYNC ==1
-	if (ism330HasAGTData) {
-		ism330HasAGTData = 0;
+	if (ism330DataReady) {
 		deviceAttitudeData.rawTemp = (deviceAttitudeData.bufferAGTRx[1] << 8) | deviceAttitudeData.bufferAGTRx[0];
 
 		deviceAttitudeData.rawGx = (((int16_t) deviceAttitudeData.bufferAGTRx[3]) << 8) | deviceAttitudeData.bufferAGTRx[2];
@@ -190,6 +189,8 @@ uint8_t deviceAccGyroTempLoadData() {
 		deviceAttitudeData.rawAx = (((int16_t) deviceAttitudeData.bufferAGTRx[9]) << 8) | deviceAttitudeData.bufferAGTRx[8];
 		deviceAttitudeData.rawAy = (((int16_t) deviceAttitudeData.bufferAGTRx[11]) << 8) | deviceAttitudeData.bufferAGTRx[10];
 		deviceAttitudeData.rawAz = (((int16_t) deviceAttitudeData.bufferAGTRx[13]) << 8) | deviceAttitudeData.bufferAGTRx[12];
+
+		ism330DataReady = 0;
 		return 1;
 	}
 	return 0;
@@ -201,9 +202,17 @@ uint8_t deviceAccGyroTempLoadData() {
 __ATTR_ITCM_TEXT
 uint8_t deviceAccGyroTempRead(void) {
 #if ISM330_AGT_READ_ASYNC ==1
-	if (spi2ReadRegisterAsync(ISM330DHCX_OUT_TEMP_L, 14, ISM330_AG_DEVICE, __deviceAGTCallback)) {
-		return 1;
+	// If a transfer is already running, OR if the previous data hasn't
+	// been consumed yet, drop out to protect the SPI bus and buffer.
+	if (ism330TxInFlight || ism330DataReady) {
+		return 0;
 	}
+	ism330TxInFlight = 1; // Engage bus lock BEFORE launching async read
+	if (!spi2ReadRegisterAsync(ISM330DHCX_OUT_TEMP_L, 14, ISM330_AG_DEVICE, __deviceAGTCallback)) {
+		ism330TxInFlight = 0; // Release lock immediately if the SPI driver failed to start
+		return 0;
+	}
+	return 1;
 #else
 	if (spi2ReadRegister(ISM330DHCX_OUT_TEMP_L, deviceAttitudeData.bufferAGTRx, 14, ISM330_AG_DEVICE)) {
 		deviceAttitudeData.rawTemp = (deviceAttitudeData.bufferAGTRx[1] << 8) | deviceAttitudeData.bufferAGTRx[0];

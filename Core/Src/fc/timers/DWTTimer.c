@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 /* Number of delta time channels */
-#define DWT_DELTA_TIMER_CHANNELS   16
+#define DWT_DELTA_TIMER_CHANNELS   20
 
 /* Store previous CYCCNT for each channel */
 static uint32_t dwtPrevCycles[DWT_DELTA_TIMER_CHANNELS] = { 0 };

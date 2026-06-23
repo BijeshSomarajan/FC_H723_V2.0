@@ -91,6 +91,16 @@
 #define POS_ESTIMATOR_DYNAMIC_XY_RV_RESET        0.5f
 #define POS_ESTIMATOR_DYNAMIC_XY_RV_MAX          (POS_ESTIMATOR_DYNAMIC_XY_RV_BASE * 20.0f) // Keep it around 3
 
+
+// --- EKF Pipeline Thresholds ---
+#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_SQUAL_MIN  10.0f   // Minimum valid surface quality metric
+#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_HEIGHT_MIN 0.1f    // 10cm minimum height floor to prevent division by zero
+#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_BASE    0.05f   // Base measurement variance noise
+#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX     (POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_BASE * 200.0f)
+#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MUTED   100000
+#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_PITCH_RATE_SCALE   1.0f
+#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_ROLL_RATE_SCALE   1.0f
+
 /* Dynamic Velocity Scaling Z Axis*/
 #define POS_ESTIMATOR_DYNAMIC_Z_VEL_SACC_SCALE 0.5f
 #define POS_ESTIMATOR_DYNAMIC_Z_VEL_SACC_MIN   POS_ESTIMATOR_DYNAMIC_XY_VEL_SACC_MIN

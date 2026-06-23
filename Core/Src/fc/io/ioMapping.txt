@@ -35,6 +35,13 @@ PA6  ------> SPI6_MISO
 PA7  ------> SPI6_MOSI
 PA2  ------> SPI6_CS
 
+SPI1
+----
+PB3  ------> SPI1_SCK
+PB4  ------> SPI1_MISO
+PD7  ------> SPI1_MOSI
+PB5  ------> SPI1_CS
+
 I2C
 ---
 PB8 ------> I2C1_SCL
@@ -56,5 +63,5 @@ PE5 ------> GPIO_INDICATOR3
 
 Analog
 -------------
-
+PB0 ------> VBat
 */

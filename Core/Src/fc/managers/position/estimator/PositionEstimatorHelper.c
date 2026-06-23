@@ -13,7 +13,7 @@ const float H_TERRAIN[4] = { 1, 0, 0, 0 };
 const float H_GNSS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 const float H_VEL[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
 const float H_POS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
-
+const float H_OFLOW[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
 /*--------------------------------------- Dynamic R Estimators ----------------------------------------------------*/
 float getEstimatedXYRP(float hAcc) {
 	if (hAcc < POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_MIN) {
@@ -145,6 +145,7 @@ float getEstimatedXYRV(float sAcc) {
 	return dynamicRv;
 }
 
+__ATTR_ITCM_TEXT
 float getEstimatedZRV(float sAcc) {
 	if (sAcc < POS_ESTIMATOR_DYNAMIC_Z_VEL_SACC_MIN) {
 		sAcc = POS_ESTIMATOR_DYNAMIC_Z_VEL_SACC_MIN;
@@ -222,6 +223,62 @@ void updateXYVelocity(float sAcc, float velN, float velE, float dt) {
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, velNDb, dynamicRv, H_VEL);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicRv, H_VEL);
 }
+
+__ATTR_ITCM_TEXT
+float getEstimatedXYRVOFlow(float sQual, float terrainAltitude) {
+	float dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX;
+	if (sQual > POS_ESTIMATOR_DYNAMIC_XY_FLOW_SQUAL_MIN && terrainAltitude > POS_ESTIMATOR_DYNAMIC_XY_FLOW_HEIGHT_MIN) {
+		// Noise scales quadratically with altitude and inversely with surface tracking quality.
+		float baseR = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_BASE / (sQual * sQual);
+		dynamicRv = baseR * (terrainAltitude * terrainAltitude);
+	}
+	return dynamicRv;
+}
+
+__ATTR_ITCM_TEXT
+void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth) {
+	float headingRad = convertDegToRadF(heading);
+	float headingCosValue = cosApproxF(headingRad);
+	float headingSinValue = sinApproxF(headingRad);
+	// The transpose rotation matrix operation
+	*xEarth = (xBody * headingCosValue) - (yBody * headingSinValue);
+	*yEarth = (xBody * headingSinValue) + (yBody * headingCosValue);
+}
+
+__ATTR_ITCM_TEXT
+void updateXYVelocityOFlow(float flowPitchRad, float flowRollRad, float pitchRate, float rollRate, float terrainAltitude, float sQual, float heading, float dt) {
+	// Guard against division-by-zero/negative time deltas to protect EKF stability
+	if (dt < 1e-5f || sQual < POS_ESTIMATOR_DYNAMIC_XY_FLOW_SQUAL_MIN || terrainAltitude < POS_ESTIMATOR_DYNAMIC_XY_FLOW_HEIGHT_MIN) {
+		return;
+	}
+
+	// [STEP 1]: Flow Scaling (Convert raw sensor steps into true angular velocity rad/s)
+	float flowPitchRate = flowPitchRad / dt;
+	float flowRollRate  = flowRollRad / dt;
+
+	// [STEP 2]: Gyro De-rotation (Isolate linear translation using bias-corrected body rates)
+	// Note: Assumes pitchRate and rollRate are passed in Degrees/sec!
+	float flowPitch = flowPitchRate - (convertDegToRadF(pitchRate) * POS_ESTIMATOR_DYNAMIC_XY_FLOW_PITCH_RATE_SCALE);
+	float flowRoll  = flowRollRate + (convertDegToRadF(rollRate) * POS_ESTIMATOR_DYNAMIC_XY_FLOW_ROLL_RATE_SCALE);
+
+	// [STEP 3]: Transform Angular Velocity to Linear Body Velocity (m/s)
+	float velPitch = flowPitch * terrainAltitude;
+	float velRoll  = flowRoll * terrainAltitude;
+
+	// [STEP 4]: Coordinate Transformation (Rotate Body Frame Velocity to Earth Frame NE)
+	float velN, velE;
+	convertBodyToEarthCordinates(velPitch, velRoll, heading, &velN, &velE);
+	float velNDb = applyDeadBandFloat(0.0f, velN, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
+	float velEDb = applyDeadBandFloat(0.0f, velE, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
+
+	// [STEP 5]: Dynamic Measurement Noise (R) Scaling
+	float dynamicR = getEstimatedXYRVOFlow(sQual, terrainAltitude);
+
+	// [STEP 6]: Execute Kalman State Velocity Update.
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, velNDb, dynamicR, H_OFLOW);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicR, H_OFLOW);
+}
+
 
 float testGNSSRV = 0;
 __ATTR_ITCM_TEXT

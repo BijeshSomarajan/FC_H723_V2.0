@@ -24,7 +24,9 @@
 /* ------------------------------------------------------------------ */
 /* Local State                                                        */
 /* ------------------------------------------------------------------ */
-static volatile uint8_t bmp581HasData = 0;
+// Dual-Flag State Machine Pattern
+static volatile uint8_t bmp581TxInFlight = 0; // Lockout to prevent overlapping SPI DMA requests
+static volatile uint8_t bmp581DataReady  = 0; // Signals when buffer contains new, completely copied data
 
 static float bmp581GroundPressure = 0.0f;
 static uint8_t bmp581IsCalibrated = 0;
@@ -93,6 +95,10 @@ uint8_t deviceBaroReset(uint8_t hard) {
 	bmp581CalibPSum = 0.0f;
 	bmp581CalibCount = 0;
 	bmp581IsCalibrated = 0;
+
+	// Reset the async states
+	bmp581TxInFlight = 0;
+	bmp581DataReady = 0;
 	return 1;
 }
 
@@ -129,96 +135,20 @@ uint8_t deviceBaroInit(void) {
 }
 
 uint8_t bmp581Configure(void) {
-	/* OSR_CONFIG (0x36)
-	 +-----+-------+-------+-------+-------+-------+---------+-------+-------+
-	 | Bit     |   7 |   6   |   5   |   4   |   3   |   2   |   1   |   0   |
-	 +-----+-------+-- -----+-------+-------+-------+--------+-------+-------+
-	 | Content |Resv | p_en  |        osr_p          |        osr_t          |
-	 +-----------------------------------------------------------------------+
-	 > osr_t , osr_p(bit offset: 0) OSR_T selection
-	 +--------------+-------------------------+
-	 | Value        | Description             |
-	 +--------------+-------------------------+
-	 | 0b000 (0x0)  | oversampling rate = 1x  |<< T
-	 | 0b001 (0x1)  | oversampling rate = 2x  |
-	 | 0b010 (0x2)  | oversampling rate = 4x  |
-	 | 0b011 (0x3)  | oversampling rate = 8x  |
-	 | 0b100 (0x4)  | oversampling rate = 16x | << P
-	 | 0b101 (0x5)  | oversampling rate = 32x |
-	 | 0b110 (0x6)  | oversampling rate = 64x |
-	 | 0b111 (0x7)  | oversampling rate = 128x|
-	 +--------------+-----------------------+
-	 */
 	deviceAltitudeData.buffer[0] = 0b01011000;
 	if (!spi4WriteRegister(BMP581_REG_OSR_CONFIG, deviceAltitudeData.buffer, 1, BMP581_DEVICE)) {
 		logString("[bmp581] OSR_CONFIG write failed\n");
 		return 0;
 	}
 	delayMs(5);
-	/* ODR_CONFIG (0x37)
-	 +-----+-------+-------+-------+-------+-------+-------+-------+-------------+
-	 | Bit     |   7     |   6   |   5   |   4   |   3   |   2   |   1   |   0   |
-	 +-----+-------+-------+-------+-------+-------+-------+-------+-------------+
-	 | Content | deep_dis|        odr                            | pwr_mode      |
-	 +---------------------------------------------------------------------------+
-	 > pwr_mode (bit offset: 0) Power mode configuration
-	 +------------+--------------------------------------------------- ----------+
-	 | Value      | Description                                                  |
-	 +------------+-------------------------------------------------------------+
-	 | 0b00 (0x0) | Standby mode: no measurement ongoing                        |
-	 | 0b01 (0x1) | Normal mode: measurement in configured ODR grid             |
-	 | 0b10 (0x2) | Forced mode: forced single measurement                      |
-	 | 0b11 (0x3) | Non-Stop mode: repetitive measurements without further      |
-	 |            | duty-cycling                                              |
-	 +------------+-----------------------------------------------------------+
-	 > odr (bit offset: 2) ODR Selection
-	 +--------+--------+-------------------------+
-	 | Hex    | Binary | Frequency               |
-	 +--------+--------+-------------------------+
-	 | 0x0    | 0000   | 240.000 Hz (Error = 0.00)|
-	 | 0x1    | 0001   | 218.537 Hz (Error = 0.87)|
-	 | 0x2    | 0010   | 199.114 Hz (Error = 0.81)|
-	 | 0x3    | 0011   | 180.000 Hz (Error = 0.44)|
-	 | 0x4    | 0100   | 160.000 Hz (Error = 0.00)|
-	 | 0x5    | 0101   | 150.000 Hz (Error = 0.00)|
-	 | 0x6    | 0110   | 140.000 Hz (Error = 0.00)|
-	 | 0x7    | 0111   | 129.855 Hz (Error = 0.11)|
-	 | 0x8    | 1000   | 120.000 Hz (Error = 0.00)|
-	 | 0x9    | 1001   | 110.164 Hz (Error = 0.15)|
-	 | 0xA    | 1010   | 100.299 Hz (Error = 0.30)|<<
-	 | 0xB    | 1011   |  90.000 Hz (Error = 0.00)|
-	 | 0xC    | 1100   |  80.000 Hz (Error = 0.00)|
-	 | 0xD    | 1101   |  70.000 Hz (Error = 0.00)|
-	 | 0xE    | 1110   |  60.000 Hz (Error = 0.00)|
-	 | 0xF    | 1111   |  50.056 Hz (Error = 0.11)|
-	 +--------+--------+-------------------------+
-	 * */
+
 	deviceAltitudeData.buffer[0] = 0b10101001;
 	if (!spi4WriteRegister(BMP581_REG_ODR_CONFIG, deviceAltitudeData.buffer, 1, BMP581_DEVICE)) {
 		logString("[bmp581] ODR_CONFIG write failed\n");
 		return 0;
 	}
 	delayMs(5);
-	/* DSP_IIR Config
-	 +-----+-------+-------+-------+-------+-------+-------+-------+-----------+
-	 | Bit     |   7   |   6   |   5   |   4   |   3   |   2   |   1   |   0   |
-	 +-----+-------+-------+-------+-------+-------+-------+-----------+-------+
-	 | Content |   reserved_3  |     iir_p             |          iir_t        |
-	 +-------------------------------------------------------------------------+
-	 > iir_t , iir_p (bit offset: 0) IIR_T selection
-	 +--------+----------------------+
-	 | Value  | Description          |
-	 +--------+----------------------+
-	 | 0b000  | Bypass               |
-	 | 0b001  | Filter Coefficient 1 |
-	 | 0b010  | Filter Coefficient 3 |
-	 | 0b011  | Filter Coefficient 7 |
-	 | 0b100  | Filter Coefficient 15|
-	 | 0b101  | Filter Coefficient 31|
-	 | 0b110  | Filter Coefficient 63|
-	 | 0b111  | Filter Coefficient127|
-	 +--------+----------------------+
-	 */
+
 	deviceAltitudeData.buffer[0] = 0b00010010;
 	if (!spi4WriteRegister(BMP581_REG_DSP_IIR, deviceAltitudeData.buffer, 1, BMP581_DEVICE)) {
 		logString("[bmp581] DSP_IIR write failed\n");
@@ -255,7 +185,6 @@ void bmp581CalculateAltitude(void) {
 	if (ratio > 0.9f && ratio < 1.2f) {
 		deviceAltitudeData.altitudeSL = BMP581_PRESSURE_GAS_CONST * (1.0f - powf(ratio, BMP581_PRESSURE_PWR_CONST));
 	}
-
 }
 
 /* ------------------------------------------------------------------ */
@@ -274,14 +203,13 @@ void deviceBaroDataProcess(void) {
 /* Data Load                                                          */
 /* ------------------------------------------------------------------ */
 uint8_t deviceBaroLoadData(void) {
-
 #if BMP581_READ_ASYNC == 1
-	if (!bmp581HasData) {
-		return 0;
+	if (bmp581DataReady) {
+		deviceBaroDataProcess();
+		bmp581DataReady = 0; // Free the slot for the next transaction execution
+		return 1;
 	}
-	deviceBaroDataProcess();
-	bmp581HasData = 0;
-	return 1;
+	return 0;
 #else
     return 1;
 #endif
@@ -291,10 +219,9 @@ uint8_t deviceBaroLoadData(void) {
 /* Async Callback                                                     */
 /* ------------------------------------------------------------------ */
 void __deviceBaroBMP581Callback(uint8_t *buf, uint16_t len) {
-	if (!bmp581HasData) {
-		memcpy(deviceAltitudeData.buffer, buf, len);
-		bmp581HasData = 1;
-	}
+	memcpy(deviceAltitudeData.buffer, buf, len);
+	bmp581DataReady = 1;   // Data is safely inside memory bounds
+	bmp581TxInFlight = 0;  // Open the SPI4 bus line state again
 }
 
 /* ------------------------------------------------------------------ */
@@ -302,13 +229,20 @@ void __deviceBaroBMP581Callback(uint8_t *buf, uint16_t len) {
 /* ------------------------------------------------------------------ */
 uint8_t deviceBaroRead(void) {
 #if BMP581_READ_ASYNC == 1
-	if (spi4ReadRegisterAsync(BMP581_REG_TEMP_DATA_XLSB, 6,	BMP581_DEVICE, __deviceBaroBMP581Callback)) {
-		return 1;
-	} else {
+	// Decline execution if a DMA burst is active or unread data occupies the slot
+	if (bmp581TxInFlight || bmp581DataReady) {
 		return 0;
 	}
+
+	bmp581TxInFlight = 1; // Secure bus lock before executing async command
+
+	if (!spi4ReadRegisterAsync(BMP581_REG_TEMP_DATA_XLSB, 6, BMP581_DEVICE, __deviceBaroBMP581Callback)) {
+		bmp581TxInFlight = 0; // Rollback lock if initialization rejected
+		return 0;
+	}
+	return 1;
 #else
-    if (!spi4ReadRegister( BMP581_REG_TEMP_DATA_XLSB, deviceAltitudeData.buffer, 6,  BMP581_DEVICE)) {
+    if (!spi4ReadRegister(BMP581_REG_TEMP_DATA_XLSB, deviceAltitudeData.buffer, 6, BMP581_DEVICE)) {
         return 0;
     }
     deviceBaroDataProcess();

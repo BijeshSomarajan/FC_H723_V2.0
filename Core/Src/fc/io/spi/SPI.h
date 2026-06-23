@@ -8,13 +8,19 @@
 #define FC_SPI_READ_MASK  (0x80)
 #define FC_SPI_WRITE_MASK (0x7F)
 
-#define SPI_IO_TIMEOUT_COUNT 10000U
+#define SPI_IO_TIMEOUT_COUNT 100000U
 
 #define FC_SPI2_DEVICE1  1
 #define FC_SPI4_DEVICE1  2
 #define FC_SPI6_DEVICE1  3
+#define FC_SPI1_DEVICE1  4
 
 typedef void (*spi_callback_t)(uint8_t *buf, uint16_t len);
+
+uint8_t spi1Init(void);
+uint8_t spi1ReadRegister(uint8_t regAddr, uint8_t *rxData, uint16_t rxLen, uint8_t device);
+uint8_t spi1ReadRegisterAsync(uint8_t regAddr, uint16_t rxLen, uint8_t device, spi_callback_t callback);
+uint8_t spi1WriteRegister(uint8_t regAddr, uint8_t *txData, uint16_t txLen, uint8_t device);
 
 uint8_t spi2Init(void);
 uint8_t spi2ReadRegister(uint8_t regAddr, uint8_t *rxData, uint16_t rxLen, uint8_t device);

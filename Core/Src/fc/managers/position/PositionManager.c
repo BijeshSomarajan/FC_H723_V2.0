@@ -11,6 +11,7 @@
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
+#include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/position/GNSS.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/DeltaTimer.h"
@@ -23,6 +24,7 @@
 #include "helpers/PositionManagerHelper.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../control/ControlData.h"
+#include "../../sensors/position/OFlow.h"
 
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
 LOWPASSFILTER positionMgrVelXLPF, positionMgrVelYLPF, positionMgrVelZLPF;
@@ -41,6 +43,7 @@ float positionMgrPosHoldRatePIDGain;
 
 float positionMgrRTHVxCommand, positionMgrRTHVyCommand;
 float positionMgrRTHCompleteDt = 0;
+float sensorReadOFlowDt = 0;
 
 // Static variables to persist sampling state across function calls
 uint16_t positionMgrHomeRefSampleCount = 0;
@@ -57,7 +60,16 @@ uint8_t initPositionManager(void) {
 		logString("[Position Manager] GPS Init > Success\n");
 	} else {
 		logString("[Position Manager] GPS Init > Failed!\n");
+		return 0;
 	}
+	status = initOFlow();
+	if (status) {
+		logString("[Position Manager] OFlow Init > Success\n");
+	} else {
+		logString("[Position Manager] OFlow Init > Failed\n");
+		return 0;
+	}
+
 	status = positionEKFInit(&positionEkf) && initVenturiBiasEstimator();
 	if (status) {
 		logString("[Position Manager] EKF Init > Success\n");
@@ -73,8 +85,7 @@ uint8_t initPositionManager(void) {
 		schedulerAddTask(managePositionTask, POSITION_MANAGEMENT_TASK_FREQUENCY, POSITION_MANAGEMENT_TASK_PRIORITY);
 		logString("[Position Manager] All tasks   > Started\n");
 
-		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY,
-		POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
+		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY, POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
 	} else {
 		logString("[Position Manager] EKF Init > Failed\n");
 	}
@@ -311,9 +322,19 @@ void updatePositionCordinateCommand(float dt) {
 }
 
 __ATTR_ITCM_TEXT
+void readPositionSensors(float dt) {
+	sensorReadOFlowDt += dt;
+	if (sensorReadOFlowDt >= POSITION_MANAGEMENT_OFLOW_READ_PERIOD) {
+		sensorReadOFlowDt = 0;
+		readOFlowData();
+	}
+}
+
+__ATTR_ITCM_TEXT
 void managePositionTask(void) {
 	float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
 	dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
+	readPositionSensors(dt);
 
 	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_EST_INPUT_ACC_DEADBAND);
 	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_EST_INPUT_ACC_DEADBAND);
@@ -351,16 +372,7 @@ void managePositionTask(void) {
 	positionCordinateData.positionProcessDt = dt;
 }
 
-__ATTR_ITCM_TEXT
-void doPositionManagement() {
-	if (fcStatusData.hasCrashed) {
-		resetPositionManager();
-	} else if (fcStatusData.canStabilize && !positionManagerWasInStabMode) {
-		positionManagerWasInStabMode = 1;
-	} else if (positionManagerWasInStabMode && fcStatusData.isStabilized) {
-		positionManagerWasInStabMode = 0;
-	}
-
+void loadAndProcessGNSSData() {
 	if (readGNSSData()) {
 		float dt = getDeltaTime(POSITION_MANAGER_GPS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
@@ -403,6 +415,29 @@ void doPositionManagement() {
 
 		}
 	}
+}
+
+void loadAndProcessOFlowData() {
+	if (loadOFlowData()) {
+		float dt = getDeltaTime(POSITION_MANAGER_OFLOW_TIMER_CHANNEL);
+		// Capture quality state instantly before any concurrent DMA callback can mutate it
+		float currentQual = (float) oFlowData.qual;
+		updateXYVelocityOFlow(oFlowData.xRad, oFlowData.yRad, sensorAttitudeData.pitchRate, sensorAttitudeData.rollRate, sensorAltitudeData.altitudeTerrainFiltered, currentQual, sensorAttitudeData.heading, dt);
+		oFlowData.updateDt = dt;
+	}
+}
+
+__ATTR_ITCM_TEXT
+void doPositionManagement() {
+	if (fcStatusData.hasCrashed) {
+		resetPositionManager();
+	} else if (fcStatusData.canStabilize && !positionManagerWasInStabMode) {
+		positionManagerWasInStabMode = 1;
+	} else if (positionManagerWasInStabMode && fcStatusData.isStabilized) {
+		positionManagerWasInStabMode = 0;
+	}
+	loadAndProcessGNSSData();
+	loadAndProcessOFlowData();
 }
 
 void resetPositionManager(void) {

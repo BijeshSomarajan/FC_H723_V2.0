@@ -18,6 +18,9 @@
 #define POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY 75
 #define POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD    (1.0f / POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY)
 
+#define POSITION_MANAGEMENT_OFLOW_READ_FREQUENCY 100.0f
+#define POSITION_MANAGEMENT_OFLOW_READ_PERIOD    (1.0f / POSITION_MANAGEMENT_OFLOW_READ_FREQUENCY)
+
 // =============================================================================
 // SENSOR DEADBANDS , SATURATION LIMITS & LPFs
 // =============================================================================

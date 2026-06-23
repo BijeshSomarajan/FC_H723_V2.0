@@ -81,6 +81,7 @@ uint8_t readAltitudeSensors(float dt) {
 	uint8_t status = 0;
 	sensorBaroReadDt += dt;
 	if (sensorBaroReadDt >= SENSOR_BARO_READ_PERIOD) {
+		sensorAltitudeData.altitudeSLUpdateDt = sensorBaroReadDt;
 		sensorBaroReadDt = 0;
 		status = deviceBaroRead();
 	}

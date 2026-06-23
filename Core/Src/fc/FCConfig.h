@@ -18,13 +18,14 @@
 #define ALT_MANAGER_TIMER_CHANNEL 11
 #define POSITION_MANAGER_TASK_TIMER_CHANNEL 12
 #define POSITION_MANAGER_GPS_TIMER_CHANNEL 13
+#define POSITION_MANAGER_OFLOW_TIMER_CHANNEL 14
 
-#define MOTOR_CONTROL_TIMER_CHANNEL 14
+#define MOTOR_CONTROL_TIMER_CHANNEL 15
 
-#define OSD_TIMER_CHANNEL 15
-#define DEBUG_TIMER_CHANNEL 16
+#define OSD_TIMER_CHANNEL 16
+#define DEBUG_TIMER_CHANNEL 17
 
-//Note there are only 16 channels!
+//Note there are only 24 channels!
 
 /* Task Priorities */
 #define RC_TASK_PRIORITY 3
@@ -53,6 +54,6 @@
 /**
  * Mag turned 180
  */
-#define FC_BOARD_VERSION  2
+#define FC_BOARD_VERSION  1
 
 #endif /* SRC_FC_MANAGERS_FCCONFIG_H_ */

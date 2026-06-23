@@ -1,32 +1,47 @@
 #include "TFMini.h"
 #include "../AltitudeDevice.h"
 
+#include <string.h>
+#include <stdio.h>
+
 TFMini tfMini;
 
-volatile uint8_t tfMiniHasData = 0;
-volatile uint8_t tfMiniDataRequestComplete = 0;
+// Dual-Flag Asynchronous State Machine Pattern
+volatile uint8_t tfMiniTxInFlight = 0; // Bus lock to prevent multi-stage write/read overlapping
+volatile uint8_t tfMiniRequestComplete = 0; // Phase flag tracking the transition from Request to Read
+volatile uint8_t tfMiniDataReady = 0; // Signal to consumer loop that data is safe to process
 
 uint8_t tfMiniCmdRequestData[5] = { 0x5A, 0x05, 0x00, 0x01, 0x60 };
 
+/* ------------------------------------------------------------------ */
+/* Async Callbacks                                                    */
+/* ------------------------------------------------------------------ */
+void __deviceLidarTFMiniDataRequestCallback(uint8_t *buf, uint16_t len) {
+	tfMiniRequestComplete = 1; // Write sequence complete, sensor ready for reading
+	tfMiniTxInFlight = 0;      // Release bus lock for the read phase
+}
+
 void __deviceLidarTFMiniDataReadCallback(uint8_t *buf, uint16_t len) {
-	if (!tfMiniHasData) {
-		memcpy(tfMini.buffer, buf, len);
-		tfMiniHasData = 1;
-	}
+	memcpy(tfMini.buffer, buf, len);
+	tfMiniDataReady = 1;       // Safe vector inside memory for data process execution
+	tfMiniRequestComplete = 0; // Clear sequence state tracker for next frame loop
+	tfMiniTxInFlight = 0;      // Release bus lock entirely
+}
+
+/* ------------------------------------------------------------------ */
+/* Asynchronous Pipeline Actions                                      */
+/* ------------------------------------------------------------------ */
+uint8_t tfMiniRequestDataAsync() {
+	return i2c1WriteAsync(TFMINI_DEFAULT_ADDRESS, tfMiniCmdRequestData, 5, __deviceLidarTFMiniDataRequestCallback);
 }
 
 uint8_t tfMiniReadDataAsync() {
 	return i2c1ReadAsync(TFMINI_DEFAULT_ADDRESS, 9, __deviceLidarTFMiniDataReadCallback);
 }
 
-void __deviceLidarTFMiniDataRequestCallback(uint8_t *buf, uint16_t len) {
-	tfMiniDataRequestComplete = 1;
-}
-
-uint8_t tfMiniRequestDataAsync() {
-	return i2c1WriteAsync(TFMINI_DEFAULT_ADDRESS, tfMiniCmdRequestData, 5, __deviceLidarTFMiniDataRequestCallback);
-}
-
+/* ------------------------------------------------------------------ */
+/* Synchronous Operations                                             */
+/* ------------------------------------------------------------------ */
 uint8_t tfMiniRequestData() {
 	tfMini.buffer[0] = 0x5A;
 	tfMini.buffer[1] = 0x05;
@@ -66,6 +81,9 @@ uint8_t tfMiniResetDevice() {
 	return i2c1Write(TFMINI_DEFAULT_ADDRESS, tfMini.buffer, 4);
 }
 
+/* ------------------------------------------------------------------ */
+/* Initialization & Processing                                        */
+/* ------------------------------------------------------------------ */
 uint8_t deviceLidarInit() {
 	uint8_t status = 0;
 	status = initI2C1();
@@ -109,6 +127,11 @@ uint8_t deviceLidarInit() {
 		logString("[TFMini] Config Save Success\n");
 	}
 	delayMs(10);
+
+	tfMiniTxInFlight = 0;
+	tfMiniRequestComplete = 0;
+	tfMiniDataReady = 0;
+
 	return status;
 }
 
@@ -130,19 +153,36 @@ void deviceLidarDataProcess(void) {
 	}
 }
 
+/* ------------------------------------------------------------------ */
+/* Core Loop Interface                                                */
+/* ------------------------------------------------------------------ */
 uint8_t deviceLidarRead(void) {
 #if TFMINI_READ_ASYNC == 1
-	if (tfMiniDataRequestComplete) {
-		tfMiniDataRequestComplete = 0;
-		tfMiniReadDataAsync();
-	} else {
-		tfMiniRequestDataAsync();
+	// Guard execution if an explicit bus transaction is actively moving bytes or data is pending consume
+	if (tfMiniTxInFlight || tfMiniDataReady) {
+		return 0;
 	}
+
+	if (tfMiniRequestComplete) {
+		// Stage 2: Write phase completed, trigger the data extraction read over I2C1
+		tfMiniTxInFlight = 1;
+		if (!tfMiniReadDataAsync()) {
+			tfMiniTxInFlight = 0;
+			return 0;
+		}
+	} else {
+		// Stage 1: Pipeline clear, trigger the asynchronous data request command burst
+		tfMiniTxInFlight = 1;
+		if (!tfMiniRequestDataAsync()) {
+			tfMiniTxInFlight = 0;
+			return 0;
+		}
+	}
+	return 1;
 #else
 	if (tfMiniRequestData()) {
 		if (tfMiniReadData()) {
 			deviceLidarDataProcess();
-			tfMiniHasData = 1;
 			return 1;
 		} else {
 			return 0;
@@ -151,17 +191,16 @@ uint8_t deviceLidarRead(void) {
 		return 0;
 	}
 #endif
-	return 1;
 }
 
 uint8_t deviceLidarLoadData(void) {
 #if TFMINI_READ_ASYNC == 1
-	if (!tfMiniHasData) {
-		return 0;
+	if (tfMiniDataReady) {
+		deviceLidarDataProcess();
+		tfMiniDataReady = 0; // Clear data slot flag to restart request pipeline
+		return 1;
 	}
-	deviceLidarDataProcess();
-	tfMiniHasData = 0;
-	return 1;
+	return 0;
 #else
 	return 0;
 #endif
@@ -170,6 +209,8 @@ uint8_t deviceLidarLoadData(void) {
 uint8_t deviceLidarReset(uint8_t hard) {
 	deviceAltitudeData.altitudeTerrain = 0;
 	deviceAltitudeData.altitudeTerrainQlty = 0;
+	tfMiniTxInFlight = 0;
+	tfMiniRequestComplete = 0;
+	tfMiniDataReady = 0;
 	return 1;
 }
-
