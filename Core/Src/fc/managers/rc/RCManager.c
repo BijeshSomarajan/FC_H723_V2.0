@@ -111,10 +111,12 @@ void processRCData(float dt) {
 	applyRCStickEffectiveness();
 
 	// Set the FC status
-	fcStatusData.isNavigationRTHModeActive = checkRTHModeActivation();
-	fcStatusData.isNavigationModeActive = checkNavModeActivation();
+	fcStatusData.isNavRTHModeActive = checkRTHModeActivation();
+	fcStatusData.isNavModeActive = checkNavModeActivation();
 
-	fcStatusData.isTerrainAltModeActive = checkTerrainModeActivation();
+	fcStatusData.isTerrainAltModeActive = checkTerrainAltModeActivation();
+	fcStatusData.isTerrainNavModeActive = checkTerrainNavModeActivation();
+
 	fcStatusData.isLandingModeActive = checkLandingModeActivation();
 
 	fcStatusData.needPositionHomeReset = checkHomePositionReset();
@@ -276,9 +278,14 @@ uint8_t checkPitchCentered() {
 	}
 }
 
-uint8_t checkTerrainModeActivation() {
-	return (rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] > ALT_MODE_MODE_ACT_TSH);
+uint8_t checkTerrainAltModeActivation() {
+	return (rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] > TERRAIN_ALT_MODE_ACT_TSH);
 }
+
+uint8_t checkTerrainNavModeActivation() {
+	return (rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] > TERRAIN_NAV_MODE_ACT_TSH);
+}
+
 
 /**
  * Checks if Position Hold mode is active

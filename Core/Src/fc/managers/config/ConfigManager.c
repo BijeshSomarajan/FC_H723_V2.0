@@ -6,6 +6,7 @@
 #include "../../calibration/Calibration.h"
 #include "../../logger/Logger.h"
 #include "../../status/FCStatus.h"
+#include "../rc/RCManager.h"
 
 uint8_t manageConfigurationSave(void);
 uint8_t hasNewConfiguration(void);

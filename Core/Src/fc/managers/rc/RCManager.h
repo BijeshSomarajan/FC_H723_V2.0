@@ -17,14 +17,15 @@
 #define RTH_HOLD_MODE_ACT_TSH  RC_CHANNEL_MAX_VALUE * 0.9f
 #define LANDING_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 #define HEADLESS_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
-#define ALT_MODE_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
+#define TERRAIN_ALT_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
+#define TERRAIN_NAV_MODE_ACT_TSH  RC_CHANNEL_MAX_VALUE * 0.9f
 #define HOME_RESET_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 
 uint8_t initRCManager(void);
 void doRCManagement();
 void resetRCManager(void);
 void processRCData(float dt);
-void setRCData(int32_t *data,int32_t length);
+void setRCData(int32_t *data, int32_t length);
 
 int16_t getThrottleChannelValue();
 int16_t getPitchChannelValue();
@@ -51,7 +52,8 @@ uint8_t canEnableTerrainPosHold(void);
 uint8_t canEnableRTH(void);
 uint8_t checkNavModeActivation(void);
 uint8_t checkRTHModeActivation(void);
-uint8_t checkTerrainModeActivation(void);
+uint8_t checkTerrainAltModeActivation(void);
+uint8_t checkTerrainNavModeActivation(void);
 uint8_t checkLandingModeActivation();
 uint8_t checkHomePositionReset();
 void checkForFailSafe(float dt);

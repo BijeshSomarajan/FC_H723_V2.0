@@ -44,8 +44,6 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 		}
 	}
 
-	// PATCH: Thread Safety/Encapsulation (Ensure 'prevZR' is added to your POSITION_EKF struct definition in header)
-	ekf->prevZR = POS_EKF_Z_R_MEAS;
 	return 1;
 }
 
@@ -60,10 +58,7 @@ void positionEKFReset(POSITION_EKF *ekf, uint8_t axis) {
 		ekf->x[i + POS_EKF_STATE_V] = 0.0f;
 		ekf->x[i + POS_EKF_STATE_B] = 0.0f;
 		ekf->x[i + POS_EKF_STATE_BP] = 0.0f;
-		/* Reset dynamic R context */
-		if (axis == POS_EKF_Z_AXIS) {
-			ekf->prevZR = POS_EKF_Z_R_MEAS;
-		}
+
 		/* Reset covariance block */
 		for (int r = 0; r < POS_EKF_AXIS_DIM; r++) {
 			for (int c = 0; c < POS_EKF_AXIS_DIM; c++) {

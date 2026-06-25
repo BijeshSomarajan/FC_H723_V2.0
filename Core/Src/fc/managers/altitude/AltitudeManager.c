@@ -360,7 +360,6 @@ void resetAltMgrStates() {
 	sensorAltitudeData.altitudeTerrainZOffset = 0;
 	sensorAltitudeData.altitudeSLZOffset = 0;
 	altMgrWasTerrainModeActive = 0;
-	fcStatusData.isTerrainDataReliable = 0;
 
 	lowPassFilterReset(&altMgrThrottleControlLPF);
 }
@@ -405,15 +404,14 @@ void doAltitudeManagement(void) {
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 	altMgrTerrainAltUpdateDt += dt;
 	altMgrTerrainAltUpdateDt = constrainToRangeF(altMgrTerrainAltUpdateDt, 0.0001f, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
-	uint8_t terrainModeActive = fcStatusData.isTerrainAltModeActive;
 
-	if (!altMgrWasTerrainModeActive && terrainModeActive && fcStatusData.isTerrainDataReliable) {
+	if (!altMgrWasTerrainModeActive && fcStatusData.isTerrainAltModeActive && fcStatusData.isTerrainAltDataReliable) {
 		sensorAltitudeData.altitudeTerrainZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeTerrainFiltered;
-	} else if (altMgrWasTerrainModeActive && !terrainModeActive) {
+	} else if (altMgrWasTerrainModeActive && !fcStatusData.isTerrainAltModeActive) {
 		sensorAltitudeData.altitudeSLZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeSLFiltered;
 	}
 
-	altMgrWasTerrainModeActive = terrainModeActive;
+	altMgrWasTerrainModeActive = fcStatusData.isTerrainAltModeActive;
 #endif
 
 	if (dataAvailableMask != SENSOR_DATA_NONE) {
@@ -423,8 +421,8 @@ void doAltitudeManagement(void) {
 		}
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 		if (dataAvailableMask & SENSOR_DATA_LIDAR) {
-			updateTerrainDataReliability(altMgrTerrainAltUpdateDt);
-			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQlty,POSITION_TERRAIN_DIST_MIN,POSITION_TERRAIN_DIST_MAX, fcStatusData.isTerrainDataReliable, altMgrTerrainAltUpdateDt);
+			updateTerrainAltDataReliability(altMgrTerrainAltUpdateDt);
+			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQual, POSITION_TERRAIN_ALT_DIST_MIN, POSITION_TERRAIN_ALT_DIST_MAX, fcStatusData.isTerrainAltDataReliable, altMgrTerrainAltUpdateDt);
 			altMgrTerrainAltUpdateDt = 0.0f;
 		}
 #endif

@@ -70,7 +70,7 @@ uint8_t loadAltitudeSensorsData(void) {
 		flags |= SENSOR_DATA_LIDAR;
 		sensorAltitudeData.altitudeTerrain = deviceAltitudeData.altitudeTerrain;
 		filterTerrainLevelAlt(SENSOR_LIDAR_READ_PERIOD) ;
-		sensorAltitudeData.altitudeTerrainQlty = deviceAltitudeData.altitudeTerrainQlty;
+		sensorAltitudeData.altitudeTerrainQual = deviceAltitudeData.altitudeTerrainQlty;
 	}
 #endif
 	return flags;
@@ -104,7 +104,7 @@ void resetAltitudeSensors(uint8_t hard) {
 	sensorAltitudeData.altitudeSLScaled = 0;
 	sensorAltitudeData.altitudeSL = 0;
 	sensorAltitudeData.altitudeTerrain = 0;
-	sensorAltitudeData.altitudeTerrainQlty = 0;
+	sensorAltitudeData.altitudeTerrainQual = 0;
 	sensorBaroReadDt = 0;
 	sensorLidarReadDt = 0;
 	if (hard) {

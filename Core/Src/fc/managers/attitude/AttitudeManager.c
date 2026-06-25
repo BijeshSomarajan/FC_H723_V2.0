@@ -52,6 +52,9 @@ void alignImuRateToBoard() {
 	sensorAttitudeData.pitchRate = -imuData.pitchRate;
 	sensorAttitudeData.rollRate = -imuData.rollRate;
 	sensorAttitudeData.yawRate = -imuData.yawRate;
+
+	sensorAttitudeData.pitchRateRaw = -sensorAttitudeData.gxDS;
+	sensorAttitudeData.rollRateRaw = -sensorAttitudeData.gyDS;
 }
 
 __ATTR_ITCM_TEXT

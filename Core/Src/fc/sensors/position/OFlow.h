@@ -13,11 +13,11 @@ struct _OFlowData {
 	//The deltaX and deltaY
 	int16_t deltaRawX;
 	int16_t deltaRawY;
-	uint8_t qual;
+	uint8_t qualRaw;
 
 	float xRad;
 	float yRad;
-
+    float qual;
 	float updateDt;
 };
 

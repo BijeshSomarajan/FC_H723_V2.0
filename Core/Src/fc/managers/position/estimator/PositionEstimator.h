@@ -41,8 +41,6 @@ typedef struct {
 	float innovation[POS_EKF_SPACE_DIM];               // Innovation history cache for telemetry logging
 	uint8_t axisInitialized[POS_EKF_SPACE_DIM];         // Individual health track flags
 
-	float prevZR;                                       // Context tracking for dynamic variance modifications
-
 } POSITION_EKF;
 
 extern POSITION_EKF positionEkf;

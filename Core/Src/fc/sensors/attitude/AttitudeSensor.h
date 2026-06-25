@@ -41,6 +41,9 @@ struct _SENSOR_ATTITUDE_DATA {
 	float rollRate;
 	float heading;
 	float yawRate;
+
+	float pitchRateRaw;
+	float rollRateRaw;
 };
 
 extern SENSOR_ATTITUDE_DATA sensorAttitudeData;

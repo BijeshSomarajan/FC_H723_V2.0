@@ -132,7 +132,7 @@ void updatePositionAcceleration(float ax, float ay, float az, float dt) {
 
 __ATTR_ITCM_TEXT
 void updatePositionReference() {
-	if (fcStatusData.canFly && fcStatusData.isNavigationDataReliable && fcStatusData.isPositionHomeSet) {
+	if (fcStatusData.canFly && fcStatusData.isNavDataReliable && fcStatusData.isPositionHomeSet) {
 		fcStatusData.positionXRef = positionCordinateData.xPosition;
 		fcStatusData.positionYRef = positionCordinateData.yPosition;
 	}
@@ -153,7 +153,7 @@ void resetPositionCommands() {
 
 __ATTR_ITCM_TEXT
 void updatePositionRateCommand(float dt) {
-	if ((fcStatusData.isNavigationRTHModeActive || fcStatusData.isNavigationModeActive) && fcStatusData.isNavigationDataReliable) {
+	if (canEngageNavMode()) {
 		if (fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
 			if (fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING) {
 				positionMgrPosHoldRatePIDGain = POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
@@ -291,33 +291,39 @@ void updatePositionCordinateCommand(float dt) {
 		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		return;
 	}
-	switch (fcStatusData.postionHoldState) {
-	case POS_HOLD_STATE_IDLE:
+	if (canEngageNavMode()) {
+		switch (fcStatusData.postionHoldState) {
+		case POS_HOLD_STATE_IDLE:
+			resetPositionCommands();
+			if (fcStatusData.isNavModeActive || fcStatusData.isNavRTHModeActive) {
+				fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
+			}
+			break;
+		case POS_HOLD_STATE_BRAKING:
+			doBraking(dt);
+			break;
+		case POS_HOLD_STATE_SETTLING:
+			positionMgrPosHoldElapseDtSum += dt;
+			setExpectedPositionVelocity(dt, 0.0f, 0.0f);
+			if (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD) {
+				updatePositionReference();
+				resetPositionControl(1);
+				positionMgrPosHoldElapseDtSum = 0.0f;
+				fcStatusData.postionHoldState = POS_HOLD_STATE_LOCKED;
+			}
+			break;
+		case POS_HOLD_STATE_LOCKED:
+			if (fcStatusData.isNavRTHModeActive) {
+				handleRTHNavigation(dt);
+			} else {
+				controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
+			}
+			break;
+		}
+	} else {
+		positionMgrPosHoldElapseDtSum = 0;
+		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		resetPositionCommands();
-		if (fcStatusData.isNavigationModeActive || fcStatusData.isNavigationRTHModeActive) {
-			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
-		}
-		break;
-	case POS_HOLD_STATE_BRAKING:
-		doBraking(dt);
-		break;
-	case POS_HOLD_STATE_SETTLING:
-		positionMgrPosHoldElapseDtSum += dt;
-		setExpectedPositionVelocity(dt, 0.0f, 0.0f);
-		if (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD) {
-			updatePositionReference();
-			resetPositionControl(1);
-			positionMgrPosHoldElapseDtSum = 0.0f;
-			fcStatusData.postionHoldState = POS_HOLD_STATE_LOCKED;
-		}
-		break;
-	case POS_HOLD_STATE_LOCKED:
-		if (fcStatusData.isNavigationRTHModeActive) {
-			handleRTHNavigation(dt);
-		} else {
-			controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
-		}
-		break;
 	}
 }
 
@@ -376,8 +382,8 @@ void loadAndProcessGNSSData() {
 	if (readGNSSData()) {
 		float dt = getDeltaTime(POSITION_MANAGER_GPS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
-		updateNavigationDataReliability(dt);
-		if (fcStatusData.isNavigationDataReliable && fcStatusData.canFly) {
+		updateGNSSDataReliability(dt);
+		if (fcStatusData.isNavDataReliable && fcStatusData.canFly) {
 			uint8_t wasHomeJustSet = 0;
 			if (!fcStatusData.isPositionHomeSet) {
 				if (positionMgrHomeRefSampleCount == 0) {
@@ -408,9 +414,9 @@ void loadAndProcessGNSSData() {
 				}
 				// Update Velocity and Position
 				updateXYVelocity(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
-				updateZVelocity(gnssData.sAcc, -gnssData.velD, fcStatusData.isNavigationDataReliable && fcStatusData.isNavigationModeActive, dt); //GNSS is +ve down ( NED )
+				updateZVelocity(gnssData.sAcc, -gnssData.velD, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt); //GNSS is +ve down ( NED )
 				updateXYPosition(gnssData.hAcc, positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
-				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, fcStatusData.isNavigationDataReliable && fcStatusData.isNavigationModeActive, dt);
+				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt);
 			}
 
 		}
@@ -420,10 +426,10 @@ void loadAndProcessGNSSData() {
 void loadAndProcessOFlowData() {
 	if (loadOFlowData()) {
 		float dt = getDeltaTime(POSITION_MANAGER_OFLOW_TIMER_CHANNEL);
-		// Capture quality state instantly before any concurrent DMA callback can mutate it
-		float currentQual = (float) oFlowData.qual;
-		updateXYVelocityOFlow(oFlowData.xRad, oFlowData.yRad, sensorAttitudeData.pitchRate, sensorAttitudeData.rollRate, sensorAltitudeData.altitudeTerrainFiltered, currentQual, sensorAttitudeData.heading, dt);
+		updateTerrainNavDataReliability(dt);
 		oFlowData.updateDt = dt;
+		updateXYVelocityOFlow(oFlowData.yRad, oFlowData.xRad, oFlowData.qual, sensorAltitudeData.altitudeTerrainFiltered, POSITION_TERRAIN_NAV_MIN_DIST, POSITION_TERRAIN_NAV_MAX_DIST, fcStatusData.isTerrainAltDataReliable, fcStatusData.isTerrainNavDataReliable && fcStatusData.isTerrainNavModeActive,
+				sensorAttitudeData.pitchRate, sensorAttitudeData.rollRate, sensorAttitudeData.heading, dt);
 	}
 }
 

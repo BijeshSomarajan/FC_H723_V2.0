@@ -14,6 +14,9 @@ const float H_GNSS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 const float H_VEL[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
 const float H_POS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 const float H_OFLOW[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
+
+float positionEstPrevRVOflow = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX;
+float positionEstPrevRPSL = POS_ESTIMATOR_DYNAMIC_Z_RP_MAX;
 /*--------------------------------------- Dynamic R Estimators ----------------------------------------------------*/
 float getEstimatedXYRP(float hAcc) {
 	if (hAcc < POS_ESTIMATOR_DYNAMIC_XY_POS_HACC_MIN) {
@@ -87,41 +90,10 @@ float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float motionScale) {
 	/* ==============================================================
 	 * LPF smoothing
 	 * ============================================================== */
-	float dynamicR = ekf->prevZR + POS_ESTIMATOR_DYNAMIC_Z_RP_ALPHA * (targetDynamicR - ekf->prevZR);
-	ekf->prevZR = dynamicR;
+	float dynamicR = positionEstPrevRPSL + POS_ESTIMATOR_DYNAMIC_Z_RP_ALPHA * (targetDynamicR - positionEstPrevRPSL);
+	positionEstPrevRPSL = dynamicR;
 
 	return dynamicR;
-}
-
-__ATTR_ITCM_TEXT
-float getEstimatedTerrainRP(float distance, float quality, float minDistance, float maxDistance, uint8_t terrainDataValid) {
-	/*---------------------------------------------------------
-	 * Reject invalid measurements
-	 *---------------------------------------------------------*/
-	if (!terrainDataValid) {
-		return POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED;
-	}
-	/*---------------------------------------------------------
-	 * Distance scaling
-	 *
-	 * DIST_MIN -> 0.0
-	 * DIST_MAX -> 1.0
-	 *---------------------------------------------------------*/
-	float distScale = (distance - minDistance) / (maxDistance - minDistance);
-	distScale = constrainToRangeF(distScale, 0.0f, 1.0f);
-	/*---------------------------------------------------------
-	 * Quality scaling
-	 *
-	 * quality = 1.0 -> 0.0
-	 * quality = 0.0 -> 1.0
-	 *---------------------------------------------------------*/
-	float qualityScale = 1.0f - quality;
-	/*---------------------------------------------------------
-	 * Conservative: trust the worse of the two
-	 *---------------------------------------------------------*/
-	float scale = fmaxf(distScale, qualityScale);
-	float R = POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE + scale * (POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX - POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE);
-	return constrainToRangeF(R, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX);
 }
 
 __ATTR_ITCM_TEXT
@@ -143,6 +115,43 @@ float getEstimatedXYRV(float sAcc) {
 		dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_RV_MAX;
 	}
 	return dynamicRv;
+}
+
+__ATTR_ITCM_TEXT
+float getEstimatedTerrainRP(float distance, float quality, float minDistance, float maxDistance, uint8_t terrainDataValid) {
+	if (!terrainDataValid) {
+		return POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED;
+	}
+	float distScale = (distance - minDistance) / (maxDistance - minDistance);
+	distScale = constrainToRangeF(distScale, 0.0f, 1.0f);
+	float qualityScale = 1.0f - quality;
+	/*---------------------------------------------------------
+	 * Conservative: trust the worse of the two
+	 *---------------------------------------------------------*/
+	float scale = fmaxf(distScale, qualityScale);
+	float R = POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE + scale * (POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX - POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE);
+	return constrainToRangeF(R, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX);
+}
+
+__ATTR_ITCM_TEXT
+float getEstimatedXYRVOFlow(float qual, float terrainAltitude, float minDistance, float maxDistance, uint8_t terrainAltValid, uint8_t terrainNavValid) {
+	if (!terrainAltValid || !terrainNavValid) {
+		return POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MUTED;
+	}
+	// Default to maximum variance if safety guards are not met
+	float dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX;
+	if (qual > POS_ESTIMATOR_DYNAMIC_XY_FLOW_QUAL_MIN && terrainAltitude > minDistance && terrainAltitude < maxDistance) {
+		// 1. Compute visual tracking error scaled by surface quality
+		float baseR = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_BASE / (qual * qual);
+		// 2. Execute your decoupled noise floor + geometric scaling model
+		dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_BASE + (baseR * terrainAltitude * terrainAltitude);
+		// 3. Upper ceiling clamp to preserve EKF matrix inversion stability
+		if (dynamicRv > POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX) {
+			dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX;
+		}
+	}
+	positionEstPrevRVOflow = positionEstPrevRVOflow + POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_LPF_ALPHA * (dynamicRv - positionEstPrevRVOflow);
+	return positionEstPrevRVOflow;
 }
 
 __ATTR_ITCM_TEXT
@@ -225,17 +234,6 @@ void updateXYVelocity(float sAcc, float velN, float velE, float dt) {
 }
 
 __ATTR_ITCM_TEXT
-float getEstimatedXYRVOFlow(float sQual, float terrainAltitude) {
-	float dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX;
-	if (sQual > POS_ESTIMATOR_DYNAMIC_XY_FLOW_SQUAL_MIN && terrainAltitude > POS_ESTIMATOR_DYNAMIC_XY_FLOW_HEIGHT_MIN) {
-		// Noise scales quadratically with altitude and inversely with surface tracking quality.
-		float baseR = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_BASE / (sQual * sQual);
-		dynamicRv = baseR * (terrainAltitude * terrainAltitude);
-	}
-	return dynamicRv;
-}
-
-__ATTR_ITCM_TEXT
 void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth) {
 	float headingRad = convertDegToRadF(heading);
 	float headingCosValue = cosApproxF(headingRad);
@@ -245,40 +243,42 @@ void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float
 	*yEarth = (xBody * headingSinValue) + (yBody * headingCosValue);
 }
 
-__ATTR_ITCM_TEXT
-void updateXYVelocityOFlow(float flowPitchRad, float flowRollRad, float pitchRate, float rollRate, float terrainAltitude, float sQual, float heading, float dt) {
-	// Guard against division-by-zero/negative time deltas to protect EKF stability
-	if (dt < 1e-5f || sQual < POS_ESTIMATOR_DYNAMIC_XY_FLOW_SQUAL_MIN || terrainAltitude < POS_ESTIMATOR_DYNAMIC_XY_FLOW_HEIGHT_MIN) {
-		return;
-	}
+float flowPitchRateRaw, flowRollRateRaw;
+float flowPitchRateDeRotated, flowRollRateDeRotated;
+float imuPitchRate, imuRollRate;
+float flowVelN, flowVelE;
+float flowDynamicRv;
 
+__ATTR_ITCM_TEXT
+void updateXYVelocityOFlow(float flowPitchRad, float flowRollRad, float qual, float terrainAltitude, float minDistance, float maxDistance, uint8_t terrainAltValid, uint8_t terrainNavValid, float pitchRate, float rollRate, float heading, float dt) {
 	// [STEP 1]: Flow Scaling (Convert raw sensor steps into true angular velocity rad/s)
-	float flowPitchRate = flowPitchRad / dt;
-	float flowRollRate  = flowRollRad / dt;
+	flowPitchRateRaw = flowPitchRad / dt;
+	flowRollRateRaw = flowRollRad / dt;
 
 	// [STEP 2]: Gyro De-rotation (Isolate linear translation using bias-corrected body rates)
 	// Note: Assumes pitchRate and rollRate are passed in Degrees/sec!
-	float flowPitch = flowPitchRate - (convertDegToRadF(pitchRate) * POS_ESTIMATOR_DYNAMIC_XY_FLOW_PITCH_RATE_SCALE);
-	float flowRoll  = flowRollRate + (convertDegToRadF(rollRate) * POS_ESTIMATOR_DYNAMIC_XY_FLOW_ROLL_RATE_SCALE);
+	imuPitchRate = convertDegToRadF(pitchRate);
+	imuRollRate = convertDegToRadF(rollRate);
+
+	flowPitchRateDeRotated = flowPitchRateRaw - (imuPitchRate * POS_ESTIMATOR_DYNAMIC_XY_FLOW_PITCH_RATE_SCALE);
+	flowRollRateDeRotated = flowRollRateRaw - (imuRollRate * POS_ESTIMATOR_DYNAMIC_XY_FLOW_ROLL_RATE_SCALE);
 
 	// [STEP 3]: Transform Angular Velocity to Linear Body Velocity (m/s)
-	float velPitch = flowPitch * terrainAltitude;
-	float velRoll  = flowRoll * terrainAltitude;
+	float velPitch = flowPitchRateDeRotated * terrainAltitude;
+	float velRoll = flowRollRateDeRotated * terrainAltitude;
 
 	// [STEP 4]: Coordinate Transformation (Rotate Body Frame Velocity to Earth Frame NE)
-	float velN, velE;
-	convertBodyToEarthCordinates(velPitch, velRoll, heading, &velN, &velE);
-	float velNDb = applyDeadBandFloat(0.0f, velN, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
-	float velEDb = applyDeadBandFloat(0.0f, velE, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
+	convertBodyToEarthCordinates(velPitch, -velRoll, heading, &flowVelN, &flowVelE);
+	float velNDb = applyDeadBandFloat(0.0f, flowVelN, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
+	float velEDb = applyDeadBandFloat(0.0f, flowVelE, POS_ESTIMATOR_DYNAMIC_XY_VEL_DEADBAND);
 
 	// [STEP 5]: Dynamic Measurement Noise (R) Scaling
-	float dynamicR = getEstimatedXYRVOFlow(sQual, terrainAltitude);
+	flowDynamicRv = getEstimatedXYRVOFlow(qual, terrainAltitude, minDistance, maxDistance, terrainAltValid, terrainNavValid);
 
 	// [STEP 6]: Execute Kalman State Velocity Update.
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, velNDb, dynamicR, H_OFLOW);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicR, H_OFLOW);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, velNDb, flowDynamicRv, H_OFLOW);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, flowDynamicRv, H_OFLOW);
 }
-
 
 float testGNSSRV = 0;
 __ATTR_ITCM_TEXT

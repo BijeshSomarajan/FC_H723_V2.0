@@ -4,41 +4,71 @@
 #include "../../../util/CommonUtil.h"
 #include "../../../status/FCStatus.h"
 #include "../../../sensors/position/GNSS.h"
+#include "../../../sensors/position/OFlow.h"
 #include "../../../sensors/attitude/AttitudeSensor.h"
 #include "../../../sensors/altitude/AltitudeSensor.h"
 #include "PositionManagerHelper.h"
 
 float posManagerGNSSStableTime = 0;
-float posManagerTerrainStableTime = 0;
+float posManagerTerrainAltStableTime = 0;
+float posManagerTerrainNavStableTime = 0;
+
 __ATTR_ITCM_TEXT
-void updateTerrainDataReliability(float dt) {
-	uint8_t valid = sensorAltitudeData.altitudeTerrainQlty >= POSITION_TERRAIN_STRENGTH_MIN && sensorAltitudeData.altitudeTerrain >= POSITION_TERRAIN_DIST_MIN && sensorAltitudeData.altitudeTerrain <= POSITION_TERRAIN_DIST_MAX;
+void updateTerrainAltDataReliability(float dt) {
+	uint8_t valid = fcStatusData.canFly && sensorAltitudeData.altitudeTerrainQual >= POSITION_TERRAIN_ALT_QUAL_MIN && sensorAltitudeData.altitudeTerrain >= POSITION_TERRAIN_ALT_DIST_MIN && sensorAltitudeData.altitudeTerrain <= POSITION_TERRAIN_ALT_DIST_MAX;
 	if (valid) {
 		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
-		posManagerTerrainStableTime += dt;
+		posManagerTerrainAltStableTime += dt;
 	} else {
 		// Decay trust aggressively (1.0s of real time = 2.0s of trust loss)
-		posManagerTerrainStableTime -= POSITION_TERRAIN_STABILITY_INVALID_GAIN * dt;
+		posManagerTerrainAltStableTime -= POSITION_TERRAIN_ALT_STABILITY_INVALID_GAIN * dt;
 	}
-	posManagerTerrainStableTime = constrainToRangeF(posManagerTerrainStableTime, 0.0f, POSITION_TERRAIN_STABILITY_MAX_WINDOW);
+	posManagerTerrainAltStableTime = constrainToRangeF(posManagerTerrainAltStableTime, 0.0f, POSITION_TERRAIN_ALT_STABILITY_MAX_WINDOW);
 	// 2. Clear, Explicit Hysteresis Logic
-	if (fcStatusData.isTerrainDataReliable) {
+	if (fcStatusData.isTerrainAltDataReliable) {
 		// If currently trusted, it must drop below 1.0s to lose trust.
 		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
-		if (posManagerTerrainStableTime < POSITION_TERRAIN_TRUST_THRESHOLD) {
-			fcStatusData.isTerrainDataReliable = 0;
+		if (posManagerTerrainAltStableTime < POSITION_TERRAIN_ALT_TRUST_THRESHOLD) {
+			fcStatusData.isTerrainAltDataReliable = 0;
 		}
 	} else {
 		// If not trusted, it must climb above 1.0s to gain trust.
 		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
-		if (posManagerTerrainStableTime > POSITION_TERRAIN_TRUST_THRESHOLD) {
-			fcStatusData.isTerrainDataReliable = 1;
+		if (posManagerTerrainAltStableTime > POSITION_TERRAIN_ALT_TRUST_THRESHOLD) {
+			fcStatusData.isTerrainAltDataReliable = 1;
 		}
 	}
 }
 
 __ATTR_ITCM_TEXT
-void updateNavigationDataReliability(float dt) {
+void updateTerrainNavDataReliability(float dt) {
+	uint8_t valid = oFlowData.qual >= POSITION_TERRAIN_NAV_QUAL_MIN && fcStatusData.canFly && fcStatusData.isTerrainAltDataReliable;
+	if (valid) {
+		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
+		posManagerTerrainNavStableTime += dt;
+	} else {
+		// Decay trust aggressively (1.0s of real time = 2.0s of trust loss)
+		posManagerTerrainNavStableTime -= POSITION_TERRAIN_NAV_STABILITY_INVALID_GAIN * dt;
+	}
+	posManagerTerrainNavStableTime = constrainToRangeF(posManagerTerrainNavStableTime, 0.0f, POSITION_TERRAIN_NAV_STABILITY_MAX_WINDOW);
+	// 2. Clear, Explicit Hysteresis Logic
+	if (fcStatusData.isTerrainNavDataReliable) {
+		// If currently trusted, it must drop below 1.0s to lose trust.
+		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
+		if (posManagerTerrainNavStableTime < POSITION_TERRAIN_NAV_TRUST_THRESHOLD) {
+			fcStatusData.isTerrainNavDataReliable = 0;
+		}
+	} else {
+		// If not trusted, it must climb above 1.0s to gain trust.
+		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
+		if (posManagerTerrainNavStableTime > POSITION_TERRAIN_NAV_TRUST_THRESHOLD) {
+			fcStatusData.isTerrainNavDataReliable = 1;
+		}
+	}
+}
+
+__ATTR_ITCM_TEXT
+void updateGNSSDataReliability(float dt) {
 	// 1. Basic threshold check (Must be a 3D fix or higher)
 	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.vAcc <= POSITION_GNSS_MIN_VACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
 	if (valid) {
@@ -48,24 +78,28 @@ void updateNavigationDataReliability(float dt) {
 		// Decay trust aggressively (1.0s of real time = 2.0s of trust loss)
 		posManagerGNSSStableTime -= POSITION_GNSS_STABILITY_INVALID_GAIN * dt;
 	}
-
 	// Clamp securely to [0.0, POSITION_GNSS_STABILITY_MAX_WINDOW]
 	posManagerGNSSStableTime = constrainToRangeF(posManagerGNSSStableTime, 0.0f, POSITION_GNSS_STABILITY_MAX_WINDOW);
-
 	// 2. Clear, Explicit Hysteresis Logic
-	if (fcStatusData.isNavigationDataReliable) {
+	if (fcStatusData.isNavDataReliable) {
 		// If currently trusted, it must drop below 1.0s to lose trust.
 		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
 		if (posManagerGNSSStableTime < POSITION_GNSS_TRUST_THRESHOLD) {
-			fcStatusData.isNavigationDataReliable = 0;
+			fcStatusData.isNavDataReliable = 0;
 		}
 	} else {
 		// If not trusted, it must climb above 1.0s to gain trust.
 		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
 		if (posManagerGNSSStableTime > POSITION_GNSS_TRUST_THRESHOLD) {
-			fcStatusData.isNavigationDataReliable = 1;
+			fcStatusData.isNavDataReliable = 1;
 		}
 	}
+}
+
+__ATTR_ITCM_TEXT
+uint8_t canEngageNavMode() {
+	uint8_t engagePosHold = (fcStatusData.isNavRTHModeActive || fcStatusData.isNavModeActive) && (fcStatusData.isNavDataReliable || (fcStatusData.isTerrainNavDataReliable && fcStatusData.isTerrainAltDataReliable));
+	return engagePosHold;
 }
 
 __ATTR_ITCM_TEXT
@@ -97,8 +131,6 @@ void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, flo
 	*xBody = (xEarth * headingCosValue) + (yEarth * headingSinValue);
 	*yBody = (-xEarth * headingSinValue) + (yEarth * headingCosValue);
 }
-
-
 
 __ATTR_ITCM_TEXT
 float getGroundSpeed(void) {
