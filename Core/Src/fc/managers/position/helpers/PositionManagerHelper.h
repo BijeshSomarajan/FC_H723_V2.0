@@ -23,16 +23,9 @@
 #define POSITION_TERRAIN_ALT_STABILITY_MAX_WINDOW      2.0f    // Seconds (Maximum accumulator depth)
 #define POSITION_TERRAIN_ALT_TRUST_THRESHOLD 1.0f
 
-#define POSITION_TERRAIN_NAV_STABILITY_INVALID_GAIN    1.1f    // Decay rate multiplier for bad data
-#define POSITION_TERRAIN_NAV_STABILITY_MAX_WINDOW      2.0f    // Seconds (Maximum accumulator depth)
-#define POSITION_TERRAIN_NAV_TRUST_THRESHOLD 1.0f
-#define POSITION_TERRAIN_NAV_MIN_DIST    POS_ESTIMATOR_DYNAMIC_XY_FLOW_HEIGHT_MIN
-#define POSITION_TERRAIN_NAV_MAX_DIST    POSITION_TERRAIN_ALT_DIST_MAX //Limited to the ramge of Terrain Alt Sensor
-#define POSITION_TERRAIN_NAV_QUAL_MIN    POS_ESTIMATOR_DYNAMIC_XY_FLOW_QUAL_MIN
 
 void updateGNSSDataReliability(float dt);
 void updateTerrainAltDataReliability(float dt);
-void updateTerrainNavDataReliability(float dt);
 void convertGNSSToXYCordinates(double latDeg, double longDeg, double latRef, double longRef, float *xCordinate, float *yCordinate);
 
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody);

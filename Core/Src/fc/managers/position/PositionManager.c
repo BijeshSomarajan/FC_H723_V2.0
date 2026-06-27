@@ -24,7 +24,6 @@
 #include "helpers/PositionManagerHelper.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../control/ControlData.h"
-#include "../../sensors/position/OFlow.h"
 
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
 LOWPASSFILTER positionMgrVelXLPF, positionMgrVelYLPF, positionMgrVelZLPF;
@@ -60,13 +59,6 @@ uint8_t initPositionManager(void) {
 		logString("[Position Manager] GPS Init > Success\n");
 	} else {
 		logString("[Position Manager] GPS Init > Failed!\n");
-		return 0;
-	}
-	status = initOFlow();
-	if (status) {
-		logString("[Position Manager] OFlow Init > Success\n");
-	} else {
-		logString("[Position Manager] OFlow Init > Failed\n");
 		return 0;
 	}
 
@@ -325,20 +317,11 @@ void updatePositionCordinateCommand(float dt) {
 	}
 }
 
-__ATTR_ITCM_TEXT
-void readPositionSensors(float dt) {
-	sensorReadOFlowDt += dt;
-	if (sensorReadOFlowDt >= POSITION_MANAGEMENT_OFLOW_READ_PERIOD) {
-		sensorReadOFlowDt = 0;
-		readOFlowData();
-	}
-}
 
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
 	float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
 	dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
-	readPositionSensors(dt);
 
 	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_EST_INPUT_ACC_DEADBAND);
 	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_EST_INPUT_ACC_DEADBAND);
@@ -378,7 +361,7 @@ void managePositionTask(void) {
 
 void loadAndProcessGNSSData() {
 	if (readGNSSData()) {
-		float dt = getDeltaTime(POSITION_MANAGER_GPS_TIMER_CHANNEL);
+		float dt = getDeltaTime(POSITION_MANAGER_GNSS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
 		updateGNSSDataReliability(dt);
 
@@ -424,23 +407,6 @@ void loadAndProcessGNSSData() {
 	}
 }
 
-void loadAndProcessOFlowData() {
-	if (loadOFlowData()) {
-		float dt = getDeltaTime(POSITION_MANAGER_OFLOW_TIMER_CHANNEL);
-		updateTerrainNavDataReliability(dt);
-		oFlowData.updateDt = dt;
-		if (isNavModeActive() && fcStatusData.isTerrainNavModeActive && fcStatusData.isTerrainNavDataReliable && !fcStatusData.isPositionHomeSet) {
-			fcStatusData.positionXHome = 0;
-			fcStatusData.positionYHome = 0;
-			resetPVEstimation(POS_EKF_X_AXIS, 1);
-			resetPVEstimation(POS_EKF_Y_AXIS, 1);
-			fcStatusData.isPositionHomeSet = 1;
-		}
-		updateXYVelocityOFlow(oFlowData.yRad, oFlowData.xRad, oFlowData.qual, sensorAltitudeData.altitudeTerrainFiltered, POSITION_TERRAIN_NAV_MIN_DIST, POSITION_TERRAIN_NAV_MAX_DIST, fcStatusData.isTerrainAltDataReliable, fcStatusData.isTerrainNavDataReliable && fcStatusData.isTerrainNavModeActive,
-				sensorAttitudeData.pitchRate, sensorAttitudeData.rollRate, sensorAttitudeData.heading, dt);
-	}
-}
-
 __ATTR_ITCM_TEXT
 void doPositionManagement() {
 	if (fcStatusData.hasCrashed) {
@@ -451,7 +417,6 @@ void doPositionManagement() {
 		positionManagerWasInStabMode = 0;
 	}
 	loadAndProcessGNSSData();
-	loadAndProcessOFlowData();
 }
 
 void resetPositionManager(void) {

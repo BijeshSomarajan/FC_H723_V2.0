@@ -25,7 +25,6 @@
 #include "../../control/Pid.h"
 #include "../../io/uart/UART.h"
 #include "../../sensors/position/GNSS.h"
-#include "../../sensors/position/OFlow.h"
 #include "../../util/MathUtil.h"
 #include "../../util/CommonUtil.h"
 #include "../motor/MotorManager.h"
@@ -50,18 +49,6 @@ void debugString() {
 	logString(buf);
 }
 
-extern float testMotionScale;
-extern float testBaroR;
-extern float testVenturiR;
-extern float testVenturiBias;
-extern float testGnssRp;
-extern float testTerrainR;
-extern float flowPitchRateRaw, flowRollRateRaw;
-extern float flowPitchRateDeRotated, flowRollRateDeRotated;
-extern float imuPitchRate, imuRollRate;
-extern float flowVelN, flowVelE;
-extern float flowDynamicRv;
-
 void debugOFlow() {
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
 	DEBUG_DATA_BUFFER[1] = positionCordinateData.xPosition * 1000;
@@ -79,37 +66,7 @@ void debugGPS() {
 	DEBUG_DATA_BUFFER[2] = fcStatusData.isPositionHomeSet  * 1000;
 	DEBUG_DATA_BUFFER[3] = positionCordinateData.xPosition * 1000;
 	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition * 1000;
-
 	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
-}
-
-
-
-void debugOFlowRot() {
-	DEBUG_DATA_BUFFER[0] = imuPitchRate * 100;
-	DEBUG_DATA_BUFFER[1] = flowPitchRateRaw * 100;
-	DEBUG_DATA_BUFFER[2] = flowPitchRateDeRotated * 100;
-	DEBUG_DATA_BUFFER[3] = imuRollRate * 100;
-	DEBUG_DATA_BUFFER[4] = flowRollRateRaw * 100;
-	DEBUG_DATA_BUFFER[5] = flowRollRateDeRotated * 100;
-
-	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
-}
-
-void debugRC() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.isTerrainNavModeActive * 100;
-	DEBUG_DATA_BUFFER[1] = fcStatusData.isTerrainAltModeActive * 100;
-	DEBUG_DATA_BUFFER[2] = fcStatusData.isNavModeActive * 100;
-	DEBUG_DATA_BUFFER[3] = fcStatusData.isTerrainAltDataReliable * 100;
-	DEBUG_DATA_BUFFER[4] = fcStatusData.isTerrainNavDataReliable * 100;
-	DEBUG_DATA_BUFFER[5] = positionCordinateData.xVelocity * 1000;
-	DEBUG_DATA_BUFFER[6] = positionCordinateData.yVelocity * 1000;
-	DEBUG_DATA_BUFFER[7] = flowDynamicRv * 100;
-	DEBUG_DATA_BUFFER[8] = oFlowData.qual * 100;
-	DEBUG_DATA_BUFFER[9] = sensorAltitudeData.altitudeTerrainFiltered * 100;
-	DEBUG_DATA_BUFFER[10] = sensorAltitudeData.altitudeSLFiltered * 100;
-	DEBUG_DATA_BUFFER[11] = sensorAltitudeData.altitudeTerrainQual * 100;
-	sendConfigData(DEBUG_DATA_BUFFER, 12, CMD_FC_DATA);
 }
 
 void debugTask() {

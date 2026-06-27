@@ -111,38 +111,7 @@
 
 
 /* =========================================================================
- * Group 6: Dynamic Sensor Variance Scaling - Optical Flow Horizontal (XY) Velocity
- * ========================================================================= */
-// [+] Rejects bad/dark surface textures early before they inject noise | [-] Processes sketchy, low-feature tracking at the risk of position drift
-#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_QUAL_MIN         0.1f
-
-// [+] Increases ground proximity safety margin to avoid division-by-zero | [-] Allows ultra-low altitude tracking during indoor takeoffs
-#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_HEIGHT_MIN       0.1f
-
-// [+] Softens camera tracking authority over floor textures | [-] Locks down horizontal position tightly, reducing random linear wander
-#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_BASE          0.001f
-
-// [+] Completely ignores flow data during frame dropouts by maxing variance | [-] Bounds maximum penalty, which can let degraded flow bleed into position
-#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX           16.0f
-
-// [+] Safely decouples horizontal optical flow processing when out of range | [-] Shorter mathematical step to default variance, risking bad fusion
-#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MUTED         10000.0f
-
-// [+] Increases pitch rotation subtraction sensitivity | [-] Decreases rotation compensation, leaking pitch twitches into horizontal translation
-#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_PITCH_RATE_SCALE 1.0f
-
-// [+] Increases roll rotation subtraction sensitivity | [-] Decreases rotation compensation, leaking roll twitches into horizontal translation
-#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_ROLL_RATE_SCALE  1.0f
-
-// [+] Dynamic variance adapts faster to sudden surface profile changes | [-] Smoothes dynamic variance trajectory but introduces tracking lag
-#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_LPF_ALPHA     0.1f
-
-// [+] Reduces phase lag in gyro subtraction during quick tilts | [-] Heavily filters gyro derotation data, introducing phase lag and wander
-#define POS_ESTIMATOR_DYNAMIC_XY_FLOW_DEROT_LPF_ALPHA  0.5f
-
-
-/* =========================================================================
- * Group 7: Dynamic Sensor Variance Scaling - GNSS Vertical (Z) Position & Velocity
+ * Group 6: Dynamic Sensor Variance Scaling - GNSS Vertical (Z) Position & Velocity
  * ========================================================================= */
 // [+] Multiplies vertical GPS variance heavily when geometry degrades | [-] Blindly trusts vertical GPS data even during satellite count drops
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_SCALE        500.00f
@@ -182,7 +151,7 @@
 
 
 /* =========================================================================
- * Group 8: Dynamic Sensor Variance Scaling - Terrain Rangefinder & Baro/Venturi (Z)
+ * Group 7: Dynamic Sensor Variance Scaling - Terrain Rangefinder & Baro/Venturi (Z)
  * ========================================================================= */
 // [+] Softens baseline lidar/rangefinder authority over terrain altitude | [-] Sharpens surface altitude tracking accuracy down to millimeters
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE        0.01f

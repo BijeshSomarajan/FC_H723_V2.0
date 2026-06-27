@@ -115,10 +115,7 @@ void processRCData(float dt) {
 	fcStatusData.isNavModeActive = checkNavModeActivation();
 
 	fcStatusData.isTerrainAltModeActive = checkTerrainAltModeActivation();
-	fcStatusData.isTerrainNavModeActive = checkTerrainNavModeActivation();
-
 	fcStatusData.isLandingModeActive = checkLandingModeActivation();
-
 	fcStatusData.needPositionHomeReset = checkHomePositionReset();
 }
 

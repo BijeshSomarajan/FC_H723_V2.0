@@ -10,12 +10,9 @@ const float H_BARO_WITH_BIAS[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
 const float H_BARO[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 const float H_BIAS[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 const float H_TERRAIN[4] = { 1, 0, 0, 0 };
-const float H_GNSS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
-const float H_VEL[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
-const float H_POS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
-const float H_OFLOW[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
+const float H_P_GNSS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+const float H_V_GNSS[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
 
-float positionEstPrevRVOflow = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX;
 float positionEstPrevRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX;
 
 void resetPVEstimation(uint8_t axis, uint8_t keepBias) {
@@ -23,17 +20,7 @@ void resetPVEstimation(uint8_t axis, uint8_t keepBias) {
 }
 
 /*--------------------------------------- Dynamic R Estimators ----------------------------------------------------*/
-float getEstimatedXYRPOld(float hAcc) {
-	if (hAcc < POS_ESTIMATOR_DYNAMIC_XY_GNSS_HACC_MIN) {
-		hAcc = POS_ESTIMATOR_DYNAMIC_XY_GNSS_HACC_MIN;
-	}
-	float dynamicR = (POS_ESTIMATOR_DYNAMIC_XY_GNSS_RP_BASE + (POS_ESTIMATOR_DYNAMIC_XY_GNSS_HACC_SCALE * (hAcc * hAcc)));
-	if (dynamicR > POS_ESTIMATOR_DYNAMIC_XY_GNSS_RP_MAX) {
-		dynamicR = POS_ESTIMATOR_DYNAMIC_XY_GNSS_RP_MAX;
-	}
-	return dynamicR;
-}
-
+__ATTR_ITCM_TEXT
 float getEstimatedXYRP(float hAcc) {
 	// 1. Enforce a hardware floor to prevent under-specifying noise
 	if (hAcc < POS_ESTIMATOR_DYNAMIC_XY_GNSS_HACC_MIN) {
@@ -49,7 +36,7 @@ float getEstimatedXYRP(float hAcc) {
 	return dynamicR;
 }
 
-float testGnssRp;
+__ATTR_ITCM_TEXT
 float getEstimatedZRPGNSS(float vAcc) {
 	if (vAcc < POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_MIN) {
 		vAcc = POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_MIN;
@@ -58,7 +45,6 @@ float getEstimatedZRPGNSS(float vAcc) {
 	if (dynamicRp > POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MAX) {
 		dynamicRp = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MAX;
 	}
-	testGnssRp = dynamicRp;
 	return dynamicRp;
 }
 
@@ -132,10 +118,8 @@ float getEstimatedXYRV(float sAcc) {
 	if (sAcc < POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_MIN) {
 		sAcc = POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_MIN;
 	}
-
 	// 2. Pure variance calculation: (m/s)^2
 	float dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_SCALE * (sAcc * sAcc);
-
 	// 3. Cap the variance so an absolute GPS blackout doesn't cause
 	//    numerical instability (NaN) in the Kalman Gain calculation
 	if (dynamicRv > POS_ESTIMATOR_DYNAMIC_XY_GNSS_RV_MAX) {
@@ -162,38 +146,6 @@ float getEstimatedTerrainRP(float distance, float quality, float minDistance, fl
 }
 
 __ATTR_ITCM_TEXT
-float getEstimatedXYRVOFlow(float qual, float terrainAltitude, float minDistance, float maxDistance, uint8_t terrainAltValid, uint8_t terrainNavValid) {
-	// 1. Handle the muted/invalid state immediately
-	if (!terrainAltValid || !terrainNavValid) {
-		positionEstPrevRVOflow = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MUTED;
-		return POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MUTED;
-	}
-	// Default to maximum variance if safety guards are not met
-	float dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX;
-	// 2. Safety guard check
-	if (qual > POS_ESTIMATOR_DYNAMIC_XY_FLOW_QUAL_MIN && terrainAltitude > minDistance && terrainAltitude < maxDistance) {
-		// NOTE: Ensure 'qual' is normalized (0.0f to 1.0f).
-		// If 'qual' is a raw 0-255 integer cast to float, normalize it here: qual /= 255.0f;
-		float baseR = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_BASE / (qual * qual);
-		// Pure geometric scaling: error variance grows with the square of the height
-		dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_BASE + (baseR * (terrainAltitude * terrainAltitude));
-		// Upper ceiling clamp to preserve EKF matrix inversion stability
-		if (dynamicRv > POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX) {
-			dynamicRv = POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MAX;
-		}
-	}
-	// 3. State-Transition Shield: Bypass the LPF if we are recovering from a MUTED state
-	if (positionEstPrevRVOflow >= POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_MUTED) {
-		positionEstPrevRVOflow = dynamicRv; // Instant latch, no lag trench
-	} else {
-		// Normal smoothing during sustained flight to prevent noise spikes from twitching the EKF
-		positionEstPrevRVOflow = positionEstPrevRVOflow + POS_ESTIMATOR_DYNAMIC_XY_FLOW_RV_LPF_ALPHA * (dynamicRv - positionEstPrevRVOflow);
-	}
-	return positionEstPrevRVOflow;
-}
-
-
-__ATTR_ITCM_TEXT
 float getEstimatedZRV(float sAcc) {
 	if (sAcc < POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN) {
 		sAcc = POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN;
@@ -210,57 +162,45 @@ __ATTR_ITCM_TEXT
 void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt) {
 	positionCordinateData.positionXYUpdateDt = dt;
 	float dynamicRp = getEstimatedXYRP(hAcc);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, xPos, dynamicRp, H_POS);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, yPos, dynamicRp, H_POS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, xPos, dynamicRp, H_P_GNSS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, yPos, dynamicRp, H_P_GNSS);
 }
 
-float testMotionScale = 0;
-float testBaroR = 0;
-float testVenturiR = 0;
-float testVenturiBias = 0;
 
 __ATTR_ITCM_TEXT
 void updateZPositionSL(float offset, float zPos, float dt) {
 	positionCordinateData.positionZSLUpdateDt = dt;
 	positionCordinateData.zPositionRawSL = zPos;
 	float motionScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
-	testMotionScale = motionScale;
 	/* ---------------- BARO ---------------- */
 	float dynamicRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN;
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
 	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
-	testBaroR = dynamicRPSL;
 #endif
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
 	/* ---------------- VENTURI ---------------- */
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
 	float venturiBias = getVenturiBiasEstimate(dt);
-	testVenturiBias = venturiBias;
 	float venturiR = getEstimatedVenturiRP(motionScale);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, venturiBias, venturiR, H_BIAS);
-	testVenturiR = venturiR;
 #endif
 }
 
-float testTerrainR = 0;
 __ATTR_ITCM_TEXT
 void updateZPositionTerrain(float offset, float distance, float strength, float minDistance, float maxDistance, uint8_t terrainDataValid, float dt) {
 	positionCordinateData.positionZTerrainUpdateDt = dt;
 	positionCordinateData.zPositionRawTerrain = distance;
 	float terrainR = getEstimatedTerrainRP(distance, strength, minDistance, maxDistance, terrainDataValid);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + distance, terrainR, H_TERRAIN);
-	testTerrainR = terrainR;
 }
 
-float testGNSSRP = 0;
 __ATTR_ITCM_TEXT
 void updateZPositionGNSS(float vAcc, float hMSL, uint8_t navigationModeActive, float dt) {
 	float dynamicRp = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MUTED;
 	if (navigationModeActive) {
 		dynamicRp = getEstimatedZRPGNSS(vAcc);
 	}
-	testGNSSRP = dynamicRp;
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, hMSL, dynamicRp, H_GNSS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, hMSL, dynamicRp, H_P_GNSS);
 }
 
 __ATTR_ITCM_TEXT
@@ -268,8 +208,8 @@ void updateXYVelocityGNSS(float sAcc, float velN, float velE, float dt) {
 	float dynamicRv = getEstimatedXYRV(sAcc);
 	float velNDb = applyDeadBandFloat(0.0f, velN, POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND);
 	float velEDb = applyDeadBandFloat(0.0f, velE, POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, velNDb, dynamicRv, H_VEL);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicRv, H_VEL);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, velNDb, dynamicRv, H_V_GNSS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicRv, H_V_GNSS);
 }
 
 __ATTR_ITCM_TEXT
@@ -282,69 +222,13 @@ void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float
 	*yEarth = (xBody * headingSinValue) + (yBody * headingCosValue);
 }
 
-float flowPitchRateRaw, flowRollRateRaw;
-float flowPitchRateDeRotated, flowRollRateDeRotated;
-float imuPitchRate, imuRollRate;
-float flowVelN, flowVelE;
-float flowDynamicRv;
 
-float flowPitchRateDeRotatedPrev = 0.0f;
-float flowRollRateDeRotatedPrev = 0.0f;
-__ATTR_ITCM_TEXT
-void updateXYVelocityOFlow(float flowPitchRad, float flowRollRad, float qual, float terrainAltitude, float minDistance, float maxDistance, uint8_t terrainAltValid, uint8_t terrainNavValid, float pitchRate, float rollRate, float heading, float dt) {
-	// [STEP 1]: Flow Scaling (Convert raw sensor steps into true angular velocity rad/s)
-	flowPitchRateRaw = flowPitchRad / dt;
-	flowRollRateRaw = flowRollRad / dt;
-
-	// [STEP 2]: Gyro De-rotation (Isolate linear translation using bias-corrected body rates)
-	// Note: Assumes pitchRate and rollRate are passed in Degrees/sec!
-	imuPitchRate = convertDegToRadF(pitchRate);
-	imuRollRate = convertDegToRadF(rollRate);
-
-	flowPitchRateDeRotated = flowPitchRateRaw - (imuPitchRate * POS_ESTIMATOR_DYNAMIC_XY_FLOW_PITCH_RATE_SCALE);
-	flowRollRateDeRotated = flowRollRateRaw - (imuRollRate * POS_ESTIMATOR_DYNAMIC_XY_FLOW_ROLL_RATE_SCALE);
-
-	// [STEP 2.5]: Low-Pass Filter on De-rotated Optical Rates
-	// Static variables hold filter history between ITCM execution cycles
-
-	// If navigation data is completely lost or muted, latch the filter to current raw frame to avoid stale state windup
-	if (!terrainNavValid || !terrainAltValid) {
-		flowPitchRateDeRotatedPrev = flowPitchRateDeRotated;
-		flowRollRateDeRotatedPrev = flowRollRateDeRotated;
-	} else {
-		flowPitchRateDeRotatedPrev = flowPitchRateDeRotatedPrev + POS_ESTIMATOR_DYNAMIC_XY_FLOW_DEROT_LPF_ALPHA * (flowPitchRateDeRotated - flowPitchRateDeRotatedPrev);
-		flowRollRateDeRotatedPrev = flowRollRateDeRotatedPrev + POS_ESTIMATOR_DYNAMIC_XY_FLOW_DEROT_LPF_ALPHA * (flowRollRateDeRotated - flowRollRateDeRotatedPrev);
-	}
-
-	// Overwrite with the smoothed values so that the rest of the downstream execution uses filtered data
-	flowPitchRateDeRotated = flowPitchRateDeRotatedPrev;
-	flowRollRateDeRotated = flowRollRateDeRotatedPrev;
-
-	// [STEP 3]: Transform Angular Velocity to Linear Body Velocity (m/s)
-	float velPitch = flowPitchRateDeRotated * terrainAltitude;
-	float velRoll = flowRollRateDeRotated * terrainAltitude;
-
-	// [STEP 4]: Coordinate Transformation (Rotate Body Frame Velocity to Earth Frame NE)
-	convertBodyToEarthCordinates(velPitch, -velRoll, heading, &flowVelN, &flowVelE);
-	float velNDb = applyDeadBandFloat(0.0f, flowVelN, POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND);
-	float velEDb = applyDeadBandFloat(0.0f, flowVelE, POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND);
-
-	// [STEP 5]: Dynamic Measurement Noise (R) Scaling
-	flowDynamicRv = getEstimatedXYRVOFlow(qual, terrainAltitude, minDistance, maxDistance, terrainAltValid, terrainNavValid);
-
-	// [STEP 6]: Execute Kalman State Velocity Update.
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, velNDb, flowDynamicRv, H_OFLOW);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, flowDynamicRv, H_OFLOW);
-}
-
-float testGNSSRV = 0;
 __ATTR_ITCM_TEXT
 void updateZVelocityGNSS(float sAcc, float velZ, uint8_t navigationModeActive, float dt) {
 	float dynamicRv = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MUTED;
 	if (navigationModeActive) {
 		dynamicRv = getEstimatedZRV(sAcc);
 	}
-	testGNSSRV = dynamicRv;
 	float velDb = applyDeadBandFloat(0.0f, velZ, POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, velDb, dynamicRv, H_VEL);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, velDb, dynamicRv, H_V_GNSS);
 }

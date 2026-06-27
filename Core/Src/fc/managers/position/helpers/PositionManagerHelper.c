@@ -4,7 +4,6 @@
 #include "../../../util/CommonUtil.h"
 #include "../../../status/FCStatus.h"
 #include "../../../sensors/position/GNSS.h"
-#include "../../../sensors/position/OFlow.h"
 #include "../../../sensors/attitude/AttitudeSensor.h"
 #include "../../../sensors/altitude/AltitudeSensor.h"
 #include "PositionManagerHelper.h"
@@ -40,32 +39,6 @@ void updateTerrainAltDataReliability(float dt) {
 	}
 }
 
-__ATTR_ITCM_TEXT
-void updateTerrainNavDataReliability(float dt) {
-	uint8_t valid = oFlowData.qual >= POSITION_TERRAIN_NAV_QUAL_MIN && fcStatusData.canFly && fcStatusData.isTerrainAltDataReliable;
-	if (valid) {
-		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
-		posManagerTerrainNavStableTime += dt;
-	} else {
-		// Decay trust aggressively (1.0s of real time = 2.0s of trust loss)
-		posManagerTerrainNavStableTime -= POSITION_TERRAIN_NAV_STABILITY_INVALID_GAIN * dt;
-	}
-	posManagerTerrainNavStableTime = constrainToRangeF(posManagerTerrainNavStableTime, 0.0f, POSITION_TERRAIN_NAV_STABILITY_MAX_WINDOW);
-	// 2. Clear, Explicit Hysteresis Logic
-	if (fcStatusData.isTerrainNavDataReliable) {
-		// If currently trusted, it must drop below 1.0s to lose trust.
-		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
-		if (posManagerTerrainNavStableTime < POSITION_TERRAIN_NAV_TRUST_THRESHOLD) {
-			fcStatusData.isTerrainNavDataReliable = 0;
-		}
-	} else {
-		// If not trusted, it must climb above 1.0s to gain trust.
-		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
-		if (posManagerTerrainNavStableTime > POSITION_TERRAIN_NAV_TRUST_THRESHOLD) {
-			fcStatusData.isTerrainNavDataReliable = 1;
-		}
-	}
-}
 
 __ATTR_ITCM_TEXT
 void updateGNSSDataReliability(float dt) {
