@@ -69,26 +69,27 @@ void updateTerrainNavDataReliability(float dt) {
 
 __ATTR_ITCM_TEXT
 void updateGNSSDataReliability(float dt) {
-	// 1. Basic threshold check (Must be a 3D fix or higher)
+	// 1. Basic threshold check (Strictly requires 3D fix or higher)
 	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.vAcc <= POSITION_GNSS_MIN_VACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
+
 	if (valid) {
-		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
+		// Accumulate trust linearly (1.0s of clean data = 1.0s added to accumulator)
 		posManagerGNSSStableTime += dt;
 	} else {
-		// Decay trust aggressively (1.0s of real time = 2.0s of trust loss)
-		posManagerGNSSStableTime -= POSITION_GNSS_STABILITY_INVALID_GAIN * dt;
+		// Decay trust aggressively (1.0s of bad data = 2.0s removed from accumulator)
+		posManagerGNSSStableTime -= (POSITION_GNSS_STABILITY_INVALID_GAIN * dt);
 	}
+
 	// Clamp securely to [0.0, POSITION_GNSS_STABILITY_MAX_WINDOW]
 	posManagerGNSSStableTime = constrainToRangeF(posManagerGNSSStableTime, 0.0f, POSITION_GNSS_STABILITY_MAX_WINDOW);
+
 	// 2. Clear, Explicit Hysteresis Logic
 	if (fcStatusData.isNavDataReliable) {
-		// If currently trusted, it must drop below 1.0s to lose trust.
 		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
 		if (posManagerGNSSStableTime < POSITION_GNSS_TRUST_THRESHOLD) {
 			fcStatusData.isNavDataReliable = 0;
 		}
 	} else {
-		// If not trusted, it must climb above 1.0s to gain trust.
 		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
 		if (posManagerGNSSStableTime > POSITION_GNSS_TRUST_THRESHOLD) {
 			fcStatusData.isNavDataReliable = 1;
@@ -97,33 +98,32 @@ void updateGNSSDataReliability(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-uint8_t canEngageNavMode() {
-	uint8_t engagePosHold = (fcStatusData.isNavRTHModeActive || fcStatusData.isNavModeActive) && (fcStatusData.isNavDataReliable || (fcStatusData.isTerrainNavDataReliable && fcStatusData.isTerrainAltDataReliable));
-	return engagePosHold;
+uint8_t isNavModeActive() {
+	return (fcStatusData.isNavRTHModeActive || fcStatusData.isNavModeActive) ;
 }
 
 __ATTR_ITCM_TEXT
-void convertGNSSToSICordinates(double latDeg, double lonDeg, double latRefDeg, double lonRefDeg, float *x, float *y) {
-	// Convert to radians
+void convertGNSSToXYCordinates(double latDeg, double lonDeg, double latRefDeg, double lonRefDeg, float *x, float *y) {
+// Convert to radians
 	double latRad = convertDegToRad(latDeg);
 	double lonRad = convertDegToRad(lonDeg);
 	double latRefRad = convertDegToRad(latRefDeg);
 	double lonRefRad = convertDegToRad(lonRefDeg);
-	// Differences
+// Differences
 	double dLat = latRad - latRefRad;
 	double dLon = lonRad - lonRefRad;
-	// Mean latitude (better accuracy than using current lat)
+// Mean latitude (better accuracy than using current lat)
 	double meanLat = 0.5 * (latRad + latRefRad);
-	// Earth frame (NED)
-	// X → North
-	// Y → East
+// Earth frame (NED)
+// X → North
+// Y → East
 	*x = (float) (dLat * POSITION_GNSS_EARTH_RADIUS_METERS);
 	*y = (float) (dLon * POSITION_GNSS_EARTH_RADIUS_METERS * cos(meanLat));
 }
 
 __ATTR_ITCM_TEXT
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody) {
-	//heading = 0;
+//heading = 0;
 	float headingRad = convertDegToRadF(heading);
 	float headingCosValue = cosApproxF(headingRad);
 	float headingSinValue = sinApproxF(headingRad);

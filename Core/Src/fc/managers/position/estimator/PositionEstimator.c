@@ -47,17 +47,22 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 	return 1;
 }
 
+
 __ATTR_ITCM_TEXT
-void positionEKFReset(POSITION_EKF *ekf, uint8_t axis) {
+void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias) {
 	if (axis <= POS_EKF_Z_AXIS) {
 		int i = axis * POS_EKF_AXIS_DIM;
 		ekf->axisInitialized[axis] = 0;
 		ekf->rejectCount[axis] = 0;
+
 		/* Reset state estimates */
-		//Not Reseting P (ekf->x[i + POS_EKF_STATE_P] = 0.0f;)
+		ekf->x[i + POS_EKF_STATE_P] = 0.0f; // Explicitly zero position now
 		ekf->x[i + POS_EKF_STATE_V] = 0.0f;
-		ekf->x[i + POS_EKF_STATE_B] = 0.0f;
 		ekf->x[i + POS_EKF_STATE_BP] = 0.0f;
+
+		if (!keepBias) {
+			ekf->x[i + POS_EKF_STATE_B] = 0.0f;
+		}
 
 		/* Reset covariance block */
 		for (int r = 0; r < POS_EKF_AXIS_DIM; r++) {
@@ -67,7 +72,11 @@ void positionEKFReset(POSITION_EKF *ekf, uint8_t axis) {
 		}
 		ekf->P[i + POS_EKF_STATE_P][i + POS_EKF_STATE_P] = 0.1f;
 		ekf->P[i + POS_EKF_STATE_V][i + POS_EKF_STATE_V] = 0.1f;
-		ekf->P[i + POS_EKF_STATE_B][i + POS_EKF_STATE_B] = 0.01f;
+
+		// If keeping bias, preserve its existing uncertainty variance
+		if (!keepBias) {
+			ekf->P[i + POS_EKF_STATE_B][i + POS_EKF_STATE_B] = 0.01f;
+		}
 
 		if (axis == POS_EKF_Z_AXIS) {
 			ekf->P[i + POS_EKF_STATE_BP][i + POS_EKF_STATE_BP] = 4.0f;

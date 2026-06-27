@@ -5,7 +5,7 @@
 #include "../util/MathUtil.h"
 #include <math.h>
 
-#define MAHONY_FILTER_SPIN_RATE_LIMIT 20
+#define MAHONY_FILTER_SPIN_RATE_LIMIT 30
 #define MAHONY_FILTER_MIN_ACC_MAGNITUDE 0.000001f
 #define MAHONY_FILTER_MIN_MAG_MAGNITUDE 0.000001f
 

@@ -153,7 +153,7 @@ void resetPositionCommands() {
 
 __ATTR_ITCM_TEXT
 void updatePositionRateCommand(float dt) {
-	if (canEngageNavMode()) {
+	if (isNavModeActive() && fcStatusData.isPositionHomeSet) {
 		if (fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
 			if (fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING) {
 				positionMgrPosHoldRatePIDGain = POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
@@ -291,13 +291,11 @@ void updatePositionCordinateCommand(float dt) {
 		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		return;
 	}
-	if (canEngageNavMode()) {
+	if (isNavModeActive() && fcStatusData.isPositionHomeSet) {
 		switch (fcStatusData.postionHoldState) {
 		case POS_HOLD_STATE_IDLE:
 			resetPositionCommands();
-			if (fcStatusData.isNavModeActive || fcStatusData.isNavRTHModeActive) {
-				fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
-			}
+			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
 			break;
 		case POS_HOLD_STATE_BRAKING:
 			doBraking(dt);
@@ -383,6 +381,7 @@ void loadAndProcessGNSSData() {
 		float dt = getDeltaTime(POSITION_MANAGER_GPS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
 		updateGNSSDataReliability(dt);
+
 		if (fcStatusData.isNavDataReliable && fcStatusData.canFly) {
 			uint8_t wasHomeJustSet = 0;
 			if (!fcStatusData.isPositionHomeSet) {
@@ -405,17 +404,19 @@ void loadAndProcessGNSSData() {
 			}
 
 			if (fcStatusData.isPositionHomeSet) {
-				convertGNSSToSICordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
+				convertGNSSToXYCordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
 				if (wasHomeJustSet) {
-					positionEKFInvalidate(&positionEkf, POS_EKF_X_AXIS);
-					positionEKFInvalidate(&positionEkf, POS_EKF_Y_AXIS);
+					//positionEKFInvalidate(&positionEkf, POS_EKF_X_AXIS);
+					//positionEKFInvalidate(&positionEkf, POS_EKF_Y_AXIS);
+					resetPVEstimation(POS_EKF_X_AXIS, 1);
+					resetPVEstimation(POS_EKF_Y_AXIS, 1);
 					fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
 					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
 				}
 				// Update Velocity and Position
-				updateXYVelocity(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
-				updateZVelocity(gnssData.sAcc, -gnssData.velD, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt); //GNSS is +ve down ( NED )
-				updateXYPosition(gnssData.hAcc, positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
+				updateXYVelocityGNSS(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
+				updateZVelocityGNSS(gnssData.sAcc, -gnssData.velD, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt); //GNSS is +ve down ( NED )
+				updateXYPositionGNSS(gnssData.hAcc, positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
 				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt);
 			}
 
@@ -428,6 +429,13 @@ void loadAndProcessOFlowData() {
 		float dt = getDeltaTime(POSITION_MANAGER_OFLOW_TIMER_CHANNEL);
 		updateTerrainNavDataReliability(dt);
 		oFlowData.updateDt = dt;
+		if (isNavModeActive() && fcStatusData.isTerrainNavModeActive && fcStatusData.isTerrainNavDataReliable && !fcStatusData.isPositionHomeSet) {
+			fcStatusData.positionXHome = 0;
+			fcStatusData.positionYHome = 0;
+			resetPVEstimation(POS_EKF_X_AXIS, 1);
+			resetPVEstimation(POS_EKF_Y_AXIS, 1);
+			fcStatusData.isPositionHomeSet = 1;
+		}
 		updateXYVelocityOFlow(oFlowData.yRad, oFlowData.xRad, oFlowData.qual, sensorAltitudeData.altitudeTerrainFiltered, POSITION_TERRAIN_NAV_MIN_DIST, POSITION_TERRAIN_NAV_MAX_DIST, fcStatusData.isTerrainAltDataReliable, fcStatusData.isTerrainNavDataReliable && fcStatusData.isTerrainNavModeActive,
 				sensorAttitudeData.pitchRate, sensorAttitudeData.rollRate, sensorAttitudeData.heading, dt);
 	}

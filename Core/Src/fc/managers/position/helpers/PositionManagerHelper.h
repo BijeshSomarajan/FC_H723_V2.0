@@ -9,10 +9,10 @@
 // GNSS Quality Gates
 #define POSITION_GNSS_MIN_NSAT                  8       // Modern multi-GNSS easily gets 12+ sats out in the open
 #define POSITION_GNSS_MIN_HACC                  3.0f    // Meters (Ceiling for acceptable horizontal position scatter)
-#define POSITION_GNSS_MIN_VACC                  3.0f    // Meters (Ceiling for acceptable vertical position scatter)
+#define POSITION_GNSS_MIN_VACC                  6.5f    // Meters (Ceiling for acceptable vertical position scatter)
 #define POSITION_GNSS_MIN_FIX                   2       // MANDATORY: 3 = 3D Fix
 #define POSITION_GNSS_STABILITY_MAX_WINDOW      2.0f    // Seconds (Maximum accumulator depth)
-#define POSITION_GNSS_STABILITY_INVALID_GAIN    1.0f    // Decay rate multiplier for bad data
+#define POSITION_GNSS_STABILITY_INVALID_GAIN    2.0f    // Decay rate multiplier for bad data
 #define POSITION_GNSS_TRUST_THRESHOLD           1.0f    // Cross this boundary to change states
 
 //Terrain quality gates
@@ -33,11 +33,11 @@
 void updateGNSSDataReliability(float dt);
 void updateTerrainAltDataReliability(float dt);
 void updateTerrainNavDataReliability(float dt);
-void convertGNSSToSICordinates(double latDeg, double longDeg, double latRef, double longRef, float *xCordinate, float *yCordinate);
+void convertGNSSToXYCordinates(double latDeg, double longDeg, double latRef, double longRef, float *xCordinate, float *yCordinate);
 
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody);
 void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth);
-uint8_t canEngageNavMode();
+uint8_t isNavModeActive();
 float getGroundSpeed(void);
 
 #endif /* SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_ */

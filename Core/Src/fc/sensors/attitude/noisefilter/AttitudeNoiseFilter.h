@@ -34,7 +34,7 @@
 #define SENSOR_LPF_STD_ACC_ENABLED              1
 
 // Accelerometer low-pass filter cutoff frequency (Hz)
-#define SENSOR_LPF_STD_ACC_FREQUENCY         30.0f//20.0f
+#define SENSOR_LPF_STD_ACC_FREQUENCY         40.0f//20.0f
 
 
 /* --- Gyroscope LPF Configuration --- */
@@ -43,13 +43,13 @@
 #define SENSOR_LPF_STD_GYRO_ENABLED             1
 
 // Gyroscope low-pass filter cutoff frequency (Hz)
-#define SENSOR_LPF_STD_GYRO_FREQUENCY           300.0f // DO not reduce , becomes wobbly
+#define SENSOR_LPF_STD_GYRO_FREQUENCY           400.0f // DO not reduce , becomes wobbly
 
 
 /* --- Magnetometer & Temperature LPF Configuration --- */
 
 // Low-pass filter cutoff frequency (Hz) for magnetometer data
-#define SENSOR_LPF_MAG_FREQUENCY                10.0f
+#define SENSOR_LPF_MAG_FREQUENCY                20.0f
 
 // Low-pass filter cutoff frequency (Hz) for temperature sensor data
 #define SENSOR_LPF_TEMP_FREQUENCY               2.0f

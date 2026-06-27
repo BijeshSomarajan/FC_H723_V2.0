@@ -30,21 +30,21 @@
 #define POSITION_MGR_Y_EST_INPUT_ACC_DEADBAND         0.0f    // m/s²
 #define POSITION_MGR_Z_EST_INPUT_ACC_DEADBAND         0.0f    // m/s²
 
-#define POSITION_MGR_X_EST_OUTPUT_ACC_DEADBAND        0.012f    // m/s²
-#define POSITION_MGR_Y_EST_OUTPUT_ACC_DEADBAND        0.012f    // m/s²
+#define POSITION_MGR_X_EST_OUTPUT_ACC_DEADBAND        0.0f    // m/s²
+#define POSITION_MGR_Y_EST_OUTPUT_ACC_DEADBAND        0.0f    // m/s²
 #define POSITION_MGR_Z_EST_OUTPUT_ACC_DEADBAND        0.020f    // m/s²
 
-#define POSITION_MGR_X_EST_OUTPUT_VEL_DEADBAND        0.008f    // m/s
-#define POSITION_MGR_Y_EST_OUTPUT_VEL_DEADBAND        0.008f    // m/s
-#define POSITION_MGR_Z_EST_OUTPUT_VEL_DEADBAND        0.012f    // m/s
+#define POSITION_MGR_X_EST_OUTPUT_VEL_DEADBAND        0.0f    // m/s
+#define POSITION_MGR_Y_EST_OUTPUT_VEL_DEADBAND        0.0f    // m/s
+#define POSITION_MGR_Z_EST_OUTPUT_VEL_DEADBAND        0.01f    // m/s
 
-#define POSITION_MGR_X_EST_OUTPUT_ACC_LPF_FREQ        30.00f
-#define POSITION_MGR_Y_EST_OUTPUT_ACC_LPF_FREQ        30.00f
-#define POSITION_MGR_Z_EST_OUTPUT_ACC_LPF_FREQ        30.00f
+#define POSITION_MGR_X_EST_OUTPUT_ACC_LPF_FREQ        60.00f
+#define POSITION_MGR_Y_EST_OUTPUT_ACC_LPF_FREQ        60.00f
+#define POSITION_MGR_Z_EST_OUTPUT_ACC_LPF_FREQ        20.00f
 
-#define POSITION_MGR_X_EST_OUTPUT_VEL_LPF_FREQ        60.00f
-#define POSITION_MGR_Y_EST_OUTPUT_VEL_LPF_FREQ        60.00f
-#define POSITION_MGR_Z_EST_OUTPUT_VEL_LPF_FREQ        60.00f
+#define POSITION_MGR_X_EST_OUTPUT_VEL_LPF_FREQ        80.00f
+#define POSITION_MGR_Y_EST_OUTPUT_VEL_LPF_FREQ        80.00f
+#define POSITION_MGR_Z_EST_OUTPUT_VEL_LPF_FREQ        30.00f
 
 #define POSITION_MGR_X_EST_OUTPUT_VEL_MAX             16.0f   // m/s
 #define POSITION_MGR_Y_EST_OUTPUT_VEL_MAX             16.0f   // m/s
@@ -58,7 +58,7 @@
 // 5. GNSS EKF MEASUREMENT TRUST (Tuned for Standard GNSS - POST-FIX TUNE)
 // =============================================================================
 // Define the number of samples to capture (e.g., 50 samples)
-#define POSITION_MGR_HOME_POS_STAB_COUNT   50
+#define POSITION_MGR_HOME_POS_STAB_COUNT   10
 
 // =============================================================================
 // 6. LOITER BRAKING & SETTLING CONFIGURATIONS

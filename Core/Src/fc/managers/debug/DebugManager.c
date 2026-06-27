@@ -65,13 +65,35 @@ extern float flowDynamicRv;
 void debugOFlow() {
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
 	DEBUG_DATA_BUFFER[1] = positionCordinateData.xPosition * 1000;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.yPosition * 1000;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.xVelocity * 1000;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.xVelocity * 1000;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.yPosition * 1000;
 	DEBUG_DATA_BUFFER[4] = positionCordinateData.yVelocity * 1000;
-	DEBUG_DATA_BUFFER[5] = flowDynamicRv * 100;
-	DEBUG_DATA_BUFFER[6] = oFlowData.qual * 100;
 
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+}
+
+
+void debugGPS() {
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
+	DEBUG_DATA_BUFFER[1] = fcStatusData.isNavDataReliable * 1000;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.isPositionHomeSet  * 1000;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.xPosition * 1000;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition * 1000;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+}
+
+
+
+void debugOFlowRot() {
+	DEBUG_DATA_BUFFER[0] = imuPitchRate * 100;
+	DEBUG_DATA_BUFFER[1] = flowPitchRateRaw * 100;
+	DEBUG_DATA_BUFFER[2] = flowPitchRateDeRotated * 100;
+	DEBUG_DATA_BUFFER[3] = imuRollRate * 100;
+	DEBUG_DATA_BUFFER[4] = flowRollRateRaw * 100;
+	DEBUG_DATA_BUFFER[5] = flowRollRateDeRotated * 100;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
 }
 
 void debugRC() {
@@ -99,5 +121,7 @@ void debugTask() {
 	//debugString();
 	//debugGraph();
 	//debugOFlow();
-	debugRC();
+	//debugRC();
+	//debugOFlowRot();
+	debugGPS();
 }
