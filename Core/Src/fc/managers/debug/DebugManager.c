@@ -9,6 +9,7 @@
 #include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
 #include "../../sensors/attitude/noisefilter/AttitudeNoiseFilter.h"
+#include "../../sensors/battery/BatterySensor.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/DeltaTimer.h"
@@ -29,6 +30,7 @@
 #include "../../util/CommonUtil.h"
 #include "../motor/MotorManager.h"
 #include "../../logger/Logger.h"
+#include "../../sensors/rc/RCTelemetry.h"
 
 int32_t DEBUG_DATA_BUFFER[16];
 extern LOWPASSFILTER thControlRefLPF;
@@ -44,29 +46,48 @@ uint8_t initDebugManager(void) {
 char buf[256];
 extern float testGNSSRV, testGNSSRP;
 void debugString() {
-	sprintf(buf, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", positionCordinateData.zVelocity, -gnssData.velD, positionCordinateData.zPosition, positionCordinateData.zPositionRawSL, (gnssData.heightMSL - fcStatusData.positionZHome), gnssData.hAcc, gnssData.vAcc, gnssData.sAcc,
-			testGNSSRV, testGNSSRP, fcStatusData.isNavDataReliable);
+	sprintf(buf, "%.2f,%.2f,%.2f\n",sensorAttitudeData.heading, batteryData.voltage,sensorAltitudeData.altitudeTerrain);
 	logString(buf);
 }
 
-void debugOFlow() {
-	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.xPosition * 1000;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.xVelocity * 1000;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.yPosition * 1000;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.yVelocity * 1000;
-
-	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+void debugBattery() {
+	DEBUG_DATA_BUFFER[0] = batteryData.voltage * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeTerrain * 10;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.heading * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 3, CMD_FC_DATA);
 }
-
 
 void debugGPS() {
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
 	DEBUG_DATA_BUFFER[1] = fcStatusData.isNavDataReliable * 1000;
-	DEBUG_DATA_BUFFER[2] = fcStatusData.isPositionHomeSet  * 1000;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.isPositionHomeSet * 1000;
 	DEBUG_DATA_BUFFER[3] = positionCordinateData.xPosition * 1000;
 	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition * 1000;
 	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+}
+uint8_t sendX = 0;
+void debugCRSF() {
+	DEBUG_DATA_BUFFER[0] = fcStatusData.canStart;
+	DEBUG_DATA_BUFFER[1] = rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX];
+	DEBUG_DATA_BUFFER[2] = rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX];
+	DEBUG_DATA_BUFFER[3] = rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX];
+	DEBUG_DATA_BUFFER[4] = rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX];
+
+	DEBUG_DATA_BUFFER[5] = fcStatusData.isLandingModeActive;
+	DEBUG_DATA_BUFFER[6] = fcStatusData.isTerrainAltModeActive;
+	DEBUG_DATA_BUFFER[7] = fcStatusData.isNavModeActive;
+	DEBUG_DATA_BUFFER[8] = fcStatusData.isNavRTHModeActive;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
+
+	if (!sendX) {
+		sendAltitudeTelemetry(sensorAltitudeData.altitudeSL, positionCordinateData.zVelocity);
+		sendX = 1;
+	} else {
+		sendAttitudeTelemetry(sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAttitudeData.heading);
+		sendX = 0;
+	}
+
 }
 
 void debugTask() {
@@ -77,8 +98,7 @@ void debugTask() {
 	(void) dt;
 	//debugString();
 	//debugGraph();
-	//debugOFlow();
 	//debugRC();
-	//debugOFlowRot();
-	debugGPS();
+	debugBattery();
+	//debugCRSF();
 }

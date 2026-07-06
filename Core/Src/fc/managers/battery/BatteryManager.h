@@ -1,0 +1,11 @@
+#ifndef SRC_FC_MANAGERS_BATTERY_BATTERYMANAGER_H_
+#define SRC_FC_MANAGERS_BATTERY_BATTERYMANAGER_H_
+#include <stdint.h>
+
+#define BATTERY_MANAGER_TASK_FREQUENCY 10.0f
+#define BATTERY_MANAGER_TASK_PERIOD 1.0f/BATTERY_MANAGER_TASK_FREQUENCY
+
+void resetBatteryManager(void);
+uint8_t initBatteryManager(void);
+
+#endif

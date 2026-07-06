@@ -12,6 +12,7 @@
 
 /* ---------- INTERNAL STATE ---------- */
 static uint8_t i2c1Initialized = 0;
+static uint8_t i2c1Scannned = 0;
 static volatile uint8_t i2c1_async_busy = 0;
 static volatile uint8_t i2c1_transfer_complete = 0;
 static uint16_t i2c1_async_len = 0;
@@ -156,11 +157,11 @@ void DMA2_Stream3_IRQHandler(void) {
 		LL_DMA_ClearFlag_TC3(DMA2);
 		LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_3);
 		LL_I2C_DisableDMAReq_RX(I2C1);
-       /*
-		if (i2c1_async_active_buf != NULL) {
-			SCB_InvalidateDCache_by_Addr((uint32_t*) i2c1_async_active_buf, i2c1_async_len);
-		}
-		*/
+		/*
+		 if (i2c1_async_active_buf != NULL) {
+		 SCB_InvalidateDCache_by_Addr((uint32_t*) i2c1_async_active_buf, i2c1_async_len);
+		 }
+		 */
 	}
 	if (LL_DMA_IsActiveFlag_TE3(DMA2)) {
 		LL_DMA_ClearFlag_TE3(DMA2);
@@ -219,6 +220,7 @@ static void i2c1InitDMA(void) {
 
 uint8_t initI2C1(void) {
 	if (i2c1Initialized) {
+		logString("[I2C1] Already Initialized\n");
 		return 1;
 	}
 
@@ -240,7 +242,7 @@ uint8_t initI2C1(void) {
 
 	LL_I2C_InitTypeDef i2c = { 0 };
 	i2c.PeripheralMode = LL_I2C_MODE_I2C;
-	i2c.Timing = 0x10803674;     /* 400kHz , Bus Speed 137.5Mz*/
+	i2c.Timing = 0x10803674; /* 400kHz , Bus Speed 137.5Mz*/
 	//i2c.Timing = 0x40707D94;   /* 100kHz Bus Speed 137.5Mz*/
 	i2c.AnalogFilter = LL_I2C_ANALOGFILTER_ENABLE;
 	i2c.DigitalFilter = 0;
@@ -422,20 +424,25 @@ uint8_t i2c1CheckAddress(uint8_t address) {
 }
 
 void i2c1_ScanBus(void) {
-	logString(">>>> Scanning I2C1 Bus (0x03 - 0x77)\n");
-	uint8_t devices_found = 0;
-	char line_buffer[32];
-	for (uint8_t addr = 0x03; addr <= 0x77; addr++) {
-		if (i2c1CheckAddress(addr)) {
-			sprintf(line_buffer, "Found device at address : 0x%02X\n", addr);
-			logString(line_buffer);
-			devices_found++;
+	if (!i2c1Scannned) {
+		logString(">>>> Scanning I2C1 Bus (0x03 - 0x77)\n");
+		uint8_t devices_found = 0;
+		char line_buffer[32];
+		for (uint8_t addr = 0x03; addr <= 0x77; addr++) {
+			if (i2c1CheckAddress(addr)) {
+				sprintf(line_buffer, "Found device at address : 0x%02X\n", addr);
+				logString(line_buffer);
+				devices_found++;
+			}
 		}
-	}
-	if (devices_found == 0) {
-		logString("No I2C devices detected.\r\n");
+		if (devices_found == 0) {
+			logString("No I2C devices detected.\r\n");
+		} else {
+			sprintf(line_buffer, "<<<< Scan Complete. Total: %d\n", devices_found);
+			logString(line_buffer);
+		}
+		i2c1Scannned = 1;
 	} else {
-		sprintf(line_buffer, "<<<< Scan Complete. Total: %d\n", devices_found);
-		logString(line_buffer);
+		logString("I2C1 Bus already scanned. Skipping.\n");
 	}
 }

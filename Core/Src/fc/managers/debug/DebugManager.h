@@ -2,7 +2,7 @@
 #define SRC_FC_MANAGERS_DEBUG_DEBUGMANAGER_H_
 #include <stdint.h>
 
-#define DEBUG_TASK_FREQUENCY 30.0f
+#define DEBUG_TASK_FREQUENCY 10.0f
 
 uint8_t isDebugEnabled(void);
 uint8_t initDebugManager(void);

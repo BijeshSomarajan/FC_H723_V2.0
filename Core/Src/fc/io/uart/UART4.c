@@ -7,8 +7,6 @@
 #include <string.h>
 #include "UART.h"
 
-#define UART4_BAUD_RATE   115200
-
 __ATTR_RAM_D2 UART_RxCallback_t uart4RxCallback = NULL;
 __ATTR_RAM_D2 uint8_t *uart4RxBuffer = NULL;
 
@@ -143,7 +141,7 @@ void uart4DMAConfig(void) {
 /**
  * @brief Initializes the UART4 peripheral.
  */
-void uart4Config() {
+void uart4Config(uint32_t baudRate) {
 	LL_USART_InitTypeDef UART_InitStruct = { 0 };
 	LL_GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 	LL_RCC_SetUSARTClockSource(LL_RCC_USART234578_CLKSOURCE_PCLK1);
@@ -163,7 +161,7 @@ void uart4Config() {
 	LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 	UART_InitStruct.PrescalerValue = LL_USART_PRESCALER_DIV1;
-	UART_InitStruct.BaudRate = UART4_BAUD_RATE;
+	UART_InitStruct.BaudRate = baudRate;
 	UART_InitStruct.DataWidth = LL_USART_DATAWIDTH_8B;
 	UART_InitStruct.StopBits = LL_USART_STOPBITS_1;
 	UART_InitStruct.Parity = LL_USART_PARITY_NONE;
@@ -178,9 +176,9 @@ void uart4Config() {
 	LL_USART_ConfigAsyncMode(UART4);
 }
 
-uint8_t uart4Init() {
+uint8_t uart4Init(uint32_t baudRate) {
 	if (!uart4Initialized) {
-		uart4Config();
+		uart4Config(baudRate);
 		uart4DMAConfig();
 		//Enable UART4
 		LL_USART_Enable(UART4);

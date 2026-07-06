@@ -95,7 +95,6 @@ void processRCData(float dt) {
 
 	loadRCStickDelta();
 
-	rcData.RC_DELTA_DATA[RC_FLIGHT_MODE_CHANNEL_INDEX] = getRCValue(RC_FLIGHT_MODE_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_HOME_SET_CHANNEL_INDEX] = getRCValue(RC_HOME_SET_CHANNEL_INDEX);
 
 	fcStatusData.canStart = canStartModel();
