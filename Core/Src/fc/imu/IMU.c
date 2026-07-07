@@ -20,7 +20,7 @@ uint16_t getImuStabilizationCount() {
 /*****************************************************************************************************************/
 uint8_t imuInit(float pMagInclination) {
 	imuReset(1);
-	imuHeadingCorrection = getScaledCalibrationValue(CALIB_PROP_HEADING_BIAS_ADDR);
+	imuHeadingCorrection = get1KXScaledCalibrationValue(CALIB_PROP_HEADING_BIAS_ADDR);
 	imuFilterInit(1);
 	return 1;
 }
@@ -56,7 +56,7 @@ void updateLinearMovements(float dt) {
 
 	imuData.axEarthLinear = axGEarth * GRAVITY_MSS;
 	imuData.ayEarthLinear = ayGEarth * GRAVITY_MSS;
-	imuData.azEarthLinear = azGEarth * GRAVITY_MSS;
+	imuData.azEarthLinear = (azGEarth * GRAVITY_MSS)+GRAVITY_MSS;
 
 	// 2. Body Frame Linear Acceleration (Gravity Compensation)
 	// We project the Earth gravity vector [0, 0, 1] into the Body frame.

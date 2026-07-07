@@ -11,60 +11,106 @@ SENSOR_ALTITUDE_DATA sensorAltitudeData;
 extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
 
 LOWPASSFILTER sensorAltBaroLPF;
-LOWPASSFILTER sensorAltBaroLPFSmoothest;
+LOWPASSFILTER sensorAltTerrainLPF;
+
+float sensorBaroReadDt = 0;
+float sensorLidarReadDt = 0;
 
 uint8_t initAltitudeSensors(void) {
 	uint8_t status = 1;
 	status = deviceBaroInit();
 	if (status) {
 		lowPassFilterInit(&sensorAltBaroLPF, SENSOR_ALT_BARO_LPF_FREQUENCY);
-		lowPassFilterInit(&sensorAltBaroLPFSmoothest, SENSOR_ALT_BARO_LPF_SMOOTHEST_FREQUENCY);
+		lowPassFilterInit(&sensorAltTerrainLPF, SENSOR_ALT_LIDAR_LPF_FREQUENCY);
+
 		logString("[Altitude Sensor] Baro Sensor Init > Success\n");
 	} else {
 		logString("[Altitude Sensor] Baro Sensor Init > Failed\n");
+		return 0;
 	}
+
+#if SENSOR_ALT_LIDAR_AVAILABLE == 1
+	status = deviceLidarInit();
+	if (status) {
+		logString("[Altitude Sensor] TF Mini Init > Success\n");
+	} else {
+		logString("[Altitude Sensor] TF Mini Init > Failed\n");
+	}
+#endif
+
 	return status;
 }
 
 __ATTR_ITCM_TEXT
 void scaleSeaLevelAlt() {
-	sensorAltitudeData.altitudeSLScaled = sensorAltitudeData.altitudeSL * SENSOR_ALT_BARO_ALTITUDE_GAIN;
+	sensorAltitudeData.altitudeSLScaled = sensorAltitudeData.altitudeSL;
 }
 
 __ATTR_ITCM_TEXT
 void filterSeaLevelAlt(float dt) {
 	sensorAltitudeData.altitudeSLFiltered = lowPassFilterUpdate(&sensorAltBaroLPF, sensorAltitudeData.altitudeSLScaled, dt);
-	sensorAltitudeData.altitudeSLMaxFiltered = lowPassFilterUpdate(&sensorAltBaroLPFSmoothest, sensorAltitudeData.altitudeSLScaled, dt);
 }
 
 __ATTR_ITCM_TEXT
-void updateAltitudeSensorData(float dt) {
-	scaleSeaLevelAlt();
-	filterSeaLevelAlt(dt);
-	sensorAltitudeData.altUpdateDt = dt;
+void filterTerrainLevelAlt(float dt) {
+	sensorAltitudeData.altitudeTerrainFiltered = lowPassFilterUpdate(&sensorAltTerrainLPF, sensorAltitudeData.altitudeTerrain, dt);
 }
 
 __ATTR_ITCM_TEXT
-uint8_t loadAltitudeSensorsData() {
+uint8_t loadAltitudeSensorsData(void) {
+	uint8_t flags = SENSOR_DATA_NONE;
 	if (deviceBaroLoadData()) {
-		sensorAltitudeData.altitudeSL = deviceAltitudeData.altitude;
-		return 1;
+		flags |= SENSOR_DATA_BARO;
+		scaleSeaLevelAlt();
+		filterSeaLevelAlt(SENSOR_BARO_READ_PERIOD);
+		sensorAltitudeData.altitudeSL = deviceAltitudeData.altitudeSL;
 	}
-	return 0;
+#if SENSOR_ALT_LIDAR_AVAILABLE == 1
+	if (deviceLidarLoadData()) {
+		flags |= SENSOR_DATA_LIDAR;
+		sensorAltitudeData.altitudeTerrain = deviceAltitudeData.altitudeTerrain;
+		filterTerrainLevelAlt(SENSOR_LIDAR_READ_PERIOD) ;
+		sensorAltitudeData.altitudeTerrainQual = deviceAltitudeData.altitudeTerrainQlty;
+	}
+#endif
+	return flags;
 }
 
-uint8_t readAltitudeSensors() {
-	return deviceBaroRead();
+__ATTR_ITCM_TEXT
+uint8_t readAltitudeSensors(float dt) {
+	uint8_t status = 0;
+	sensorBaroReadDt += dt;
+	if (sensorBaroReadDt >= SENSOR_BARO_READ_PERIOD) {
+		sensorAltitudeData.altitudeSLUpdateDt = sensorBaroReadDt;
+		sensorBaroReadDt = 0;
+		status = deviceBaroRead();
+	}
+
+#if SENSOR_ALT_LIDAR_AVAILABLE == 1
+	sensorLidarReadDt += dt;
+	if (sensorLidarReadDt >= SENSOR_LIDAR_READ_PERIOD) {
+		sensorAltitudeData.altitudeTerrainUpdateDt = sensorLidarReadDt;
+		sensorLidarReadDt = 0;
+		status |= deviceLidarRead();
+	}
+#endif
+
+	return status;
 }
 
 void resetAltitudeSensors(uint8_t hard) {
 	lowPassFilterResetToValue(&sensorAltBaroLPF, 0);
-	lowPassFilterResetToValue(&sensorAltBaroLPFSmoothest, 0);
+	lowPassFilterResetToValue(&sensorAltTerrainLPF, 0);
 	sensorAltitudeData.altitudeSLFiltered = 0;
 	sensorAltitudeData.altitudeSLScaled = 0;
-	sensorAltitudeData.altitudeSLScaled = 0;
+	sensorAltitudeData.altitudeSL = 0;
+	sensorAltitudeData.altitudeTerrain = 0;
+	sensorAltitudeData.altitudeTerrainQual = 0;
+	sensorBaroReadDt = 0;
+	sensorLidarReadDt = 0;
 	if (hard) {
 		deviceBaroReset(hard);
+		deviceLidarReset(hard);
 	}
 }
 

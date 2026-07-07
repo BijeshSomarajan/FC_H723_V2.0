@@ -81,6 +81,13 @@ void doRCManagement() {
 	}
 }
 
+void setRCData(int32_t *data, int32_t length) {
+	for (int channel = 0; channel < length; channel++) {
+		setRCValue(channel, data[channel]);
+	}
+	processRCData(0.01f);
+}
+
 /**
  * Process the RC Data
  */
@@ -88,29 +95,27 @@ void processRCData(float dt) {
 
 	loadRCStickDelta();
 
-	rcData.RC_DELTA_DATA[RC_FLIGHT_MODE_CHANNEL_INDEX] = getRCValue(RC_FLIGHT_MODE_CHANNEL_INDEX);
-	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = getRCValue(RC_ALT_MODE_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_HOME_SET_CHANNEL_INDEX] = getRCValue(RC_HOME_SET_CHANNEL_INDEX);
 
 	fcStatusData.canStart = canStartModel();
 	fcStatusData.canArm = (fcStatusData.canStart && (!fcStatusData.canFly && !fcStatusData.isStabilized && !fcStatusData.canStabilize) ? canArmModel() : 0);
+
 	// Capture stick centers
-	rcData.pitchCentered = isPitchCentered();
-	rcData.rollCentered = isRollCentered();
-	rcData.yawCentered = isYawCentered();
-	rcData.throttleCentered = isThrottleCentered();
+	rcData.pitchCentered = checkPitchCentered();
+	rcData.rollCentered = checkRollCentered();
+	rcData.yawCentered = checkYawCentered();
+	rcData.throttleCentered = checkThrottleCentered();
 
 	// Apply RC stick rates
 	applyRCStickEffectiveness();
+
 	// Set the FC status
-	fcStatusData.enableAltitudeHold = canEnableAltHold();
-	// Note order is important
-	fcStatusData.isRTHModeActive = isRTHModeActive();
-	fcStatusData.isPositionHoldModeActive = isGlobalPosHoldModeActive();
-	fcStatusData.enablePositionHold = canEnableGlobalPosHold();
-	fcStatusData.enableRTH = canEnableRTH();
-	fcStatusData.isTerrainAltModeActive = isTerrainAltModeActive();
-	fcStatusData.isLandingModeActive = canEnableLandingMode();
-	fcStatusData.isHeadLessModeActive = isHeadLessModeActive();
+	fcStatusData.isNavRTHModeActive = checkRTHModeActivation();
+	fcStatusData.isNavModeActive = checkNavModeActivation();
+
+	fcStatusData.isTerrainAltModeActive = checkTerrainAltModeActivation();
+	fcStatusData.isLandingModeActive = checkLandingModeActivation();
+	fcStatusData.needPositionHomeReset = checkHomePositionReset();
 }
 
 void determineFCState(float dt) {
@@ -163,9 +168,9 @@ void resetRCManager() {
 	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = 0;
 
 	rcData.RC_DELTA_DATA[RC_START_CHANNEL_INDEX] = 0;
-	rcData.RC_DELTA_DATA[RC_POS_CHANNEL_INDEX] = 0;
+	rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] = 0;
 	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = 0;
-	rcData.RC_DELTA_DATA[RC_HEADING_CHANNEL_INDEX] = 0;
+	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = 0;
 }
 
 /*
@@ -173,10 +178,10 @@ void resetRCManager() {
  * Configure the stick rate PIDs
  */
 void configureRCStickControl() {
-	rcStickThrottleGain = getScaledCalibrationValue(CALIB_PROP_RC_THROTTLE_RATE_K_ADDR);
-	rcStickPitchGain = getScaledCalibrationValue(CALIB_PROP_RC_PITCH_RATE_P_ADDR);
-	rcStickRollGain = getScaledCalibrationValue(CALIB_PROP_RC_ROLL_RATE_P_ADDR);
-	rcStickYawGain = getScaledCalibrationValue(CALIB_PROP_RC_YAW_RATE_P_ADDR);
+	rcStickThrottleGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_THROTTLE_RATE_P_ADDR);
+	rcStickPitchGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_PITCH_RATE_P_ADDR);
+	rcStickRollGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_ROLL_RATE_P_ADDR);
+	rcStickYawGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_YAW_RATE_P_ADDR);
 }
 
 int16_t getThrottleChannelValue() {
@@ -215,9 +220,9 @@ void loadRCStickDelta() {
 	rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX] = getRCValue(RC_ROLL_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_ROLL_CHANNEL_INDEX];
 	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = getRCValue(RC_YAW_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_YAW_CHANNEL_INDEX];
 	// Aux channels
-	rcData.RC_DELTA_DATA[RC_POS_CHANNEL_INDEX] = getRCValue(RC_POS_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] = getRCValue(RC_NAV_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = getRCValue(RC_LAND_CHANNEL_INDEX);
-	rcData.RC_DELTA_DATA[RC_HEADING_CHANNEL_INDEX] = getRCValue(RC_HEADING_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = getRCValue(RC_ALT_MODE_CHANNEL_INDEX);
 	// Apply dead bands
 	rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX]);
 	rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX]);
@@ -228,7 +233,7 @@ void loadRCStickDelta() {
 /*************************************************************************/
 // Checks if the throttle is stable
 /*************************************************************************/
-uint8_t isThrottleCentered() {
+uint8_t checkThrottleCentered() {
 	if (applyDeadBandInt16(0, rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX], THROTTLE_CENTER_DEADBAND) != 0) {
 		return 0;
 	} else {
@@ -239,7 +244,7 @@ uint8_t isThrottleCentered() {
 /*************************************************************************/
 // Checks if the yaw stick is stable
 /*************************************************************************/
-uint8_t isYawCentered() {
+uint8_t checkYawCentered() {
 	if (applyDeadBandInt16(0, rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX], YAW_CENTER_DEADBAND) != 0) {
 		return 0;
 	} else {
@@ -250,7 +255,7 @@ uint8_t isYawCentered() {
 /*************************************************************************/
 // Checks if the Roll stick is stable
 /*************************************************************************/
-uint8_t isRollCentered() {
+uint8_t checkRollCentered() {
 	if (applyDeadBandInt16(0, rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX], ROLL_CENTER_DEADBAND) != 0) {
 		return 0;
 	} else {
@@ -261,7 +266,7 @@ uint8_t isRollCentered() {
 /*************************************************************************/
 // Checks if the Pitch stick is stable
 /*************************************************************************/
-uint8_t isPitchCentered() {
+uint8_t checkPitchCentered() {
 	if (applyDeadBandInt16(0, rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX], PITCH_CENTER_DEADBAND) != 0) {
 		return 0;
 	} else {
@@ -269,72 +274,38 @@ uint8_t isPitchCentered() {
 	}
 }
 
-/**
- * Checks if Position Hold mode is active
- */
-uint8_t isHeadLessModeActive() {
-	return (rcData.RC_DELTA_DATA[RC_HEADING_CHANNEL_INDEX] > HEADLESS_MODE_ACT_TSH);
+uint8_t checkTerrainAltModeActivation() {
+	return (rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] > TERRAIN_ALT_MODE_ACT_TSH);
 }
 
-uint8_t isTerrainAltModeActive() {
-	return (rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] > ALT_MODE_MODE_ACT_TSH);
+uint8_t checkTerrainNavModeActivation() {
+	return (rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] > TERRAIN_NAV_MODE_ACT_TSH);
 }
-/**
- * Checks if Altitude hold can be enabled
- **/
-uint8_t canEnableAltHold() {
-	// If throttle stick is stable
-	if (rcData.throttleCentered) {
-		return 1;
-	} else {
-		return 0;
-	}
-}
+
 
 /**
  * Checks if Position Hold mode is active
  */
-uint8_t isGlobalPosHoldModeActive() {
-	return (rcData.RC_DELTA_DATA[RC_POS_CHANNEL_INDEX] > POS_HOLD_MODE_ACT_TSH);
-}
-
-/**
- * Checks if Position hold can be enabled
- */
-uint8_t canEnableGlobalPosHold() {
-	//&& rcData.throttleStable
-	// if (fcStatusData.isGlobalPosHoldModeActive && rcData.pitchCentered && rcData.rollCentered && rcData.yawCentered) {
-	if (fcStatusData.isPositionHoldModeActive && rcData.pitchCentered && rcData.rollCentered) {
-		return 1;
-	} else {
-		return 0;
-	}
+uint8_t checkNavModeActivation() {
+	return (rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] > POS_HOLD_MODE_ACT_TSH);
 }
 
 /**
  * Checks if RTH Mode is active
  */
-uint8_t isRTHModeActive() {
-	return (rcData.RC_DELTA_DATA[RC_POS_CHANNEL_INDEX] > RTH_HOLD_MODE_ACT_TSH);
+uint8_t checkRTHModeActivation() {
+	return (rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] > RTH_HOLD_MODE_ACT_TSH);
 }
 
 /**
  * Checks if Landing Mode is active
  */
-uint8_t canEnableLandingMode() {
+uint8_t checkLandingModeActivation() {
 	return (rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] > LANDING_MODE_ACT_TSH);
 }
 
-/**
- * Checks if return to home can be enabled
- */
-uint8_t canEnableRTH() {
-	//&& rcData.throttleStable
-	if (fcStatusData.isRTHModeActive && rcData.pitchCentered && rcData.rollCentered && rcData.yawCentered) {
-		return 1;
-	} else {
-		return 0;
-	}
+uint8_t checkHomePositionReset() {
+	return (rcData.RC_DELTA_DATA[RC_HOME_SET_CHANNEL_INDEX] > HOME_RESET_ACT_TSH);
 }
 
 /**

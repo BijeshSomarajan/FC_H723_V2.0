@@ -4,7 +4,7 @@
 #include "../../../dsp/BiQuadFilter.h"
 
 // Minimum notch Q (widest bandwidth) used for smeared or unstable noise.
-#define ADAPTIVE_NOTCH_Q_MIN 1.2f//0.75f
+#define ADAPTIVE_NOTCH_Q_MIN 0.75f //1.2f//0.75f
 // Maximum notch Q (narrowest bandwidth) used for clean tonal peaks.
 #define ADAPTIVE_NOTCH_Q_MAX 3.0f//1.5f
 // Gain (dB) below which the filter switches from PEAK to full NOTCH.
@@ -18,11 +18,11 @@
 // FFT magnitude above which maximum attenuation is applied.
 #define ADAPTIVE_NOTCH_MAG_MAX 15.0f//400.0f
 // EMA smoothing factor for notch Q (lower = smoother bandwidth changes).
-#define ADAPTIVE_NOTCH_ALPHA_Q 0.15f //0.5f
+#define ADAPTIVE_NOTCH_ALPHA_Q 0.45f //0.15f //0.5f
 // EMA smoothing factor for notch depth/gain (lower = smoother depth changes).
-#define ADAPTIVE_NOTCH_ALPHA_GAIN 0.15f//0.2f
+#define ADAPTIVE_NOTCH_ALPHA_GAIN 0.35f//0.15f//0.2f
 // EMA smoothing factor for CF  (lower = smoother depth changes).
-#define ADAPTIVE_NOTCH_ALPHA_CF_GAIN 0.2f//0.15f
+#define ADAPTIVE_NOTCH_ALPHA_CF_GAIN 0.45f //0.2f//0.15f
 
 typedef struct {
 	float smoothedQ;

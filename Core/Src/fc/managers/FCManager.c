@@ -8,8 +8,8 @@
 #include "../managers/attitude/AttitudeManager.h"
 #include "../managers/altitude/AltitudeManager.h"
 #include "../managers/position/PositionManager.h"
+#include "../managers/battery/BatteryManager.h"
 #include "../managers/motor/MotorManager.h"
-#include "../managers/osd/OSDManager.h"
 #include "../managers/debug/DebugManager.h"
 #include "../managers/rc/RCManager.h"
 #include "../timers/DelayTimer.h"
@@ -19,7 +19,7 @@
 #include "../timers/Scheduler.h"
 #include "../timers/GPTimer.h"
 #include "../status/FCStatus.h"
-
+#include "telemetry/TelemetryManager.h"
 
 void dispatchManagers() {
 	if (fcStatusData.hasInitialized) {
@@ -33,7 +33,7 @@ void dispatchManagers() {
 
 void runFC() {
 	resetAllDeltaTimes();
-	while ( 1 ) {
+	while (1) {
 		dispatchManagers();
 		dispatchScheduler();
 	}
@@ -77,13 +77,13 @@ uint8_t initManagers() {
 	}
 
 	if (status) {
-			status = initPositionManager();
-			if (status) {
-				logString("[FC Manager] >> initManagers >> initPositionManager > Success\n");
-			} else {
-				logString("[FC Manager] >> initManagers >> initPositionManager > Failed\n"); // Corrected log message
-			}
+		status = initPositionManager();
+		if (status) {
+			logString("[FC Manager] >> initManagers >> initPositionManager > Success\n");
+		} else {
+			logString("[FC Manager] >> initManagers >> initPositionManager > Failed\n"); // Corrected log message
 		}
+	}
 
 	if (status) {
 		status = initAttitudeManager();
@@ -103,16 +103,14 @@ uint8_t initManagers() {
 		}
 	}
 
-# if OSD_ENABLED == 1
 	if (status) {
-		status = initOSDManager();
+		status = initTelemetryManager();
 		if (status) {
-			logString("[FC Manager] >> initManagers >> initOSDManager > Success\n");
+			logString("[FC Manager] >> initManagers >> initTelemetryManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initOSDManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initTelemetryManager > Failed\n"); // Corrected log message
 		}
 	}
-#endif
 
 # if DEBUG_ENABLED == 1
 	if (status) {
@@ -131,6 +129,15 @@ uint8_t initManagers() {
 			logString("[FC Manager] >> initManagers >> initOutputManager > Success\n");
 		} else {
 			logString("[FC Manager] >> initManagers >> initOutputManager > Failed\n"); // Corrected log message
+		}
+	}
+
+	if (status) {
+		status = initBatteryManager();
+		if (status) {
+			logString("[FC Manager] >> initManagers >> initBatteryManager > Success\n");
+		} else {
+			logString("[FC Manager] >> initManagers >> initBatteryManager > Failed\n"); // Corrected log message
 		}
 	}
 
@@ -206,7 +213,7 @@ uint8_t initFC() {
 	if (!status) {
 		initIndicatorManager(); // In case if this was not initialized
 		logString("[FC Manager] >> initFC >> StartUp > Failed\n");
-		while ( 1 ) {
+		while (1) {
 			delayMs(150);
 			indicateStartUpFailed();
 		}

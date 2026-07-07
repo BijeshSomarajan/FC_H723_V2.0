@@ -12,11 +12,16 @@ struct _GNSS_DATA {
 	float velN;
 	float velE;
 	float velD;
-	float altMts;
-	float hAccMts;
+
+	float height;
+	float heightMSL;
+	float vAcc;
+
+	float hAcc;
 	float sAcc;
+
 	uint8_t satCount;
-	uint8_t fixStatus;
+	uint8_t fixType;
 	uint16_t msgCount;
 	float updateDt;
 };

@@ -4,6 +4,7 @@
 #include <inttypes.h>
 
 #include "../../../memory/Memory.h"
+#include "../../../FCConfig.h"
 
 #define DEVICE_NONE 0
 #define DEVICE_ISM330 1
@@ -105,7 +106,7 @@ void deviceAccApplyOrientationForImu(void);
 void deviceAccApplyOffsetCorrection(void);
 void deviceGyroApplyOrientationForImu(void);
 void deviceGyroApplyOffsetCorrection(void);
-void deviceMagApplyOrientationForImu(void);
+void deviceMagApplyOrientationForImu(uint16_t orientationAngle);
 void deviceMagApplyOffsetCorrection(void);
 
 void deviceGyroApplyTempOffsetCorrection(void);

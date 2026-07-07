@@ -5,12 +5,12 @@
 #include "../util/MathUtil.h"
 #include <math.h>
 
-#define MAHONY_FILTER_SPIN_RATE_LIMIT 20
+#define MAHONY_FILTER_SPIN_RATE_LIMIT 30
 #define MAHONY_FILTER_MIN_ACC_MAGNITUDE 0.000001f
 #define MAHONY_FILTER_MIN_MAG_MAGNITUDE 0.000001f
 
 // Lower values means more inclined to Gyroscope and less influence of accelerometer
-#define MAHONY_FILTER_KP  1.0f * 0.55f   //0.4 – 0.8 for 3.2Khz
+#define MAHONY_FILTER_KP  1.0f * 0.6f   //0.4 – 0.8 for 3.2Khz
 #define MAHONY_FILTER_KI  1.0f * 0.02f   //0.02f  //0.02 – 0.05 for 3.2Khz
 
 //#define MAHONY_FILTER_KP  1.0f * 1.2f     //0.8 – 1.6 for 1khz

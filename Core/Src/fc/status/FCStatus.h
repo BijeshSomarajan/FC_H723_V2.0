@@ -7,14 +7,12 @@
 
 typedef struct _FC_STATUS_DATA FC_STATUS_DATA;
 struct _FC_STATUS_DATA {
-	//Enabled states
-	uint8_t enableAltitudeHold, enablePositionHold, enableRTH;
 	//FC Statues
-	uint8_t hasInitialized, isTxOn, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized , isFlying , isPositionDataReliable;
+	uint8_t hasInitialized, isTxOn, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized, isFlying, isNavDataReliable , isTerrainAltDataReliable;
 	//FC Modes
-	uint8_t isPositionHoldModeActive, isRTHModeActive, isTerrainAltModeActive, isHeadLessModeActive;
+	uint8_t isNavModeActive, isNavRTHModeActive, isTerrainAltModeActive;
 	//Flag to state if landing landing mode is active
-	uint8_t isLandingModeActive, isLandingModeActiveAfterRTH, isFailSafeLandingMode;
+	uint8_t isLandingModeActive, isFailSafeLandingMode;
 	//Flight debug status enabled
 	uint8_t isDebugEnabled;
 	uint8_t isOSDEnabled;
@@ -22,19 +20,27 @@ struct _FC_STATUS_DATA {
 	double positionXRef, positionYRef;
 	//The home position
 	double positionLatHome, positionLongHome;
-	uint8_t isPositionHomeSet,isPositionRefSet;
-	uint8_t postionHoldState;
+	float positionXHome, positionYHome;
+	float positionZHome;
+
+	double positionLatHomeEffective, positionLongHomeEffective;
+	double positionXHomeEffective, positionYHomeEffective;
+
+	uint8_t isPositionHomeSet, needPositionHomeReset;
+	uint8_t postionHoldState, isRTHComplete;
+
 	//Flight reference values
 	float headingRef, headingHomeRef, headingDelta;
 	float altitudeSLHome;
-	float altitudeSLRef;
+	float altitudeRef;
 	float altitudeSLMax;
-	float altitudeGndMax;
+
 	//Throttle reference values
 	float currentThrottle;
 	float throttlePercent;
 	float throttleControlPercent;
 	float liftOffThrottlePercent;
+
 	//The config mode
 	uint8_t isConfigMode;
 	float batteryVolt;

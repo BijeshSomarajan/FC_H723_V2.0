@@ -42,7 +42,7 @@ void _processFSAIData(uint8_t *data, uint16_t len) {
  * Initializes the iBUS protocol
  **/
 uint8_t initFSIA() {
-	if (uart4Init()) {
+	if (uart4Init(UART_BAUD_RATE_115200)) {
 		logString("[FSAI] : IO:UART > Success\n");
 		if (uart4ReadStart(fsiaIOReadBuffer, fsiaIOReadSize, _processFSAIData)) {
 			circularQueueInit(&fsiaIOQueue, FSIA_CIRCULAR_QUEUE_SIZE);
@@ -139,6 +139,11 @@ uint8_t updateFSIAData(uint8_t *dataBytes, uint16_t length) {
  **/
 uint16_t getFSIAChannelValue(uint8_t channel) {
 	return fsiaChannelValue[channel];
+}
+
+
+void setFSIAChannelValue(uint8_t channel,uint16_t value) {
+	fsiaChannelValue[channel] = value;
 }
 
 void resetFSIAState() {

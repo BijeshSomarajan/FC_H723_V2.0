@@ -15,7 +15,9 @@ uint8_t rm3100SetMode(void);
 uint8_t rm3100Read(void);
 void rm3100ApplyScaling(void);
 
-volatile uint8_t rm3100HasMagData = 0;
+// Dual-Flag State Machine Pattern
+volatile uint8_t rm3100TxInFlight = 0; // Lockout to prevent overlapping DMA transfers
+volatile uint8_t rm3100DataReady = 0; // Signals to the main state loop that data is safe to unpack
 
 uint8_t memsMCheckConnection() {
 	uint8_t status = spi6ReadRegister(RM3100_WHO_AM_I_REG, deviceAttitudeData.bufferMagRx, 1, RM3100_MAG_DEVICE);
@@ -82,17 +84,15 @@ uint8_t rm3100SetMode() {
 }
 
 void __deviceRM3100Callback(uint8_t *buf, uint16_t len) {
-	if (!rm3100HasMagData) {
-		memcpy(deviceAttitudeData.bufferMagRx, buf, len);
-		rm3100HasMagData = 1;
-	}
+	// Transfer complete! Safely copy data and adjust state visibility.
+	memcpy(deviceAttitudeData.bufferMagRx, buf, len);
+	rm3100DataReady = 1;   // Data is officially safe for consumer unpack execution
+	rm3100TxInFlight = 0;  // Release bus lock for future reads
 }
 
 __ATTR_ITCM_TEXT
 uint8_t deviceMagLoadData() {
-#if RM3100_READ_ASYNC == 1
-	if (rm3100HasMagData) {
-
+	if (rm3100DataReady) {
 		deviceAttitudeData.rawMx = ((signed char) deviceAttitudeData.bufferMagRx[0]) << 16;
 		deviceAttitudeData.rawMx |= deviceAttitudeData.bufferMagRx[1] << 8;
 		deviceAttitudeData.rawMx |= deviceAttitudeData.bufferMagRx[2];
@@ -105,38 +105,26 @@ uint8_t deviceMagLoadData() {
 		deviceAttitudeData.rawMz |= deviceAttitudeData.bufferMagRx[7] << 8;
 		deviceAttitudeData.rawMz |= deviceAttitudeData.bufferMagRx[8];
 
-		rm3100HasMagData = 0;
+		rm3100DataReady = 0; // Consume the data flag and reopen pipeline loop
 
 		return 1;
 	}
 	return 0;
-#else
-	return 1;
-#endif
 }
 
 uint8_t rm3100Read() {
-#if RM3100_READ_ASYNC == 1
-	if (spi6ReadRegisterAsync(RM3100_MEASUREMENT_REG, 9, RM3100_MAG_DEVICE, __deviceRM3100Callback)) {
-		return 1;
+	// Guard against active transfer or unconsumed data vectors
+	if (rm3100TxInFlight || rm3100DataReady) {
+		return 0;
 	}
-#else
-	if (spi6ReadRegister(RM3100_MEASUREMENT_REG, deviceAttitudeData.bufferMagRx, 9, RM3100_MAG_DEVICE)) {
-		deviceAttitudeData.rawMx = ((signed char) deviceAttitudeData.bufferMagRx[0]) << 16;
-		deviceAttitudeData.rawMx |= deviceAttitudeData.bufferMagRx[1] << 8;
-		deviceAttitudeData.rawMx |= deviceAttitudeData.bufferMagRx[2];
 
-		deviceAttitudeData.rawMy = ((signed char) deviceAttitudeData.bufferMagRx[3]) << 16;
-		deviceAttitudeData.rawMy |= deviceAttitudeData.bufferMagRx[4] << 8;
-		deviceAttitudeData.rawMy |= deviceAttitudeData.bufferMagRx[5];
+	rm3100TxInFlight = 1; // Engage lock immediately before calling async action
 
-		deviceAttitudeData.rawMz = ((signed char) deviceAttitudeData.bufferMagRx[6]) << 16;
-		deviceAttitudeData.rawMz |= deviceAttitudeData.bufferMagRx[7] << 8;
-		deviceAttitudeData.rawMz |= deviceAttitudeData.bufferMagRx[8];
-		return 1;
+	if (!spi6ReadRegisterAsync(RM3100_MEASUREMENT_REG, 9, RM3100_MAG_DEVICE, __deviceRM3100Callback)) {
+		rm3100TxInFlight = 0; // Release lock if driver failed to accept execution
+		return 0;
 	}
-#endif
-	return 0;
+	return 1;
 }
 
 void rm3100ApplyScaling() {
@@ -176,24 +164,25 @@ uint8_t deviceMagRead() {
 	return rm3100Read();
 }
 
-void deviceMagApplyOrientationForImu() {
-	deviceAttitudeData.mx = -deviceAttitudeData.mx;
+void deviceMagApplyOrientationForImu(uint16_t orientationAngle) {
+	if (orientationAngle >= 180) {
+		float temp = deviceAttitudeData.mx;
+		deviceAttitudeData.mx = -deviceAttitudeData.my;
+		deviceAttitudeData.my = -temp;
+	} else {
+		float temp = deviceAttitudeData.mx;
+		deviceAttitudeData.mx = deviceAttitudeData.my;
+		deviceAttitudeData.my = temp;
+	}
 }
 
 void deviceMagApplyOffsetCorrection(void) {
-	/*
-	 memsData.mx -= memsData.offsetMx;
-	 memsData.my -= memsData.offsetMy;
-	 memsData.mz -= memsData.offsetMz;
-	 */
-
 	// Apply the bias if already set
 	deviceAttitudeData.mx -= deviceAttitudeData.biasMx;
 	deviceAttitudeData.my -= deviceAttitudeData.biasMy;
 	deviceAttitudeData.mz -= deviceAttitudeData.biasMz;
 
 	// Apply the scales for each axis
-
 	deviceAttitudeData.mx *= deviceAttitudeData.scaleMx;
 	deviceAttitudeData.my *= deviceAttitudeData.scaleMy;
 	deviceAttitudeData.mz *= deviceAttitudeData.scaleMz;

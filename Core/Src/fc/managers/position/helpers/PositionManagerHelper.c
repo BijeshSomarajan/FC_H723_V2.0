@@ -5,59 +5,98 @@
 #include "../../../status/FCStatus.h"
 #include "../../../sensors/position/GNSS.h"
 #include "../../../sensors/attitude/AttitudeSensor.h"
+#include "../../../sensors/altitude/AltitudeSensor.h"
 #include "PositionManagerHelper.h"
 
 float posManagerGNSSStableTime = 0;
+float posManagerTerrainAltStableTime = 0;
+float posManagerTerrainNavStableTime = 0;
 
 __ATTR_ITCM_TEXT
-void updatePositionDataReliability(float dt) {
-	// 1. Basic threshold check
-	uint8_t valid = (gnssData.fixStatus >= POSITION_GNSS_MIN_FIX) && (gnssData.hAccMts <= POSITION_GNSS_MIN_HACC) && (gnssData.sAcc <= POSITION_GNSS_MIN_SACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
+void updateTerrainAltDataReliability(float dt) {
+	uint8_t valid = fcStatusData.canFly && sensorAltitudeData.altitudeTerrainQual >= POSITION_TERRAIN_ALT_QUAL_MIN && sensorAltitudeData.altitudeTerrain >= POSITION_TERRAIN_ALT_DIST_MIN && sensorAltitudeData.altitudeTerrain <= POSITION_TERRAIN_ALT_DIST_MAX;
 	if (valid) {
-		posManagerGNSSStableTime += dt;
+		// Accumulate trust linearly (1.0s of real time = 1.0s of trust value)
+		posManagerTerrainAltStableTime += dt;
 	} else {
-		// Faster decay: 2 seconds of "lost" time for every 1 second of real time
-		posManagerGNSSStableTime -= POSITION_GNSS_STABILITY_INVALID_GAIN * dt;
+		// Decay trust aggressively (1.0s of real time = 2.0s of trust loss)
+		posManagerTerrainAltStableTime -= POSITION_TERRAIN_ALT_STABILITY_INVALID_GAIN * dt;
 	}
-	// Clamp to [0, 2.0]
-	posManagerGNSSStableTime = constrainToRangeF(posManagerGNSSStableTime, 0.0f, POSITION_GNSS_STABILITY_INVALID_GAIN);
-	// 2. Hysteresis Logic
-	if (fcStatusData.isPositionDataReliable) {
-		// If already reliable, requires more than 0.5s of bad data to drop
-		if (posManagerGNSSStableTime < POSITION_GNSS_STABILITY_MIN_INVALID_DT) {
-			fcStatusData.isPositionDataReliable = 0;
+	posManagerTerrainAltStableTime = constrainToRangeF(posManagerTerrainAltStableTime, 0.0f, POSITION_TERRAIN_ALT_STABILITY_MAX_WINDOW);
+	// 2. Clear, Explicit Hysteresis Logic
+	if (fcStatusData.isTerrainAltDataReliable) {
+		// If currently trusted, it must drop below 1.0s to lose trust.
+		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
+		if (posManagerTerrainAltStableTime < POSITION_TERRAIN_ALT_TRUST_THRESHOLD) {
+			fcStatusData.isTerrainAltDataReliable = 0;
 		}
 	} else {
-		// If unreliable, requires 1.0s of consistent good data to gain trust
-		if (posManagerGNSSStableTime > POSITION_GNSS_STABILITY_MIN_VALID_DT) {
-			fcStatusData.isPositionDataReliable = 1;
+		// If not trusted, it must climb above 1.0s to gain trust.
+		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
+		if (posManagerTerrainAltStableTime > POSITION_TERRAIN_ALT_TRUST_THRESHOLD) {
+			fcStatusData.isTerrainAltDataReliable = 1;
+		}
+	}
+}
+
+
+__ATTR_ITCM_TEXT
+void updateGNSSDataReliability(float dt) {
+	// 1. Basic threshold check (Strictly requires 3D fix or higher)
+	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.vAcc <= POSITION_GNSS_MIN_VACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
+
+	if (valid) {
+		// Accumulate trust linearly (1.0s of clean data = 1.0s added to accumulator)
+		posManagerGNSSStableTime += dt;
+	} else {
+		// Decay trust aggressively (1.0s of bad data = 2.0s removed from accumulator)
+		posManagerGNSSStableTime -= (POSITION_GNSS_STABILITY_INVALID_GAIN * dt);
+	}
+
+	// Clamp securely to [0.0, POSITION_GNSS_STABILITY_MAX_WINDOW]
+	posManagerGNSSStableTime = constrainToRangeF(posManagerGNSSStableTime, 0.0f, POSITION_GNSS_STABILITY_MAX_WINDOW);
+
+	// 2. Clear, Explicit Hysteresis Logic
+	if (fcStatusData.isNavDataReliable) {
+		// Starting from max saturation (2.0s), a drop below 1.0s takes exactly 0.5 seconds of bad data.
+		if (posManagerGNSSStableTime < POSITION_GNSS_TRUST_THRESHOLD) {
+			fcStatusData.isNavDataReliable = 0;
+		}
+	} else {
+		// Starting from 0.0s, this takes exactly 1.0 second of clean, uninterrupted good data.
+		if (posManagerGNSSStableTime > POSITION_GNSS_TRUST_THRESHOLD) {
+			fcStatusData.isNavDataReliable = 1;
 		}
 	}
 }
 
 __ATTR_ITCM_TEXT
-// WGS84 Earth radius (meters)
-void convertGNSSToSICordinates(double latDeg, double lonDeg, double latRefDeg, double lonRefDeg, float *x, float *y) {
-	// Convert to radians
+uint8_t isNavModeActive() {
+	return (fcStatusData.isNavRTHModeActive || fcStatusData.isNavModeActive) ;
+}
+
+__ATTR_ITCM_TEXT
+void convertGNSSToXYCordinates(double latDeg, double lonDeg, double latRefDeg, double lonRefDeg, float *x, float *y) {
+// Convert to radians
 	double latRad = convertDegToRad(latDeg);
 	double lonRad = convertDegToRad(lonDeg);
 	double latRefRad = convertDegToRad(latRefDeg);
 	double lonRefRad = convertDegToRad(lonRefDeg);
-	// Differences
+// Differences
 	double dLat = latRad - latRefRad;
 	double dLon = lonRad - lonRefRad;
-	// Mean latitude (better accuracy than using current lat)
+// Mean latitude (better accuracy than using current lat)
 	double meanLat = 0.5 * (latRad + latRefRad);
-	// Earth frame (NED)
-	// X → North
-	// Y → East
+// Earth frame (NED)
+// X → North
+// Y → East
 	*x = (float) (dLat * POSITION_GNSS_EARTH_RADIUS_METERS);
 	*y = (float) (dLon * POSITION_GNSS_EARTH_RADIUS_METERS * cos(meanLat));
 }
 
 __ATTR_ITCM_TEXT
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody) {
-	//heading = 0;
+//heading = 0;
 	float headingRad = convertDegToRadF(heading);
 	float headingCosValue = cosApproxF(headingRad);
 	float headingSinValue = sinApproxF(headingRad);

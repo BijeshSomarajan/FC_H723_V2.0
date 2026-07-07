@@ -12,7 +12,7 @@
 // Start applying adaptive notch from harmonics first, then fundamental if enabled
 #define SENSOR_FFT_GYRO_FILTER_HARMONICS_FIRST  0   // Filtration starts from harmonics to fundamental
 // Minimum frequency (Hz) allowed for gyro adaptive notch filtering
-#define SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY  40.0f
+#define SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY  50.0f
 // Maximum frequency (Hz) allowed for gyro adaptive notch filtering
 #define SENSOR_FFT_NTF_GYRO_MAX_CUTOFF_FREQUENCY  600.0f
 // Overall gain scaling applied to the gyro notch filter output
@@ -34,7 +34,7 @@
 #define SENSOR_LPF_STD_ACC_ENABLED              1
 
 // Accelerometer low-pass filter cutoff frequency (Hz)
-#define SENSOR_LPF_STD_ACC_FREQUENCY         20.0f
+#define SENSOR_LPF_STD_ACC_FREQUENCY         40.0f//20.0f
 
 
 /* --- Gyroscope LPF Configuration --- */
@@ -43,13 +43,13 @@
 #define SENSOR_LPF_STD_GYRO_ENABLED             1
 
 // Gyroscope low-pass filter cutoff frequency (Hz)
-#define SENSOR_LPF_STD_GYRO_FREQUENCY           300.0f // DO not reduce , becomes wobbly
+#define SENSOR_LPF_STD_GYRO_FREQUENCY           400.0f // DO not reduce , becomes wobbly
 
 
 /* --- Magnetometer & Temperature LPF Configuration --- */
 
 // Low-pass filter cutoff frequency (Hz) for magnetometer data
-#define SENSOR_LPF_MAG_FREQUENCY                10.0f
+#define SENSOR_LPF_MAG_FREQUENCY                20.0f
 
 // Low-pass filter cutoff frequency (Hz) for temperature sensor data
 #define SENSOR_LPF_TEMP_FREQUENCY               2.0f

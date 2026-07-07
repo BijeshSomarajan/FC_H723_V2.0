@@ -3,17 +3,15 @@
 #define CALIB_STATUS_ADDR CALIB_PROP_MAX_CONFIGURABLE_LENGTH
 #define CALIB_STATUS_MAJIC_NUMBER 13
 
-float CONFIG_PROPERTY_VALUE_SCALE = 1000.0f;
-float CONFIG_PROPERTY_VALUE_EXTRA_SCALE = 10000.0f;
+float CONFIG_SCALE_10  = 10.0f;
+float CONFIG_SCALE_100 = 100.0f;
+float CONFIG_SCALE_1K  = 1000.0f;
+float CONFIG_SCALE_10K = 10000.0f;
 
 int32_t CALIB_DATA[CALIB_PROP_LENGTH];
 
 uint8_t initCalibration() {
 	return initFlash();
-}
-
-int32_t getCalibrationScalableValue(float value) {
-	return value * CONFIG_PROPERTY_VALUE_SCALE;
 }
 
 int32_t* getCalibrationData() {
@@ -28,23 +26,46 @@ void setCalibrationValue(uint8_t calidationIndex, int32_t value) {
 	CALIB_DATA[calidationIndex] = value;
 }
 
-float getScaledCalibrationValue(uint8_t calidationIndex) {
-	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_PROPERTY_VALUE_SCALE;
+float get10XScaledCalibrationValue(uint8_t calidationIndex) {
+	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_10;
 }
 
-void setScaledCalibrationValue(uint8_t calidationIndex, float value) {
-	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_PROPERTY_VALUE_SCALE);
+void set10XScaledCalibrationValue(uint8_t calidationIndex, float value) {
+	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_SCALE_10);
 }
 
-void setExtraScaledCalibrationValue(uint8_t calidationIndex, float value) {
-	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_PROPERTY_VALUE_EXTRA_SCALE);
+float get100XScaledCalibrationValue(uint8_t calidationIndex) {
+	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_100;
+}
+
+void set100XScaledCalibrationValue(uint8_t calidationIndex, float value) {
+	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_SCALE_100);
+}
+
+float get1KXScaledCalibrationValue(uint8_t calidationIndex) {
+	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_1K;
+}
+
+void set1KXScaledCalibrationValue(uint8_t calidationIndex, float value) {
+	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_SCALE_1K);
+}
+
+int32_t get1KXScalableCalibrationValue(float value) {
+	return value * CONFIG_SCALE_1K;
+}
+
+void set10KXScaledCalibrationValue(uint8_t calidationIndex, float value) {
+	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_SCALE_10K);
+}
+
+float get10KXScaledCalibrationValue(uint8_t calidationIndex) {
+	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_10K;
 }
 
 /************************************************************************/
 /* Sets the default calibration values                                  */
 /************************************************************************/
 void setDefaultCalibration() {
-
 	//PID Master Calibrations
 	CALIB_DATA[CALIB_PROP_PID_KP_PITCH_ADDR] = 980;
 	CALIB_DATA[CALIB_PROP_PID_KP_ROLL_ADDR] = 980;
@@ -134,13 +155,10 @@ void setDefaultCalibration() {
 	CALIB_DATA[CALIB_PROP_IMU_TEMP_COEFF_GZ_C3_ADDR] = 884;
 
 	//Stick Rates
-	CALIB_DATA[CALIB_PROP_RC_THROTTLE_RATE_K_ADDR] = 1000;
+	CALIB_DATA[CALIB_PROP_RC_THROTTLE_RATE_P_ADDR] = 1000;
 	CALIB_DATA[CALIB_PROP_RC_PITCH_RATE_P_ADDR] = 200;
-	CALIB_DATA[CALIB_PROP_RC_PITCH_RATE_I_ADDR] = 0;
 	CALIB_DATA[CALIB_PROP_RC_ROLL_RATE_P_ADDR] = 200;
-	CALIB_DATA[ CALIB_PROP_RC_ROLL_RATE_I_ADDR] = 0;
 	CALIB_DATA[CALIB_PROP_RC_YAW_RATE_P_ADDR] = 400;
-	CALIB_DATA[CALIB_PROP_RC_YAW_RATE_I_ADDR] = 0;
 
 	//Stick Offsets
 	CALIB_DATA[CALIB_PROP_RC_THROTTLE_OFFSET_ADDR] = 1000;
@@ -155,22 +173,27 @@ void setDefaultCalibration() {
 	CALIB_DATA[CALIB_PROP_ALT_HOLD_RATE_PID_KP_ADDR] = 600;
 	CALIB_DATA[CALIB_PROP_ALT_HOLD_RATE_PID_KD_ADDR] = -400;
 	CALIB_DATA[CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR] = 300;
-	CALIB_DATA[CALIB_PROP_ALT_HOLD_MAX_TERRAIN_HEIGHT_ADDR] = 120; //12 mts
-	CALIB_DATA[CALIB_PROP_ALT_HOLD_MAX_ASL_HEIGHT_ADDR] = 500; //50 mts
+	CALIB_DATA[CALIB_PROP_ALT_HOLD_MAX_HEIGHT_ADDR] = 500; //50 mts
 
 	//PID configuration for POS hold
-	CALIB_DATA[CALIB_PROP_POS_HOLD_PID_KP_ADDR] = 600;
-
-	CALIB_DATA[CALIB_PROP_POS_HOLD_RATE_PID_KP_ADDR] = 90;
-	CALIB_DATA[CALIB_PROP_POS_HOLD_RATE_PID_KI_ADDR] = 0;
-	CALIB_DATA[CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR] = -3;
+	CALIB_DATA[CALIB_PROP_POS_HOLD_PID_KP_ADDR] = 460;
 	CALIB_DATA[CALIB_PROP_POS_HOLD_PID_LIMIT_ADDR] = 30;
+
+	CALIB_DATA[CALIB_PROP_POS_HOLD_RATE_PID_KP_ADDR] = 1100;
+	CALIB_DATA[CALIB_PROP_POS_HOLD_RATE_PID_KI_ADDR] = 150;
+	CALIB_DATA[CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR] = -150;
+	CALIB_DATA[CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR] = 15;
+	CALIB_DATA[CALIB_PROP_PITCH_ROLL_RATIO_ADDR] = 1500;
 
 	CALIB_DATA[CALIB_PROP_ALT_HOLD_ACC_PID_KP_ADDR] = 25;
 	CALIB_DATA[CALIB_PROP_ALT_HOLD_ACC_PID_KD_ADDR]=0;
 	CALIB_DATA[CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR]=500;
 
 	CALIB_DATA[CALIB_PROP_HEADING_BIAS_ADDR] = 0.;
+
+	CALIB_DATA[CALIB_PROP_COG_ACC_X_OFFSET_ADDR] = 0;
+	CALIB_DATA[ CALIB_PROP_COG_ACC_Y_OFFSET_ADDR] = 0;
+	CALIB_DATA[CALIB_PROP_VBAT_ADDR] = 1100;
 }
 
 /******************************************************************************/

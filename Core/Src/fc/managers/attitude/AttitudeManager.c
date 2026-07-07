@@ -52,13 +52,16 @@ void alignImuRateToBoard() {
 	sensorAttitudeData.pitchRate = -imuData.pitchRate;
 	sensorAttitudeData.rollRate = -imuData.rollRate;
 	sensorAttitudeData.yawRate = -imuData.yawRate;
+
+	sensorAttitudeData.pitchRateRaw = -sensorAttitudeData.gxDS;
+	sensorAttitudeData.rollRateRaw = -sensorAttitudeData.gyDS;
 }
 
 __ATTR_ITCM_TEXT
 void alignImuAnglesToBoard() {
 	sensorAttitudeData.pitch = -imuData.roll;
 	sensorAttitudeData.roll = -imuData.pitch;
-	float temp = 360 - imuData.heading;
+	float temp = 90 - imuData.heading;
 	if (temp < 0) {
 		sensorAttitudeData.heading = temp + 360.0f;
 	} else if (temp > 360) {

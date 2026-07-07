@@ -81,13 +81,10 @@
 #define CALIB_PROP_IMU_TEMP_COEFF_GZ_C3_ADDR 60
 
 //Stick Rate PID configuration
-#define CALIB_PROP_RC_THROTTLE_RATE_K_ADDR 61
+#define CALIB_PROP_RC_THROTTLE_RATE_P_ADDR 61
 #define CALIB_PROP_RC_PITCH_RATE_P_ADDR 62
-#define CALIB_PROP_RC_PITCH_RATE_I_ADDR 63
 #define CALIB_PROP_RC_ROLL_RATE_P_ADDR 64
-#define CALIB_PROP_RC_ROLL_RATE_I_ADDR 65
 #define CALIB_PROP_RC_YAW_RATE_P_ADDR 66
-#define CALIB_PROP_RC_YAW_RATE_I_ADDR 67
 
 //RC stick configurations
 #define CALIB_PROP_RC_THROTTLE_OFFSET_ADDR 68
@@ -105,8 +102,7 @@
 #define CALIB_PROP_ALT_HOLD_RATE_PID_KD_ADDR 77
 #define CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR 78
 
-#define CALIB_PROP_ALT_HOLD_MAX_TERRAIN_HEIGHT_ADDR 18 //Note the index
-#define CALIB_PROP_ALT_HOLD_MAX_ASL_HEIGHT_ADDR 19 //Note the index
+#define CALIB_PROP_ALT_HOLD_MAX_HEIGHT_ADDR 19 //Note the index
 
 //Position hold process configuration
 #define CALIB_PROP_POS_HOLD_PID_KP_ADDR 80
@@ -117,11 +113,17 @@
 #define CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR 84
 #define CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR 20  //Note the index
 
+
 #define CALIB_PROP_ALT_HOLD_ACC_PID_KP_ADDR 85
 #define CALIB_PROP_ALT_HOLD_ACC_PID_KD_ADDR 86
 #define CALIB_PROP_ALT_HOLD_ACC_PID_LIMIT_ADDR 87
 
 #define CALIB_PROP_HEADING_BIAS_ADDR 88
+
+#define CALIB_PROP_COG_ACC_X_OFFSET_ADDR 63
+#define CALIB_PROP_COG_ACC_Y_OFFSET_ADDR 65
+#define CALIB_PROP_VBAT_ADDR 67
+#define CALIB_PROP_PITCH_ROLL_RATIO_ADDR 18 //Note the index
 
 #define CALIB_PROP_MAX_CONFIGURABLE_LENGTH 89
 #define CALIB_PROP_LENGTH (CALIB_PROP_MAX_CONFIGURABLE_LENGTH+1)
@@ -131,15 +133,24 @@ void setDefaultCalibration(void);
 uint8_t saveCalibration(void);
 void loadCalibration(void);
 uint8_t isCalibrated(void);
+int32_t* getCalibrationData(void);
 
-int32_t getCalibrationScalableValue(float value);
-
-void setScaledCalibrationValue(uint8_t calidationIndex, float value);
-float getScaledCalibrationValue(uint8_t calidationIndex);
 
 void setCalibrationValue(uint8_t calidationIndex, int32_t value);
 int32_t getCalibrationValue(uint8_t calidationIndex);
 
-int32_t* getCalibrationData(void);
+void set10XScaledCalibrationValue(uint8_t calidationIndex, float value);
+float get10XScaledCalibrationValue(uint8_t calidationIndex);
+
+void set100XScaledCalibrationValue(uint8_t calidationIndex, float value);
+float get100XScaledCalibrationValue(uint8_t calidationIndex);
+
+void set1KXScaledCalibrationValue(uint8_t calidationIndex, float value);
+float get1KXScaledCalibrationValue(uint8_t calidationIndex);
+int32_t get1KXScalableCalibrationValue(float value);
+
+void set10KXScaledCalibrationValue(uint8_t calidationIndex, float value);
+float get10KXScaledCalibrationValue(uint8_t calidationIndex);
+
 
 #endif

@@ -14,6 +14,7 @@
 
 uint8_t initFSIA(void);
 uint16_t getFSIAChannelValue(uint8_t channel);
+void setFSIAChannelValue(uint8_t channel,uint16_t value);
 uint8_t readFSIA(void);
 void resetFSIAState(void) ;
 uint8_t isFSIAActive(void);

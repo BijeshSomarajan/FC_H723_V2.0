@@ -34,19 +34,18 @@ void controlAltitudeAltWithGains(float dt, float expectedAltitude, float current
 void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains);
 void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains);
 
-#define ALT_CONTROL_RATE_PID_D_LPF_FREQ 40.0f
-#define ALT_CONTROL_ACC_PID_D_LPF_FREQ  40.0f
+#define ALT_CONTROL_RATE_PID_D_LPF_FREQ 32.0f
+#define ALT_CONTROL_ACC_PID_D_LPF_FREQ  32.0f
 
 #define ALT_CONTROL_RATE_PID_I_LIMIT_RATIO 1.0f
 #define ALT_CONTROL_RATE_PID_D_LIMIT_RATIO 1.0f
 #define ALT_CONTROL_ACC_PID_D_LIMIT_RATIO 1.0f
 
-#define ALT_CONTROL_VEL_FEED_FWD_ENABLED  1
-#define ALT_CONTROL_VEL_FEED_FWD_GAIN 0.18f // Increase only in the steps of 0.02
+#define ALT_CONTROL_VEL_FEED_FWD_ENABLED       1
+#define ALT_CONTROL_VEL_FEED_FWD_GAIN          10.0f // 2.5*10 25 TU.
 
 #define ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED  1
-
-#define ALT_CONTROL_ACC_DISTURBANCE_TAU        0.3f //Lower values make the estimate more responsive but can introduce noise
-#define ALT_CONTROL_ACC_DISTURBANCE_FF_GAIN    0.5f
+#define ALT_CONTROL_ACC_DISTURBANCE_TAU        0.065f //Lower values make the estimate more responsive but can introduce noise
+#define ALT_CONTROL_ACC_DISTURBANCE_FF_GAIN    1.0f
 
 #endif

@@ -27,8 +27,12 @@ void imuFilterUpdateAngles(void) {
 	imuData.roll = convertRadToDeg(atan2Approx(imuData.rMatrix[2][1], imuData.rMatrix[2][2]));
 	// Pitch: asin(-R20)
 	float r20 = -imuData.rMatrix[2][0];
-	if (r20 > 1.0f)  {r20 = 1.0f;}
-	if (r20 < -1.0f) {r20 = -1.0f;}
+	if (r20 > 1.0f) {
+		r20 = 1.0f;
+	}
+	if (r20 < -1.0f) {
+		r20 = -1.0f;
+	}
 	imuData.pitch = convertRadToDeg(asinApproxFast(r20));
 	// Yaw: -atan2(R10, R00)
 	imuData.yaw = convertRadToDeg(-atan2Approx(imuData.rMatrix[1][0], imuData.rMatrix[0][0]));

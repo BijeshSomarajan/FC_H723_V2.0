@@ -9,7 +9,7 @@
 #include "../memory/Memory.h"
 
 #define GRAVITY_MSS     9.80665f    // Gravity in m/s^2
-#define GRAVITY_CMS     980.665f    // Gravity in cm/s^2
+#define INVERSE_GRAVITY_MSS             (1.0f / GRAVITY_MSS)
 
 /* --- Math Constants --- */
 #define HALF_PI            1.57079632679489661923f
@@ -47,6 +47,7 @@ float convertRadToDeg(float rads);
 float convertDegToRadF(float deg);
 double convertDegToRad(double deg);
 float mapToRangeFloat(float inValue, float minInRange, float maxInRange, float minOutRange, float maxOutRange);
+float mapAndClampToRangeFloat(float inValue, float minInRange, float maxInRange, float minOutRange, float maxOutRange);
 
 /* --- Constraints & Deadbands --- */
 int32_t constrainToRange(int32_t rawValue, int32_t minValue, int32_t maxValue);

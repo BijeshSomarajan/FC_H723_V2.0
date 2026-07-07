@@ -8,7 +8,8 @@ void doAltitudeManagement(void);
 void resetAltitudeManager(void);
 
 //Baro reading frequency
-#define ALTITUDE_SENSOR_BARO_READ_FREQUENCY BARO_SENSOR_READ_FREQUENCY
+#define ALTITUDE_SENSOR_READ_FREQUENCY 200.0f
+#define ALTITUDE_SENSOR_READ_PERIOD 1.0f/ALTITUDE_SENSOR_READ_FREQUENCY
 
 #define ALTITUDE_MANAGEMENT_TASK_FREQUENCY 1000
 #define ALTITUDE_MANAGEMENT_TASK_PERIOD 1.0f/ALTITUDE_MANAGEMENT_TASK_FREQUENCY
@@ -29,19 +30,17 @@ void resetAltitudeManager(void);
 #define ALT_MGR_MAX_PERMISSIBLE_THROTTLE   RC_CHANNEL_MIN_VALUE + ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA
 #define ALT_MGR_ALT_AGGREGATION_GAIN  0.35f //meter per second
 
-#define ALT_MGR_MAX_ALT_DELTA 500 //Cms
+#define ALT_MGR_MAX_ALT_DELTA 2.5f //Mts
 #define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 20.0f//5.0f
 
-//Altitude estimate Complementary filter alpha
-#define ALT_MGR_TILT_TH_MIN_ANGLE 1.0f
-#define ALT_MGR_TILT_TH_MAX_ANGLE 30.0f
-
-//Tilt compensation common settings
-#define ALT_MGR_TILT_COMP_ENABLED 1
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_RISE 0.01f //Lower = faster response when tilting up
-#define ALT_MGR_TILT_COMP_TH_ADJUST_TAU_FADE 0.1f  //Higher = slower response when tilting back to hover
-#define ALT_MGR_TILT_TH_ADJUST_MAX_LIMIT   120.0f
-#define ALT_MGR_TILT_COMP_TH_GAIN 2.5f
+// Tilt compensation constants
+#define ALT_MGR_TILT_COMP_ENABLED      1
+#define ALT_MGR_TILT_COMP_MIN_ANGLE    1.0f
+#define ALT_MGR_TILT_COMP_MAX_ANGLE    30.0f
+#define ALT_MGR_TILT_COMP_TAU_RISE     0.001f
+#define ALT_MGR_TILT_COMP_TAU_FADE     0.5f
+#define ALT_MGR_TILT_COMP_MAX_LIMIT    120.0f
+#define ALT_MGR_TILT_COMP_GAIN         0.85f
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.
@@ -77,6 +76,6 @@ void resetAltitudeManager(void);
 /* Autolanding configuration */
 #define ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD       0.75f
 #define ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD         0.75f
-#define ALT_MGR_ALT_LANDING_STICK_COMMAND               250
+#define ALT_MGR_ALT_LANDING_STICK_COMMAND               150
 
 #endif
