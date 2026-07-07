@@ -32,7 +32,7 @@ struct _FC_STATUS_DATA {
 	//Flight reference values
 	float headingRef, headingHomeRef, headingDelta;
 	float altitudeSLHome;
-	float altitudeSLRef;
+	float altitudeRef;
 	float altitudeSLMax;
 
 	//Throttle reference values
@@ -44,7 +44,6 @@ struct _FC_STATUS_DATA {
 	//The config mode
 	uint8_t isConfigMode;
 	float batteryVolt;
-	float batteryVoltCurrent;
 };
 
 extern FC_STATUS_DATA fcStatusData;

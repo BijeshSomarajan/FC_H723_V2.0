@@ -131,40 +131,22 @@ void deviceLidarDataProcess(void) {
 }
 
 uint8_t deviceLidarRead(void) {
-#if TFMINI_READ_ASYNC == 1
 	if (tfMiniDataRequestComplete) {
 		tfMiniDataRequestComplete = 0;
 		tfMiniReadDataAsync();
 	} else {
 		tfMiniRequestDataAsync();
 	}
-#else
-	if (tfMiniRequestData()) {
-		if (tfMiniReadData()) {
-			deviceLidarDataProcess();
-			tfMiniHasData = 1;
-			return 1;
-		} else {
-			return 0;
-		}
-	} else {
-		return 0;
-	}
-#endif
 	return 1;
 }
 
 uint8_t deviceLidarLoadData(void) {
-#if TFMINI_READ_ASYNC == 1
 	if (!tfMiniHasData) {
 		return 0;
 	}
 	deviceLidarDataProcess();
 	tfMiniHasData = 0;
 	return 1;
-#else
-	return 0;
-#endif
 }
 
 uint8_t deviceLidarReset(uint8_t hard) {

@@ -89,6 +89,7 @@ uint8_t readAltitudeSensors(float dt) {
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 	sensorLidarReadDt += dt;
 	if (sensorLidarReadDt >= SENSOR_LIDAR_READ_PERIOD) {
+		sensorAltitudeData.altitudeTerrainUpdateDt = sensorLidarReadDt;
 		sensorLidarReadDt = 0;
 		status |= deviceLidarRead();
 	}

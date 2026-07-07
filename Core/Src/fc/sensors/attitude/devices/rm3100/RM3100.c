@@ -92,9 +92,7 @@ void __deviceRM3100Callback(uint8_t *buf, uint16_t len) {
 
 __ATTR_ITCM_TEXT
 uint8_t deviceMagLoadData() {
-#if RM3100_READ_ASYNC == 1
 	if (rm3100DataReady) {
-
 		deviceAttitudeData.rawMx = ((signed char) deviceAttitudeData.bufferMagRx[0]) << 16;
 		deviceAttitudeData.rawMx |= deviceAttitudeData.bufferMagRx[1] << 8;
 		deviceAttitudeData.rawMx |= deviceAttitudeData.bufferMagRx[2];
@@ -112,13 +110,9 @@ uint8_t deviceMagLoadData() {
 		return 1;
 	}
 	return 0;
-#else
-	return 1;
-#endif
 }
 
 uint8_t rm3100Read() {
-#if RM3100_READ_ASYNC == 1
 	// Guard against active transfer or unconsumed data vectors
 	if (rm3100TxInFlight || rm3100DataReady) {
 		return 0;
@@ -131,23 +125,6 @@ uint8_t rm3100Read() {
 		return 0;
 	}
 	return 1;
-#else
-	if (spi6ReadRegister(RM3100_MEASUREMENT_REG, deviceAttitudeData.bufferMagRx, 9, RM3100_MAG_DEVICE)) {
-		deviceAttitudeData.rawMx = ((signed char) deviceAttitudeData.bufferMagRx[0]) << 16;
-		deviceAttitudeData.rawMx |= deviceAttitudeData.bufferMagRx[1] << 8;
-		deviceAttitudeData.rawMx |= deviceAttitudeData.bufferMagRx[2];
-
-		deviceAttitudeData.rawMy = ((signed char) deviceAttitudeData.bufferMagRx[3]) << 16;
-		deviceAttitudeData.rawMy |= deviceAttitudeData.bufferMagRx[4] << 8;
-		deviceAttitudeData.rawMy |= deviceAttitudeData.bufferMagRx[5];
-
-		deviceAttitudeData.rawMz = ((signed char) deviceAttitudeData.bufferMagRx[6]) << 16;
-		deviceAttitudeData.rawMz |= deviceAttitudeData.bufferMagRx[7] << 8;
-		deviceAttitudeData.rawMz |= deviceAttitudeData.bufferMagRx[8];
-		return 1;
-	}
-#endif
-	return 0;
 }
 
 void rm3100ApplyScaling() {

@@ -15,7 +15,6 @@
 #define ISM330_APPLY_GYRO_TEMP_OFFSET_CORRECTION 0
 #define ISM330_APPLY_ACC_TEMP_OFFSET_CORRECTION 0
 
-#define ISM330_AGT_READ_ASYNC 1
 #define ISM330_AGT_ASYNC_BUFFER_SIZE 8
 
 void memsDeriveGyroSensitivity(void);
@@ -178,7 +177,7 @@ void __deviceAGTCallback(uint8_t *buf, uint16_t len) {
 
 __ATTR_ITCM_TEXT
 uint8_t deviceAccGyroTempLoadData() {
-#if ISM330_AGT_READ_ASYNC ==1
+
 	if (ism330DataReady) {
 		deviceAttitudeData.rawTemp = (deviceAttitudeData.bufferAGTRx[1] << 8) | deviceAttitudeData.bufferAGTRx[0];
 
@@ -194,14 +193,11 @@ uint8_t deviceAccGyroTempLoadData() {
 		return 1;
 	}
 	return 0;
-#else
-	return 1;
-#endif
+
 }
 
 __ATTR_ITCM_TEXT
 uint8_t deviceAccGyroTempRead(void) {
-#if ISM330_AGT_READ_ASYNC ==1
 	// If a transfer is already running, OR if the previous data hasn't
 	// been consumed yet, drop out to protect the SPI bus and buffer.
 	if (ism330TxInFlight || ism330DataReady) {
@@ -213,21 +209,7 @@ uint8_t deviceAccGyroTempRead(void) {
 		return 0;
 	}
 	return 1;
-#else
-	if (spi2ReadRegister(ISM330DHCX_OUT_TEMP_L, deviceAttitudeData.bufferAGTRx, 14, ISM330_AG_DEVICE)) {
-		deviceAttitudeData.rawTemp = (deviceAttitudeData.bufferAGTRx[1] << 8) | deviceAttitudeData.bufferAGTRx[0];
 
-		deviceAttitudeData.rawGx = (((int16_t) deviceAttitudeData.bufferAGTRx[3]) << 8) | deviceAttitudeData.bufferAGTRx[2];
-		deviceAttitudeData.rawGy = (((int16_t) deviceAttitudeData.bufferAGTRx[5]) << 8) | deviceAttitudeData.bufferAGTRx[4];
-		deviceAttitudeData.rawGz = (((int16_t) deviceAttitudeData.bufferAGTRx[7]) << 8) | deviceAttitudeData.bufferAGTRx[6];
-
-		deviceAttitudeData.rawAx = (((int16_t) deviceAttitudeData.bufferAGTRx[9]) << 8) | deviceAttitudeData.bufferAGTRx[8];
-		deviceAttitudeData.rawAy = (((int16_t) deviceAttitudeData.bufferAGTRx[11]) << 8) | deviceAttitudeData.bufferAGTRx[10];
-		deviceAttitudeData.rawAz = (((int16_t) deviceAttitudeData.bufferAGTRx[13]) << 8) | deviceAttitudeData.bufferAGTRx[12];
-		return 1;
-	}
-#endif
-	return 0;
 }
 
 uint8_t deviceAccRead(void) {

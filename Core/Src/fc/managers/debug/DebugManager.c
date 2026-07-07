@@ -51,10 +51,11 @@ void debugString() {
 }
 
 void debugBattery() {
-	DEBUG_DATA_BUFFER[0] = batteryData.voltage * 10;
-	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeTerrain * 10;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.heading * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 3, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.altitudeRef * 100;
+	DEBUG_DATA_BUFFER[3] = fcStatusData.headingRef * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
 void debugGPS() {
@@ -79,14 +80,6 @@ void debugCRSF() {
 	DEBUG_DATA_BUFFER[8] = fcStatusData.isNavRTHModeActive;
 
 	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
-
-	if (!sendX) {
-		sendAltitudeTelemetry(sensorAltitudeData.altitudeSL, positionCordinateData.zVelocity);
-		sendX = 1;
-	} else {
-		sendAttitudeTelemetry(sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAttitudeData.heading);
-		sendX = 0;
-	}
 
 }
 

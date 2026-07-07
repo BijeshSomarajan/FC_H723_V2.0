@@ -15,8 +15,6 @@
 
 #define RM3100_WHO_AM_I_REG_VALUE 0x22 // Hexadecimal address for the Revid internal register
 
-#define RM3100_READ_ASYNC 1
-
 #endif
 
 #endif

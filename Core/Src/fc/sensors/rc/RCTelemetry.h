@@ -45,12 +45,13 @@ void sendAttitudeTelemetry(float pitch_rad, float roll_rad, float yaw_rad);
  * @param altitude_m         Relative or absolute altitude in meters
  * @param vertical_speed_ms  Climb or descent rate in meters per second (positive = up)
  */
-void sendAltitudeTelemetry(float altitude_m, float vertical_speed_ms);
+//void sendAltitudeTelemetry(int32_t altitude_dm, int16_t vertical_speed_cm);
+void sendAltitudeTelemetry(float altitude, float vVel);
 
 /**
  * @brief Dispatches the current stabilization or autonomy state machine string.
  * @param modeStr Null-terminated ASCII flight status sequence (e.g., "ANGLE", "FAILSAFE")
  */
-void sendFlightModeTelemetry(const char *modeStr);
+void sendFlightModeTelemetry(const char *modeStr, uint8_t length);
 
 #endif /* TELEMETRY_H */

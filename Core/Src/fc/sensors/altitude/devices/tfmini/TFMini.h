@@ -16,7 +16,6 @@
 #define TFMINI_MAX_VALID_DISTANCE 12 //10 mts
 #define TFMINI_MIN_VALID_STRENGTH 80
 #define TFMINI_MAX_VALID_STRENGTH 20000
-#define TFMINI_READ_ASYNC 1
 
 typedef struct _TFMini TFMini;
 struct _TFMini {

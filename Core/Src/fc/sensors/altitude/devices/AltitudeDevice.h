@@ -38,5 +38,4 @@ uint8_t deviceLidarRead(void);
 uint8_t deviceLidarLoadData(void);
 uint8_t deviceLidarReset(uint8_t hard);
 
-
 #endif

@@ -26,7 +26,7 @@
 /* ------------------------------------------------------------------ */
 // Dual-Flag State Machine Pattern
 static volatile uint8_t bmp581TxInFlight = 0; // Lockout to prevent overlapping SPI DMA requests
-static volatile uint8_t bmp581DataReady  = 0; // Signals when buffer contains new, completely copied data
+static volatile uint8_t bmp581DataReady = 0; // Signals when buffer contains new, completely copied data
 
 static float bmp581GroundPressure = 0.0f;
 static uint8_t bmp581IsCalibrated = 0;
@@ -203,16 +203,13 @@ void deviceBaroDataProcess(void) {
 /* Data Load                                                          */
 /* ------------------------------------------------------------------ */
 uint8_t deviceBaroLoadData(void) {
-#if BMP581_READ_ASYNC == 1
 	if (bmp581DataReady) {
 		deviceBaroDataProcess();
 		bmp581DataReady = 0; // Free the slot for the next transaction execution
 		return 1;
 	}
 	return 0;
-#else
-    return 1;
-#endif
+
 }
 
 /* ------------------------------------------------------------------ */
@@ -228,26 +225,16 @@ void __deviceBaroBMP581Callback(uint8_t *buf, uint16_t len) {
 /* Read                                                               */
 /* ------------------------------------------------------------------ */
 uint8_t deviceBaroRead(void) {
-#if BMP581_READ_ASYNC == 1
 	// Decline execution if a DMA burst is active or unread data occupies the slot
 	if (bmp581TxInFlight || bmp581DataReady) {
 		return 0;
 	}
-
 	bmp581TxInFlight = 1; // Secure bus lock before executing async command
-
 	if (!spi4ReadRegisterAsync(BMP581_REG_TEMP_DATA_XLSB, 6, BMP581_DEVICE, __deviceBaroBMP581Callback)) {
 		bmp581TxInFlight = 0; // Rollback lock if initialization rejected
 		return 0;
 	}
 	return 1;
-#else
-    if (!spi4ReadRegister(BMP581_REG_TEMP_DATA_XLSB, deviceAltitudeData.buffer, 6, BMP581_DEVICE)) {
-        return 0;
-    }
-    deviceBaroDataProcess();
-    return 1;
-#endif
 }
 
 #endif

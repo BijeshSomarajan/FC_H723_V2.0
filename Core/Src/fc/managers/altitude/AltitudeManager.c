@@ -201,16 +201,16 @@ void handleLanding(float dt) {
 
 __ATTR_ITCM_TEXT
 void updateAltitudeReferences() {
-	fcStatusData.altitudeSLRef = positionCordinateData.zPosition;
-	fcStatusData.altitudeSLHome = fcStatusData.altitudeSLRef;
+	fcStatusData.altitudeRef = positionCordinateData.zPosition;
+	fcStatusData.altitudeSLHome = fcStatusData.altitudeRef;
 	fcStatusData.altitudeSLMax = fcStatusData.altitudeSLHome + altMgrMaxHeight;
 }
 
 __ATTR_ITCM_TEXT
 float getClampedCurrentAltitude() {
-	float altitudeDelta = positionCordinateData.zPosition - fcStatusData.altitudeSLRef;
+	float altitudeDelta = positionCordinateData.zPosition - fcStatusData.altitudeRef;
 	altitudeDelta = constrainToRangeF(altitudeDelta, -ALT_MGR_MAX_ALT_DELTA, ALT_MGR_MAX_ALT_DELTA);
-	return fcStatusData.altitudeSLRef + altitudeDelta;
+	return fcStatusData.altitudeRef + altitudeDelta;
 }
 
 // Add this to your global/struct state definitions alongside your other tracker:
@@ -274,11 +274,11 @@ void manageAltitude(float dt) {
 			controlData.altitudeControl = 0.0f;
 		}
 		handleThrottleChange(dt);
-		fcStatusData.altitudeSLRef = positionCordinateData.zPosition;
+		fcStatusData.altitudeRef = positionCordinateData.zPosition;
 		altMgrWasThrottleCentered = 0;
 	} else {
 		if (altMgrWasThrottleCentered == 0) {
-			fcStatusData.altitudeSLRef = positionCordinateData.zPosition;
+			fcStatusData.altitudeRef = positionCordinateData.zPosition;
 			altMgrWasThrottleCentered = 1;
 		} else {
 			altMgrWasThrottleCentered = 2;
@@ -303,7 +303,7 @@ void manageAltitude(float dt) {
 				altMgrVelDtAccumulation -= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD;
 			}
 			if (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD) {
-				controlAltitudeAltWithGains(ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD, fcStatusData.altitudeSLRef, getClampedCurrentAltitude(), altControlGains);
+				controlAltitudeAltWithGains(ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD, fcStatusData.altitudeRef, getClampedCurrentAltitude(), altControlGains);
 				altMgrAltDtAccumulation -= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD;
 			}
 		}
