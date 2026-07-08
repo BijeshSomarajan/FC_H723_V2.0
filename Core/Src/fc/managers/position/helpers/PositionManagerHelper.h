@@ -23,13 +23,15 @@
 #define POSITION_TERRAIN_ALT_STABILITY_MAX_WINDOW      2.0f    // Seconds (Maximum accumulator depth)
 #define POSITION_TERRAIN_ALT_TRUST_THRESHOLD 1.0f
 
-
 void updateGNSSDataReliability(float dt);
 void updateTerrainAltDataReliability(float dt);
 void convertGNSSToXYCordinates(double latDeg, double longDeg, double latRef, double longRef, float *xCordinate, float *yCordinate);
 
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody);
 void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth);
+float calculateDistance(double homeLat, double homeLon, double lat, double lon);
+float calculateBearing(float xNorth, float yEast);
+
 uint8_t isNavModeActive();
 float getGroundSpeed(void);
 

@@ -358,7 +358,7 @@ float applyDeadBandFloat(float neutralValue, float value, float boundary) {
 /* convertRadToDeg
  * - Convert radians to degrees.
  */
-float convertRadToDeg(float rads) {
+float convertRadToDegF(float rads) {
 	return rads * PI_BY_180_INVERSE;
 }
 

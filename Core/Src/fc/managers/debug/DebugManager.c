@@ -55,6 +55,7 @@ void debugBattery() {
 	DEBUG_DATA_BUFFER[1] = positionCordinateData.zVelocity * 100;
 	DEBUG_DATA_BUFFER[2] = fcStatusData.altitudeRef * 100;
 	DEBUG_DATA_BUFFER[3] = fcStatusData.headingRef * 10;
+
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 

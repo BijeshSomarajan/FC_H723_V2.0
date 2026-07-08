@@ -11,14 +11,49 @@
 #include "../../sensors/rc/RCTelemetry.h"
 #include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
-#include "../../managers/position/PositionManager.h" // Cleaned up duplicate include
+#include "../../managers/position/PositionManager.h"
+#include "../../managers/position/helpers/PositionManagerHelper.h"
 #include "../../sensors/position/GNSS.h"
 #include "../../sensors/battery/BatterySensor.h"
 
+ /* ============================================================================
+ * BRHS Telemetry Mapping
+ * ============================================================================
+ *
+ * Standard CRSF Fields have been repurposed to maximize useful flight data
+ * while remaining compatible with EdgeTX telemetry and Lua scripts.
+ *
+ * ----------------------- Battery Frame -----------------------
+ * Voltage          -> Battery Voltage (V)
+ * Current          -> Battery Current (A)
+ * Capacity         -> Consumed Capacity (mAh)
+ * Remaining        -> Battery Percentage (%)
+ *
+ * ------------------------- GPS Frame -------------------------
+ * Latitude         -> GNSS Latitude (deg)
+ * Longitude        -> GNSS Longitude (deg)
+ * Ground Speed     -> Distance to Home (m)
+ * Heading          -> GNSS Heading Reference (deg)
+ * Altitude         -> Home / Reference Altitude (m)
+ * Satellites[6:0]  -> Satellite Count
+ * Satellites[7]    -> Navigation Reliability Flag
+ *
+ * ---------------------- Attitude Frame -----------------------
+ * Pitch            -> Aircraft Pitch (rad)
+ * Roll             -> Aircraft Roll (rad)
+ * Yaw              -> Aircraft Heading (rad)
+ *
+ * -------------------- Barometer Frame ------------------------
+ * Altitude         -> EKF Relative Altitude (m)
+ * Vertical Speed   -> Home Bearing (deg)   // Repurposed
+ *
+ * -------------------- Flight Mode Frame ----------------------
+ * Flight Mode      -> Flight Mode String
+ */
 char FC_STATUS_BUF[8];
 TelemetryStep currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
 
-void sendFCStatus() {
+void prepareAndSendFCStatus() {
 	// Off, Start, Stab, Fly
 	if (fcStatusData.hasCrashed) {
 		FC_STATUS_BUF[0] = 'C';
@@ -58,12 +93,27 @@ void sendFCStatus() {
 	sendFlightModeTelemetry(FC_STATUS_BUF, 8);
 }
 
+void prepareAndSendGNSSData(void) {
+	uint8_t satCountAndReliable = (gnssData.satCount & 0x7F) | ((uint8_t) fcStatusData.isNavDataReliable << 7);
+	float distance = 0.0f;
+	if (fcStatusData.isPositionHomeSet) {
+		float north = positionCordinateData.xPositionRaw;
+		float east = positionCordinateData.yPositionRaw;
+		distance = fastSqrtf(north * north + east * east);
+	}
+	sendGNSSTelemetry(gnssData.latitude, gnssData.longitude, distance, fcStatusData.headingRef, fcStatusData.altitudeRef, satCountAndReliable);
+}
+
+void prepareAndSendAltitudeData(){
+	float bearing = calculateBearing(positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw);
+	sendAltitudeTelemetry(positionCordinateData.zPosition, bearing);
+}
+
 /**
  * @brief Main task executed by scheduler.
  * Sends exactly ONE type of telemetry per execution tick.
  */
 void telemetryUpdateTask() {
-
 	switch (currentTelemetryStep) {
 	case TELEMETRY_STEP_ALTITUDE:
 		sendAltitudeTelemetry(positionCordinateData.zPosition, positionCordinateData.zVelocity);
@@ -77,14 +127,12 @@ void telemetryUpdateTask() {
 		sendBatteryTelemetry(batteryData.voltage, batteryData.current, 0, 0);
 		break;
 
-	case TELEMETRY_STEP_GNSS: {
-		float speed = fastSqrtf(positionCordinateData.xVelocity * positionCordinateData.xVelocity + positionCordinateData.yVelocity * positionCordinateData.yVelocity);
-		sendGNSSTelemetry(gnssData.latitude, gnssData.longitude, speed, fcStatusData.headingRef, fcStatusData.altitudeRef, gnssData.satCount);
-	}
+	case TELEMETRY_STEP_GNSS:
+		prepareAndSendGNSSData();
 		break;
 
 	case TELEMETRY_STEP_FC_STATUS:
-		sendFCStatus();
+		prepareAndSendFCStatus();
 		break;
 
 	default:
