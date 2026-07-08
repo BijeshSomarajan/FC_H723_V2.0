@@ -6,6 +6,7 @@
 #include "../../../sensors/position/GNSS.h"
 #include "../../../sensors/attitude/AttitudeSensor.h"
 #include "../../../sensors/altitude/AltitudeSensor.h"
+
 #include "PositionManagerHelper.h"
 
 float posManagerGNSSStableTime = 0;
@@ -39,7 +40,6 @@ void updateTerrainAltDataReliability(float dt) {
 	}
 }
 
-
 __ATTR_ITCM_TEXT
 void updateGNSSDataReliability(float dt) {
 	// 1. Basic threshold check (Strictly requires 3D fix or higher)
@@ -72,7 +72,7 @@ void updateGNSSDataReliability(float dt) {
 
 __ATTR_ITCM_TEXT
 uint8_t isNavModeActive() {
-	return (fcStatusData.isNavRTHModeActive || fcStatusData.isNavModeActive) ;
+	return (fcStatusData.isNavRTHModeActive || fcStatusData.isNavModeActive);
 }
 
 __ATTR_ITCM_TEXT
@@ -87,22 +87,38 @@ void convertGNSSToXYCordinates(double latDeg, double lonDeg, double latRefDeg, d
 	double dLon = lonRad - lonRefRad;
 // Mean latitude (better accuracy than using current lat)
 	double meanLat = 0.5 * (latRad + latRefRad);
-// Earth frame (NED)
-// X → North
-// Y → East
+// Earth frame (NED) , X → North , Y → East
 	*x = (float) (dLat * POSITION_GNSS_EARTH_RADIUS_METERS);
-	*y = (float) (dLon * POSITION_GNSS_EARTH_RADIUS_METERS * cos(meanLat));
+	*y = (float) (dLon * POSITION_GNSS_EARTH_RADIUS_METERS * cosApproxF(meanLat));
 }
 
 __ATTR_ITCM_TEXT
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody) {
-//heading = 0;
 	float headingRad = convertDegToRadF(heading);
 	float headingCosValue = cosApproxF(headingRad);
 	float headingSinValue = sinApproxF(headingRad);
 
 	*xBody = (xEarth * headingCosValue) + (yEarth * headingSinValue);
 	*yBody = (-xEarth * headingSinValue) + (yEarth * headingCosValue);
+}
+
+float calculateDistance(double homeLat, double homeLon, double lat, double lon) {
+	float lat1 = convertDegToRadF((float) homeLat);
+	float lat2 = convertDegToRadF((float) lat);
+	float dLat = lat2 - lat1;
+	float dLon = convertDegToRadF((float) (lon - homeLon));
+	float x = dLon * cosApproxF((lat1 + lat2) * 0.5f);
+	float y = dLat;
+	return POSITION_GNSS_EARTH_RADIUS_METERS * fastSqrtf(x * x + y * y);
+}
+
+__ATTR_ITCM_TEXT
+float calculateBearing(float xNorth, float yEast) {
+	float bearing = convertRadToDegF(atan2Approx(-yEast, -xNorth));
+	if (bearing < 0.0f) {
+		bearing += 360.0f;
+	}
+	return bearing;
 }
 
 __ATTR_ITCM_TEXT

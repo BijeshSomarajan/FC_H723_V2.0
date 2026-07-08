@@ -43,7 +43,7 @@ float fastSqrtf(float x);
 float invSqrtf(float x);
 
 /* --- Conversion & Mapping --- */
-float convertRadToDeg(float rads);
+float convertRadToDegF(float rads);
 float convertDegToRadF(float deg);
 double convertDegToRad(double deg);
 float mapToRangeFloat(float inValue, float minInRange, float maxInRange, float minOutRange, float maxOutRange);

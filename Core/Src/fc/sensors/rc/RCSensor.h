@@ -26,10 +26,10 @@
 #define RC_HOME_SET_CHANNEL_INDEX    9 //Channel 10 //key1 //Home PoS Set
 
 #else
-#define RC_ROLL_CHANNEL_INDEX        0 // Channel 4 // Aileron
+#define RC_ROLL_CHANNEL_INDEX        0 // Channel 0 // Rudder
 #define RC_PITCH_CHANNEL_INDEX       1 // Channel 2 // Ele
 #define RC_TH_CHANNEL_INDEX          2 // Channel 3 // Throttle
-#define RC_YAW_CHANNEL_INDEX         3 // Channel 1 // Rudder
+#define RC_YAW_CHANNEL_INDEX         3 // Channel 4 // Aileron
 #define RC_START_CHANNEL_INDEX       4 //Channel 5  //SA   //ARM
 #define RC_NAV_CHANNEL_INDEX         5 //Channel 6  //swb  //Hold/RTH
 #define RC_ALT_MODE_CHANNEL_INDEX    6 //Channel 7  //swc  //Terrain/ASL

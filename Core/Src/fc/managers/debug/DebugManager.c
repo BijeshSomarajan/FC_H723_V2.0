@@ -55,6 +55,7 @@ void debugBattery() {
 	DEBUG_DATA_BUFFER[1] = positionCordinateData.zVelocity * 100;
 	DEBUG_DATA_BUFFER[2] = fcStatusData.altitudeRef * 100;
 	DEBUG_DATA_BUFFER[3] = fcStatusData.headingRef * 10;
+
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
@@ -83,6 +84,16 @@ void debugCRSF() {
 
 }
 
+void debugNoise() {
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.gxDS * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDSFiltered * 10;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.gyDS * 10;;
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gyDSFiltered * 10;
+	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.gzDS * 10;;
+	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.gzDSFiltered * 10;;
+	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
+}
+
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
 		return;
@@ -92,6 +103,7 @@ void debugTask() {
 	//debugString();
 	//debugGraph();
 	//debugRC();
-	debugBattery();
+	//debugBattery();
 	//debugCRSF();
+	debugNoise();
 }

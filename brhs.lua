@@ -1,77 +1,118 @@
+local function getCompassDirection(angle)
+    -- Normalize to 0-360
+    angle = angle % 360
+
+    local directions = {
+        "N", "NE", "E", "SE",
+        "S", "SW", "W", "NW"
+    }
+
+    local index = math.floor((angle + 22.5) / 45) % 8
+    return directions[index + 1]
+end
+
 local function run(event)
-  lcd.clear()
+    lcd.clear()
 
-  -- Fetch Raw Telemetry Streams (with fallbacks if nil)
-  local txBat = getValue("tx-voltage") or getValue("tx-volt") or getValue("tx-v") or 0
-  local lq = getValue("RQly") or 0
-  local rssi = getValue("1RSS") or 0  
-  local alt = getValue("Alt") or 0
-  local altRef = getValue("Alts") or 0
-  local heading = getValue("Yaw") or 0
-  local headingRef = getValue("Hdg") or 0
-  local rxBat = getValue("RxBt") or 0
-  local vSpd = getValue("VSpd") or 0
-  local nSat = getValue("Sats") or 0
-  local fm = getValue("FM")
-  
-  -- Fetch Pitch and Roll
-  local pitch = getValue("Ptch") or getValue("Pitch") or 0
-  local roll = getValue("Roll") or getValue("Rol") or 0
+    --------------------------------------------------------------------------
+    -- Fetch Telemetry
+    --------------------------------------------------------------------------
+    local txBat        = getValue("tx-voltage") or getValue("tx-volt") or getValue("tx-v") or 0
+    local rxBat        = getValue("RxBt") or 0
 
-  -- Convert Yaw back to 0-360
-  if heading < 0 then
-    heading = heading + 360
-  end
-  
-  -- Handle the signed int16 overflow bug for Reference/GNSS Heading
-  if headingRef < 0 then
-    headingRef = headingRef + 655.36
-  end
+    local lq           = getValue("RQly") or 0
+    local rssi         = getValue("1RSS") or 0
 
-  -- LEFT COLUMN (X: 2) - Split into Normal Label & Bold Value
-  lcd.drawText(2, 2,  "BTX:", 0)
-  lcd.drawText(26, 2, string.format("%.1fV", txBat), BOLD)
+    local alt          = getValue("Alt") or 0
+    local altRef       = getValue("Alts") or 0
 
-  lcd.drawText(2, 12, "LQ:", 0)
-  lcd.drawText(20, 12, string.format("%d%%", lq), BOLD)
+    local heading      = getValue("Yaw") or 0
+    local headingRef   = getValue("Hdg") or 0
 
-  lcd.drawText(2, 22, "ARef:", 0)
-  lcd.drawText(32, 22, string.format("%.1f", (altRef-9000)/100), BOLD)
+    local homeBearing  = getValue("VSpd") or 0
+    local homeDistance = getValue("GSpd") or 0
 
-  lcd.drawText(2, 32, "HRef:", 0)
-  lcd.drawText(32, 32, string.format("%.1f", headingRef), BOLD) 
+    local satField     = getValue("Sats") or 0
+    local fm           = getValue("FM") or "---"
 
-  lcd.drawText(2, 42, "VS:", 0)
-  lcd.drawText(20, 42, string.format("%.2f", vSpd), BOLD) 
+    local pitch        = getValue("Ptch") or getValue("Pitch") or 0
+    local roll         = getValue("Roll") or getValue("Rol") or 0
 
-  -- RIGHT COLUMN (X: 64) - Split into Normal Label & Bold Value
-  lcd.drawText(64, 2,  "BRX:", 0)
-  lcd.drawText(88, 2,  string.format("%.1fV", rxBat), BOLD)
+    --------------------------------------------------------------------------
+    -- Decode Telemetry
+    --------------------------------------------------------------------------
+    -- Aircraft heading (-180..180 -> 0..360)
+    if heading < 0 then
+        heading = heading + 360
+    end
 
-  lcd.drawText(64, 12, "RS:", 0)
-  lcd.drawText(82, 12, string.format("%ddB", rssi), BOLD)
+    -- GNSS heading overflow workaround
+    if headingRef < 0 then
+        headingRef = headingRef + 655.36
+    end
 
-  lcd.drawText(64, 22, "ACur:", 0)
-  lcd.drawText(94, 22, string.format("%.1f", alt/10), BOLD)
+    -- Home bearing (-180..180 -> 0..360)
+    if homeBearing < 0 then
+        homeBearing = homeBearing + 360
+    end
 
-  lcd.drawText(64, 32, "HCur:", 0)
-  lcd.drawText(94, 32, string.format("%.1f", heading), BOLD) 
+    -- Decode GNSS reliability + satellite count
+    local gnssReliable = satField >= 128
+    local nSat = satField % 128
 
-  lcd.drawText(64, 42, "SAT:", 0)
-  lcd.drawText(88, 42, string.format("%d", nSat), BOLD) 
-   
-  -- BOTTOM ROW (Y: 54) - Shared row for Pitch, Flight Mode, and Roll
-  -- Pitch (Left-aligned)
-  lcd.drawText(2, 54, "P:", 0)
-  lcd.drawText(14, 54, string.format("%0.1f", pitch), BOLD)
+    --------------------------------------------------------------------------
+    -- Row 1 (Y: 2)
+    --------------------------------------------------------------------------
+    lcd.drawText(2, 2, "BT:", 0)
+    lcd.drawText(18, 2, string.format("%.1f,", txBat), 0)
+    lcd.drawText(36, 2, string.format("%.1fv", rxBat), BOLD)
 
-  -- Flight Mode (Centered)
-  lcd.drawText(45, 54, string.format("%s", tostring(fm or "---")), BOLD) 
+    lcd.drawText(66, 2, "LQ:", 0)
+    lcd.drawText(82, 2, string.format("%d", lq), BOLD)
+    lcd.drawText(102, 3, string.format(",%d", rssi), SMLSIZE)
 
-  -- Roll (Right-aligned)
-  lcd.drawText(88, 54, "R:", 0)
-  lcd.drawText(100, 54, string.format("%0.1f", roll), BOLD)
+    --------------------------------------------------------------------------
+    -- Row 2 (Y: 12)
+    --------------------------------------------------------------------------
+    lcd.drawText(2, 12, "AR:", 0)
+    lcd.drawText(18, 12, string.format("%.1fm", (altRef - 9000) / 100), BOLD)
+
+    lcd.drawText(66, 12, "AC:", 0)
+    lcd.drawText(82, 12, string.format("%.1fm", alt / 10), BOLD)
+
+    --------------------------------------------------------------------------
+    -- Row 3 (Y: 22)
+    --------------------------------------------------------------------------
+    lcd.drawText(2, 22, "HR:", 0)
+    lcd.drawText(18, 22, string.format("%.1f°%s", headingRef, getCompassDirection(headingRef)), BOLD)
+
+    lcd.drawText(66, 22, "HC:", 0)
+    lcd.drawText(82, 22, string.format("%.1f°%s", heading, getCompassDirection(heading)), BOLD)
+
+    --------------------------------------------------------------------------
+    -- Row 4 (Y: 32)
+    --------------------------------------------------------------------------
+    lcd.drawText(2, 32, "BR:", 0)
+    lcd.drawText(18, 32, string.format("%.1f°%s", homeBearing, getCompassDirection(homeBearing)), BOLD)
+
+    lcd.drawText(66, 32, "DT:", 0)
+    lcd.drawText(82, 32, string.format("%.1fm", homeDistance), BOLD)
+
+    --------------------------------------------------------------------------
+    -- Row 5 (Y: 42)
+    --------------------------------------------------------------------------
+    lcd.drawText(2, 42, "PR:", 0)
+    lcd.drawText(18, 42, string.format("%.1f,%.1f", pitch, roll), SMLSIZE)
+
+    lcd.drawText(66, 42, "GN:", 0)
+    lcd.drawText(82, 42, gnssReliable and "Y" or "N", BOLD)
+    lcd.drawText(91, 43, string.format(",%d", nSat), SMLSIZE)
+
+    --------------------------------------------------------------------------
+    -- Flight Mode (Y: 54)
+    --------------------------------------------------------------------------
+    lcd.drawText(38, 54, string.format("[ %s ]", tostring(fm)), BOLD)
 
 end
 
-return { run=run }
+return { run = run }
