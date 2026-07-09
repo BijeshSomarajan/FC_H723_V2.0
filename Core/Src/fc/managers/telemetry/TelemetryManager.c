@@ -25,16 +25,16 @@
  *
  * ----------------------- Battery Frame -----------------------
  * Voltage          -> Battery Voltage (V)
- * Current          -> Battery Current (A)
+ * Current          -> Max Voltage (A) //Repurposed
  * Capacity         -> Consumed Capacity (mAh)
  * Remaining        -> Battery Percentage (%)
  *
  * ------------------------- GPS Frame -------------------------
  * Latitude         -> GNSS Latitude (deg)
  * Longitude        -> GNSS Longitude (deg)
- * Ground Speed     -> Distance to Home (m)
- * Heading          -> GNSS Heading Reference (deg)
- * Altitude         -> Home / Reference Altitude (m)
+ * Ground Speed     -> Distance to Home (m) //Repurposed
+ * Heading          -> GNSS Heading Reference (deg) // Repurposed
+ * Altitude         -> Home / Reference Altitude (m) // Repurposed
  * Satellites[6:0]  -> Satellite Count
  * Satellites[7]    -> Navigation Reliability Flag
  *
@@ -94,7 +94,7 @@ void prepareAndSendFCStatus() {
 }
 
 void prepareAndSendGNSSData(void) {
-	uint8_t satCountAndReliable = (gnssData.satCount & 0x7F) | ((uint8_t) fcStatusData.isNavDataReliable << 7);
+	uint8_t satCountAndReliable = (gnssData.satCount & 0x3F) | ((uint8_t) fcStatusData.isNavDataReliable << 6);
 	float distance = 0.0f;
 	if (fcStatusData.isPositionHomeSet) {
 		float north = positionCordinateData.xPositionRaw;
@@ -118,23 +118,19 @@ void telemetryUpdateTask() {
 	case TELEMETRY_STEP_ALTITUDE:
 		sendAltitudeTelemetry(positionCordinateData.zPosition, positionCordinateData.zVelocity);
 		break;
-
 	case TELEMETRY_STEP_ATTITUDE:
 		sendAttitudeTelemetry(sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAttitudeData.heading);
 		break;
 
 	case TELEMETRY_STEP_BATTERY:
-		sendBatteryTelemetry(batteryData.voltage, batteryData.current, 0, 0);
+		sendBatteryTelemetry(batteryData.voltage, fcStatusData.batteryVolt, 0, 0);
 		break;
-
 	case TELEMETRY_STEP_GNSS:
 		prepareAndSendGNSSData();
 		break;
-
 	case TELEMETRY_STEP_FC_STATUS:
 		prepareAndSendFCStatus();
 		break;
-
 	default:
 		currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
 		return;
