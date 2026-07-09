@@ -20,7 +20,7 @@ local aAlertNextLinkAlert = 0  -- Timer tracking state for link quality alerts
 
 -- Battery thresholds, percentages, and timings
 local aAlertLowBatPercent    = 0.88 -- 88% of rxBatMax for Low Battery alert
-local aAlertCritBatPercent   = 0.85 -- 85% of rxBatMax for Critical Battery alert
+local aAlertCritBatPercent   = 0.84 -- 84% of rxBatMax for Critical Battery alert
 local aAlertBatInterval      = 2000 -- 20 seconds repeat interval (Low Battery)
 local aAlertCritBatInterval  = 500  -- 5 seconds repeat interval (Critically low Battery)
 
@@ -262,16 +262,17 @@ local function run(event)
     if headingRef < 0 then headingRef = headingRef + 655.36 end
     if homeBearing < 0 then homeBearing = homeBearing + 360 end
 
-    gnssReliable = satField >= 128
-    nSat = satField % 128
+    -- UPDATED: Match the 6th-bit shifting structure from firmware
+    gnssReliable = satField >= 64
+    nSat = satField % 64
 
     --------------------------------------------------------------------------
     -- Row 1 (Y: 2)
     --------------------------------------------------------------------------
-    lcd.drawText(2, 2, "BT:", 0)
+    lcd.drawText(2, 2, "BV:", 0)
     lcd.drawText(18, 2, string.format("%.1f", rxBat), BOLD)
-    lcd.drawText(40, 2, string.format("/%.1fv", rxBatMax), SMLSIZE)
-
+    lcd.drawText(40, 2, string.format("/%.1f", rxBatMax), 0)
+   
     lcd.drawText(66, 2, "LQ:", 0)
     lcd.drawText(82, 2, string.format("%d", lq), BOLD)
     lcd.drawText(102, 3, string.format(",%d", rssi), SMLSIZE)
