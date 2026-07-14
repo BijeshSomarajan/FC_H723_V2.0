@@ -37,10 +37,15 @@ struct _SENSOR_ATTITUDE_DATA {
 	// Attitude Estimation (Pitch, Roll, Heading, Rates)
 	float pitch;
 	float pitchRate;
+	float pitchRateFiltered;
+
 	float roll;
 	float rollRate;
+	float rollRateFiltered;
+
 	float heading;
 	float yawRate;
+	float yawRateFiltered;
 
 	float pitchRateRaw;
 	float rollRateRaw;

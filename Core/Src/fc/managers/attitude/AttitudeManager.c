@@ -16,6 +16,7 @@
 #include "../../FCConfig.h"
 #include "../../managers/position/common/PositionCommon.h"
 #include "../../managers/position/PositionManager.h"
+#include "../../dsp/LowPassFilter.h"
 
 extern POSITION_COMMAND_DATA positionCommandData;
 
@@ -27,6 +28,8 @@ void attRateControlTimerCallback(void);
 float attitudeManagerCrashThresholdG;
 uint16_t attitudeManagerCrashTriggerCounter = 0;
 float attitudeAngleControlDt = 0;
+
+LOWPASSFILTER attitudePitchRateLPF, attitudeRollRateLPF, attitudeYawRateLPF;
 
 __ATTR_ITCM_TEXT
 void readAGTSensorTimerCallback() {
@@ -90,11 +93,19 @@ void doAttitudeRateControl(float dt) {
 }
 
 __ATTR_ITCM_TEXT
+void filterAttiudeRatesForControl(float dt) {
+	sensorAttitudeData.pitchRateFiltered = lowPassFilterUpdate(&attitudePitchRateLPF, sensorAttitudeData.pitchRate, dt);
+	sensorAttitudeData.rollRateFiltered = lowPassFilterUpdate(&attitudeRollRateLPF, sensorAttitudeData.rollRate, dt);
+	sensorAttitudeData.yawRateFiltered = lowPassFilterUpdate(&attitudeYawRateLPF, sensorAttitudeData.yawRate, dt);
+}
+
+__ATTR_ITCM_TEXT
 void attRateControlTimerCallback() {
 	float dt = getDeltaTime(SENSOR_ATT_RATE_CONTROL_TIMER_CHANNEL);
 	dt = constrainToRangeF(dt, ATTITUDE_RATE_CONTROL_PERIOD * 0.001f, ATTITUDE_RATE_CONTROL_PERIOD * 4.0f);
 	imuUpdateRate();
 	alignImuRateToBoard();
+	filterAttiudeRatesForControl(dt);
 	doAttitudeRateControl(dt);
 }
 
@@ -182,6 +193,11 @@ uint8_t initAttitudeManager() {
 		imuInit(0);
 		initAttitudeControl();
 		attitudeManagerCrashThresholdG = getMaxValidG() * ATTITUDE_SENSOR_ACC_CRASH_G_GAIN;
+
+		lowPassFilterInit(&attitudePitchRateLPF, ATTITUDE_RATE_LPF_FREQUENCY);
+		lowPassFilterInit(&attitudeRollRateLPF, ATTITUDE_RATE_LPF_FREQUENCY);
+		lowPassFilterInit(&attitudeYawRateLPF, ATTITUDE_RATE_LPF_FREQUENCY);
+
 		logString("[Attitude Manager] All tasks > Started\n");
 	} else {
 		logString("[Attitude Manager] Init > Failed!\n");
@@ -193,5 +209,10 @@ uint8_t resetAttitudeManager() {
 	resetAttitudeSensors(0);
 	resetAttitudeControl(1);
 	resetNoiseFilter();
+
+	lowPassFilterReset(&attitudePitchRateLPF);
+	lowPassFilterReset(&attitudeRollRateLPF);
+	lowPassFilterReset(&attitudeYawRateLPF);
+
 	return 1;
 }

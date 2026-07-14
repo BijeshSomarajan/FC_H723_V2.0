@@ -3,7 +3,8 @@
 
 #include <sys/_stdint.h>
 
-#define ATT_CONTROL_D_RATE_LPF_FREQ 32.0f
+#define ATT_CONTROL_D_RATE_LPF_FREQ 32.0f //0 to disable
+#define ATT_CONTROL_USE_FILTERED_RATES 1  //Use filtered/non-filtered attitude sensor data
 
 #define ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO 1.0f
 #define ATT_CONTROL_RATE_PID_YAW_I_LIMIT_RATIO 1.0f
