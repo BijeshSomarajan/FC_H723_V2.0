@@ -17,8 +17,8 @@
 #define POS_EKF_Y_Q_BIAS                      0.0000001f
 
 // [+] Accepts aggressive stick maneuvers without rejection | [-] Aggressively rejects multi-path/GPS jumps but risks lockout
-#define POS_EKF_X_GATE                         6.0f
-#define POS_EKF_Y_GATE                         6.0f
+#define POS_EKF_X_GATE                         9.0f
+#define POS_EKF_Y_GATE                         9.0f
 
 // [+] Rides through extended sensor outages safely before a reset | [-] Fast, safe hard-reset during sensor failure but risks premature panics
 #define POS_EKF_X_PANIC                        8
@@ -71,6 +71,8 @@
 // [+] Accelerometer bias states adapt quickly to physical frame flex | [-] Keeps bias estimation stable against momentary high-G structural impulses
 #define POS_EKF_Q_BIAS_STRESS_GAIN             0.0f
 
+
+#define POS_EKF_PANIC_P_INFLATE   10.0f
 
 /* =========================================================================
  * Group 4: Dynamic Sensor Variance Scaling - GNSS Horizontal (XY) Position

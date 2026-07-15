@@ -295,7 +295,7 @@ void updatePositionCordinateCommand(float dt) {
 		case POS_HOLD_STATE_SETTLING:
 			positionMgrPosHoldElapseDtSum += dt;
 			setExpectedPositionVelocity(dt, 0.0f, 0.0f);
-			if (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD) {
+			if ((positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD && getGroundSpeed() <= 2.0f * POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED) || positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT) {
 				updatePositionReference();
 				resetPositionControl(1);
 				positionMgrPosHoldElapseDtSum = 0.0f;
@@ -316,7 +316,6 @@ void updatePositionCordinateCommand(float dt) {
 		resetPositionCommands();
 	}
 }
-
 
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {

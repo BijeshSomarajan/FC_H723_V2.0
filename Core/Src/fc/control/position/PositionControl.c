@@ -14,6 +14,7 @@ float positionControlXAccDist = 0.0f, positionControlYAccDist = 0.0f;
 float posHoldRatePIDLimit, posHoldPIDLimit;
 float previousEffectivePositionControlXw = 0.0f;
 float previousEffectivePositionControlYw = 0.0f;
+float dobExpectedAccXFilt = 0.0f, dobExpectedAccYFilt = 0.0f;
 /**
  * Initializes the attitude control
  */
@@ -70,6 +71,8 @@ void resetPositionControl(uint8_t hard) {
 	positionControlYAccDist = 0.0f;
 	controlData.previousEffectiveXControl = 0.0f;
 	controlData.previousEffectiveYControl = 0.0f;
+	dobExpectedAccXFilt = 0.0f;
+	dobExpectedAccYFilt = 0.0f;
 }
 
 float xDobTest, yDobTest;
@@ -101,11 +104,19 @@ void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, fl
     positionControlYVelDist = constrainToRangeF(positionControlYVelDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
 
     // Acceleration Disturbance
+    /*
     float expectedAccX = controlData.previousEffectiveXControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K;
     float expectedAccY = controlData.previousEffectiveYControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K;
-
     float distAccX = constrainToRangeF(positionCordinateData.xAcceleration - expectedAccX, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
     float distAccY = constrainToRangeF(positionCordinateData.yAcceleration - expectedAccY, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
+    */
+
+    float alphaAtt = dt / (POSITION_CONTROL_DOB_ATT_TAU + dt);
+    dobExpectedAccXFilt += alphaAtt * ((controlData.previousEffectiveXControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K) - dobExpectedAccXFilt);
+    dobExpectedAccYFilt += alphaAtt * ((controlData.previousEffectiveYControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K) - dobExpectedAccYFilt);
+    float distAccX = constrainToRangeF(positionCordinateData.xAcceleration - dobExpectedAccXFilt, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
+    float distAccY = constrainToRangeF(positionCordinateData.yAcceleration - dobExpectedAccYFilt, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
+
 
     float alphaAcc = dt / (POSITION_CONTROL_DOB_ACC_TAU + dt);
     positionControlXAccDist += alphaAcc * (distAccX - positionControlXAccDist);
