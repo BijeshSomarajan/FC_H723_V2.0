@@ -107,9 +107,17 @@ void controlAttitudeRateWithGains(float dt,float ratePGain,float rateIGain, floa
 	float rollRate = 0;
 	float yawRate = 0;
 #else
+
+#if ATT_CONTROL_USE_CTRL_RATES == 1
+	float pitchRate = sensorAttitudeData.pitchCtrlRate;
+	float rollRate = sensorAttitudeData.rollCtrlRate;
+	float yawRate = sensorAttitudeData.yawCtrlRate;
+#else
 	float pitchRate = sensorAttitudeData.pitchRate;
 	float rollRate = sensorAttitudeData.rollRate;
 	float yawRate = sensorAttitudeData.yawRate;
+#endif
+
 #endif
 
 	pidUpdateWithGains(&attitudePitchRatePID, pitchRate, attitudePitchPID.pid, dt, ratePGain, rateIGain, rateDGain);

@@ -84,6 +84,23 @@ void debugCRSF() {
 
 }
 
+
+void debugPID() {
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitchRate * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.pitchCtrlRate * 10;
+	DEBUG_DATA_BUFFER[2] = controlData.pitchControl * 10;
+
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.rollRate * 10;
+	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.rollCtrlRate * 10;
+	DEBUG_DATA_BUFFER[5] = controlData.rollControl * 10;
+
+	DEBUG_DATA_BUFFER[6] = sensorAttitudeData.yawRate  * 10;
+	DEBUG_DATA_BUFFER[7] = sensorAttitudeData.yawCtrlRate * 10;
+	DEBUG_DATA_BUFFER[8] = controlData.yawControl * 10;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
+}
+
 void debugNoise() {
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.gxDS * 10;
 	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDSFiltered * 10;
@@ -105,5 +122,6 @@ void debugTask() {
 	//debugRC();
 	//debugBattery();
 	//debugCRSF();
-	debugNoise();
+	//debugNoise();
+	debugPID();
 }

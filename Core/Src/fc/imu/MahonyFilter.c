@@ -99,9 +99,9 @@ void imuFilterUpdate(float dt) {
 	gx = convertDegToRadF(sensorAttitudeData.gxDSFiltered);
 	gy = convertDegToRadF(sensorAttitudeData.gyDSFiltered);
 	gz = convertDegToRadF(sensorAttitudeData.gzDSFiltered);
-	ax = sensorAttitudeData.axGFiltered;
-	ay = sensorAttitudeData.ayGFiltered;
-	az = sensorAttitudeData.azGFiltered;
+	ax = sensorAttitudeData.axGFilteredImu;
+	ay = sensorAttitudeData.ayGFilteredImu;
+	az = sensorAttitudeData.azGFilteredImu;
 	mx = sensorAttitudeData.mxFiltered;
 	my = sensorAttitudeData.myFiltered;
 	mz = sensorAttitudeData.mzFiltered;
@@ -126,18 +126,29 @@ void imuFilterUpdate(float dt) {
 		ey += imuData.rMatrix[1][2] * ez_ef;
 		ez += imuData.rMatrix[2][2] * ez_ef;
 	}
-	// 3. Accelerometer Correction (Tilt/Horizon)
+
+	// 3. Accelerometer Correction (Tilt/Horizon) — norm-gated
 	float accSq = (ax * ax) + (ay * ay) + (az * az);
-	if (accSq > MAHONY_FILTER_MIN_ACC_MAGNITUDE) {
+	if ((accSq > MAHONY_FILTER_ACC_GATE_MIN_SQ) && (accSq < MAHONY_FILTER_ACC_GATE_MAX_SQ)) {
 		recipNorm = fastInvSqrtf(accSq);
+		float accNorm = accSq * recipNorm;   // = sqrt(accSq), reuses invsqrt
+		// Trapezoid weight: 1.0 inside full-trust band, linear fade to hard edges
+		float w = 1.0f;
+		if (accNorm < MAHONY_FILTER_ACC_GATE_FULL_LO) {
+		    w = (accNorm - MAHONY_FILTER_ACC_GATE_MIN) * MAHONY_FILTER_ACC_GATE_INV_W_LO;
+		    if (w < 0.0f) w = 0.0f;
+		} else if (accNorm > MAHONY_FILTER_ACC_GATE_FULL_HI) {
+		    w = (MAHONY_FILTER_ACC_GATE_MAX - accNorm) * MAHONY_FILTER_ACC_GATE_INV_W_HI;
+		    if (w < 0.0f) w = 0.0f;
+		}
 		ax *= recipNorm;
 		ay *= recipNorm;
 		az *= recipNorm;
-		// Cross product: Measured Gravity (ax,ay,az) x Estimated Gravity (DCM Row 3)
-		ex += ((ay * imuData.rMatrix[2][2]) - (az * imuData.rMatrix[2][1]));
-		ey += ((az * imuData.rMatrix[2][0]) - (ax * imuData.rMatrix[2][2]));
-		ez += ((ax * imuData.rMatrix[2][1]) - (ay * imuData.rMatrix[2][0]));
+		ex += w * ((ay * imuData.rMatrix[2][2]) - (az * imuData.rMatrix[2][1]));
+		ey += w * ((az * imuData.rMatrix[2][0]) - (ax * imuData.rMatrix[2][2]));
+		ez += w * ((ax * imuData.rMatrix[2][1]) - (ay * imuData.rMatrix[2][0]));
 	}
+
 	// 4. Error Integration (Integral Feedback for Gyro Bias)
 	if (mahonyFilter_BF_KI > 0.0f) {
 		spin_rate = fastSqrtf((gx * gx) + (gy * gy) + (gz * gz));

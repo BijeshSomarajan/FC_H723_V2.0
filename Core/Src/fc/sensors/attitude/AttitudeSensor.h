@@ -18,7 +18,11 @@ struct _SENSOR_ATTITUDE_DATA {
 	float axG, ayG, azG, gxDS, gyDS, gzDS, mx, my, mz, temp;
 
 	// Filtered data
-	float axGFiltered, ayGFiltered, azGFiltered, gxDSFiltered, gyDSFiltered, gzDSFiltered, mxFiltered, myFiltered, mzFiltered, tempFiltered;
+	float axGFiltered, ayGFiltered, azGFiltered;
+	float axGFilteredImu, ayGFilteredImu, azGFilteredImu;
+	float gxDSFiltered, gyDSFiltered, gzDSFiltered;
+	float mxFiltered, myFiltered, mzFiltered;
+	float tempFiltered;
 
 	// Update Timings (Delta T)
 	float agtDataUpdateDt;
@@ -37,10 +41,15 @@ struct _SENSOR_ATTITUDE_DATA {
 	// Attitude Estimation (Pitch, Roll, Heading, Rates)
 	float pitch;
 	float pitchRate;
+	float pitchCtrlRate;
+
 	float roll;
 	float rollRate;
+	float rollCtrlRate;
+
 	float heading;
 	float yawRate;
+	float yawCtrlRate;
 
 	float pitchRateRaw;
 	float rollRateRaw;

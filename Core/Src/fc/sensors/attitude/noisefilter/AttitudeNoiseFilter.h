@@ -9,8 +9,6 @@
 #define SENSOR_FFT_GYRO_ENABLED                 1
 // Number of FFT frequency bins considered for gyro processing (limits top analysis frequency)
 #define SENSOR_FFT_GYRO_FREQUENCY_N             FFT_TOP_FREQ_N
-// Start applying adaptive notch from harmonics first, then fundamental if enabled
-#define SENSOR_FFT_GYRO_FILTER_HARMONICS_FIRST  0   // Filtration starts from harmonics to fundamental
 // Minimum frequency (Hz) allowed for gyro adaptive notch filtering
 #define SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY  50.0f
 // Maximum frequency (Hz) allowed for gyro adaptive notch filtering
@@ -30,17 +28,12 @@
 
 /* --- Accelerometer LPF Configuration --- */
 
-// Enable standard low-pass filter on accelerometer data
-#define SENSOR_LPF_STD_ACC_ENABLED              1
-
 // Accelerometer low-pass filter cutoff frequency (Hz)
 #define SENSOR_LPF_STD_ACC_FREQUENCY         40.0f//20.0f
-
+// Accelerometer low-pass filter cutoff frequency (Hz) for IMU
+#define SENSOR_LPF_IMU_ACC_FREQUENCY         15.0f//20.0f
 
 /* --- Gyroscope LPF Configuration --- */
-
-// Enable standard low-pass filter on gyro data
-#define SENSOR_LPF_STD_GYRO_ENABLED             1
 
 // Gyroscope low-pass filter cutoff frequency (Hz)
 #define SENSOR_LPF_STD_GYRO_FREQUENCY           400.0f // DO not reduce , becomes wobbly

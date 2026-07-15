@@ -15,7 +15,9 @@ FFTContext fftContextGyroX;
 FFTContext fftContextGyroY;
 FFTContext fftContextGyroZ;
 
+LOWPASSFILTER noiseFilterAccXImuLpF, noiseFilterAccYImuLpF, noiseFilterAccZImuLpF;
 LOWPASSFILTER noiseFilterAccXLpF, noiseFilterAccYLpF, noiseFilterAccZLpF;
+
 LOWPASSFILTER noiseFilterGyroXLpF, noiseFilterGyroYLpF, noiseFilterGyroZLpF;
 LOWPASSFILTER noiseFilterMagXLPF, noiseFilterMagYLPF, noiseFilterMagZLPF;
 LOWPASSFILTER noiseFilterTempLPF;
@@ -108,53 +110,36 @@ void updateNoiseFilterCoefficients() {
 
 __ATTR_ITCM_TEXT
 void filterGyroNoise(float dt) {
-// Start from raw ds values then apply notches/LPF as configured
-	sensorAttitudeData.gxDSFiltered = sensorAttitudeData.gxDS;
-	sensorAttitudeData.gyDSFiltered = sensorAttitudeData.gyDS;
-	sensorAttitudeData.gzDSFiltered = sensorAttitudeData.gzDS;
+	float gx = sensorAttitudeData.gxDS;
+	float gy = sensorAttitudeData.gyDS;
+	float gz = sensorAttitudeData.gzDS;
 
 #if SENSOR_FFT_GYRO_ENABLED == 1
-
-#if SENSOR_FFT_GYRO_FILTER_HARMONICS_FIRST == 1
-	for (int freqIndx = (SENSOR_FFT_GYRO_FREQUENCY_N - 1); freqIndx >= 0; freqIndx--) {
-		if (noiseFilterFftNtfGyroX[freqIndx].enabled) {
-			sensorAttitudeData.gxDSFiltered = biQuadFilterUpdate(&noiseFilterFftNtfGyroX[freqIndx], sensorAttitudeData.gxDSFiltered);
-		}
-		if (noiseFilterFftNtfGyroY[freqIndx].enabled) {
-			sensorAttitudeData.gyDSFiltered = biQuadFilterUpdate(&noiseFilterFftNtfGyroY[freqIndx], sensorAttitudeData.gyDSFiltered);
-		}
-		if (noiseFilterFftNtfGyroZ[freqIndx].enabled) {
-			sensorAttitudeData.gzDSFiltered = biQuadFilterUpdate(&noiseFilterFftNtfGyroZ[freqIndx], sensorAttitudeData.gzDSFiltered);
-		}
-	} // harmonic
-
-#else
 	for (int freqIndx = 0; freqIndx < SENSOR_FFT_GYRO_FREQUENCY_N; freqIndx++) {
-		sensorAttitudeData.gxDSFiltered = biQuadFilterUpdate(&noiseFilterFftNtfGyroX[freqIndx], sensorAttitudeData.gxDSFiltered);
-		sensorAttitudeData.gyDSFiltered = biQuadFilterUpdate(&noiseFilterFftNtfGyroY[freqIndx], sensorAttitudeData.gyDSFiltered);
-		sensorAttitudeData.gzDSFiltered = biQuadFilterUpdate(&noiseFilterFftNtfGyroZ[freqIndx], sensorAttitudeData.gzDSFiltered);
-	} // harmonic
+		gx = biQuadFilterUpdate(&noiseFilterFftNtfGyroX[freqIndx], gx);
+		gy = biQuadFilterUpdate(&noiseFilterFftNtfGyroY[freqIndx], gy);
+		gz = biQuadFilterUpdate(&noiseFilterFftNtfGyroZ[freqIndx], gz);
+	}
 #endif
 
-#endif
+	gx = lowPassFilterUpdate(&noiseFilterGyroXLpF, gx, dt);
+	gy = lowPassFilterUpdate(&noiseFilterGyroYLpF, gy, dt);
+	gz = lowPassFilterUpdate(&noiseFilterGyroZLpF, gz, dt);
 
-#if SENSOR_LPF_STD_GYRO_ENABLED == 1
-	sensorAttitudeData.gxDSFiltered = lowPassFilterUpdate(&noiseFilterGyroXLpF, sensorAttitudeData.gxDSFiltered, dt);
-	sensorAttitudeData.gyDSFiltered = lowPassFilterUpdate(&noiseFilterGyroYLpF, sensorAttitudeData.gyDSFiltered, dt);
-	sensorAttitudeData.gzDSFiltered = lowPassFilterUpdate(&noiseFilterGyroZLpF, sensorAttitudeData.gzDSFiltered, dt);
-#endif
+	sensorAttitudeData.gxDSFiltered = gx;
+	sensorAttitudeData.gyDSFiltered = gy;
+	sensorAttitudeData.gzDSFiltered = gz;
 }
 
 __ATTR_ITCM_TEXT
 void filterAccNoise(float dt) {
-	sensorAttitudeData.axGFiltered = sensorAttitudeData.axG;
-	sensorAttitudeData.ayGFiltered = sensorAttitudeData.ayG;
-	sensorAttitudeData.azGFiltered = sensorAttitudeData.azG;
-#if SENSOR_LPF_STD_ACC_ENABLED == 1
-	sensorAttitudeData.axGFiltered = lowPassFilterUpdate(&noiseFilterAccXLpF, sensorAttitudeData.axGFiltered, dt);
-	sensorAttitudeData.ayGFiltered = lowPassFilterUpdate(&noiseFilterAccYLpF, sensorAttitudeData.ayGFiltered, dt);
-	sensorAttitudeData.azGFiltered = lowPassFilterUpdate(&noiseFilterAccZLpF, sensorAttitudeData.azGFiltered, dt);
-#endif
+	sensorAttitudeData.axGFiltered = lowPassFilterUpdate(&noiseFilterAccXLpF, sensorAttitudeData.axG, dt);
+	sensorAttitudeData.ayGFiltered = lowPassFilterUpdate(&noiseFilterAccYLpF, sensorAttitudeData.ayG, dt);
+	sensorAttitudeData.azGFiltered = lowPassFilterUpdate(&noiseFilterAccZLpF, sensorAttitudeData.azG, dt);
+
+	sensorAttitudeData.axGFilteredImu = lowPassFilterUpdate(&noiseFilterAccXImuLpF, sensorAttitudeData.axG, dt);
+	sensorAttitudeData.ayGFilteredImu = lowPassFilterUpdate(&noiseFilterAccYImuLpF, sensorAttitudeData.ayG, dt);
+	sensorAttitudeData.azGFilteredImu = lowPassFilterUpdate(&noiseFilterAccZImuLpF, sensorAttitudeData.azG, dt);
 }
 
 __ATTR_ITCM_TEXT
@@ -204,11 +189,13 @@ uint8_t initAttitudeNoiseFilter(float accSampleFrequency, float gyroSampleFreque
 	lowPassFilterInit(&noiseFilterAccYLpF, SENSOR_LPF_STD_ACC_FREQUENCY);
 	lowPassFilterInit(&noiseFilterAccZLpF, SENSOR_LPF_STD_ACC_FREQUENCY);
 
-#if SENSOR_LPF_STD_GYRO_ENABLED == 1
+	lowPassFilterInit(&noiseFilterAccXImuLpF, SENSOR_LPF_IMU_ACC_FREQUENCY);
+	lowPassFilterInit(&noiseFilterAccYImuLpF, SENSOR_LPF_IMU_ACC_FREQUENCY);
+	lowPassFilterInit(&noiseFilterAccZImuLpF, SENSOR_LPF_IMU_ACC_FREQUENCY);
+
 	lowPassFilterInit(&noiseFilterGyroXLpF, SENSOR_LPF_STD_GYRO_FREQUENCY);
 	lowPassFilterInit(&noiseFilterGyroYLpF, SENSOR_LPF_STD_GYRO_FREQUENCY);
 	lowPassFilterInit(&noiseFilterGyroZLpF, SENSOR_LPF_STD_GYRO_FREQUENCY);
-#endif
 
 	lowPassFilterInit(&noiseFilterMagXLPF, SENSOR_LPF_MAG_FREQUENCY);
 	lowPassFilterInit(&noiseFilterMagYLPF, SENSOR_LPF_MAG_FREQUENCY);
@@ -247,6 +234,10 @@ void resetNoiseFilter() {
 	lowPassFilterReset(&noiseFilterAccXLpF);
 	lowPassFilterReset(&noiseFilterAccYLpF);
 	lowPassFilterReset(&noiseFilterAccZLpF);
+
+	lowPassFilterReset(&noiseFilterAccXImuLpF);
+	lowPassFilterReset(&noiseFilterAccYImuLpF);
+	lowPassFilterReset(&noiseFilterAccZImuLpF);
 
 	lowPassFilterReset(&noiseFilterGyroXLpF);
 	lowPassFilterReset(&noiseFilterGyroYLpF);
