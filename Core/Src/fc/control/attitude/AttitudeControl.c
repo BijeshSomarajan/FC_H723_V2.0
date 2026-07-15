@@ -108,10 +108,10 @@ void controlAttitudeRateWithGains(float dt,float ratePGain,float rateIGain, floa
 	float yawRate = 0;
 #else
 
-#if ATT_CONTROL_USE_FILTERED_RATES == 1
-	float pitchRate = sensorAttitudeData.pitchRateFiltered;
-	float rollRate = sensorAttitudeData.rollRateFiltered;
-	float yawRate = sensorAttitudeData.yawRateFiltered;
+#if ATT_CONTROL_USE_CTRL_RATES == 1
+	float pitchRate = sensorAttitudeData.pitchCtrlRate;
+	float rollRate = sensorAttitudeData.rollCtrlRate;
+	float yawRate = sensorAttitudeData.yawCtrlRate;
 #else
 	float pitchRate = sensorAttitudeData.pitchRate;
 	float rollRate = sensorAttitudeData.rollRate;

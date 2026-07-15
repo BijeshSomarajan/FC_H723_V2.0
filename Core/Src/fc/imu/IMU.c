@@ -51,12 +51,9 @@ void updateLinearMovements(float dt) {
 	// Remove gravity
 	azGEarth -= 1.0f;
 
-	// Remove gravity (1.0G) in Earth frame
-	azGEarth -= 1.0f;
-
 	imuData.axEarthLinear = axGEarth * GRAVITY_MSS;
 	imuData.ayEarthLinear = ayGEarth * GRAVITY_MSS;
-	imuData.azEarthLinear = (azGEarth * GRAVITY_MSS)+GRAVITY_MSS;
+	imuData.azEarthLinear = (azGEarth * GRAVITY_MSS);
 
 	// 2. Body Frame Linear Acceleration (Gravity Compensation)
 	// We project the Earth gravity vector [0, 0, 1] into the Body frame.

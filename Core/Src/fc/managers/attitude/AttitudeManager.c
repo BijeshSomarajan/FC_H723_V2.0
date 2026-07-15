@@ -29,7 +29,7 @@ float attitudeManagerCrashThresholdG;
 uint16_t attitudeManagerCrashTriggerCounter = 0;
 float attitudeAngleControlDt = 0;
 
-LOWPASSFILTER attitudePitchRateLPF, attitudeRollRateLPF, attitudeYawRateLPF;
+LOWPASSFILTER attitudePitchCtrlRateLPF, attitudeRollCtrlRateLPF, attitudeYawCtrlRateLPF;
 
 __ATTR_ITCM_TEXT
 void readAGTSensorTimerCallback() {
@@ -93,10 +93,10 @@ void doAttitudeRateControl(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void filterAttiudeRatesForControl(float dt) {
-	sensorAttitudeData.pitchRateFiltered = lowPassFilterUpdate(&attitudePitchRateLPF, sensorAttitudeData.pitchRate, dt);
-	sensorAttitudeData.rollRateFiltered = lowPassFilterUpdate(&attitudeRollRateLPF, sensorAttitudeData.rollRate, dt);
-	sensorAttitudeData.yawRateFiltered = lowPassFilterUpdate(&attitudeYawRateLPF, sensorAttitudeData.yawRate, dt);
+void updateAttiudeCtrlRates(float dt) {
+	sensorAttitudeData.pitchCtrlRate = lowPassFilterUpdate(&attitudePitchCtrlRateLPF, sensorAttitudeData.pitchRate, dt);
+	sensorAttitudeData.rollCtrlRate = lowPassFilterUpdate(&attitudeRollCtrlRateLPF, sensorAttitudeData.rollRate, dt);
+	sensorAttitudeData.yawCtrlRate = lowPassFilterUpdate(&attitudeYawCtrlRateLPF, sensorAttitudeData.yawRate, dt);
 }
 
 __ATTR_ITCM_TEXT
@@ -105,7 +105,7 @@ void attRateControlTimerCallback() {
 	dt = constrainToRangeF(dt, ATTITUDE_RATE_CONTROL_PERIOD * 0.001f, ATTITUDE_RATE_CONTROL_PERIOD * 4.0f);
 	imuUpdateRate();
 	alignImuRateToBoard();
-	filterAttiudeRatesForControl(dt);
+	updateAttiudeCtrlRates(dt);
 	doAttitudeRateControl(dt);
 }
 
@@ -194,9 +194,9 @@ uint8_t initAttitudeManager() {
 		initAttitudeControl();
 		attitudeManagerCrashThresholdG = getMaxValidG() * ATTITUDE_SENSOR_ACC_CRASH_G_GAIN;
 
-		lowPassFilterInit(&attitudePitchRateLPF, ATTITUDE_RATE_LPF_FREQUENCY);
-		lowPassFilterInit(&attitudeRollRateLPF, ATTITUDE_RATE_LPF_FREQUENCY);
-		lowPassFilterInit(&attitudeYawRateLPF, ATTITUDE_RATE_LPF_FREQUENCY);
+		lowPassFilterInit(&attitudePitchCtrlRateLPF, ATTITUDE_CTRL_RATE_LPF_FREQUENCY);
+		lowPassFilterInit(&attitudeRollCtrlRateLPF, ATTITUDE_CTRL_RATE_LPF_FREQUENCY);
+		lowPassFilterInit(&attitudeYawCtrlRateLPF, ATTITUDE_CTRL_RATE_LPF_FREQUENCY);
 
 		logString("[Attitude Manager] All tasks > Started\n");
 	} else {
@@ -210,9 +210,9 @@ uint8_t resetAttitudeManager() {
 	resetAttitudeControl(1);
 	resetNoiseFilter();
 
-	lowPassFilterReset(&attitudePitchRateLPF);
-	lowPassFilterReset(&attitudeRollRateLPF);
-	lowPassFilterReset(&attitudeYawRateLPF);
+	lowPassFilterReset(&attitudePitchCtrlRateLPF);
+	lowPassFilterReset(&attitudeRollCtrlRateLPF);
+	lowPassFilterReset(&attitudeYawCtrlRateLPF);
 
 	return 1;
 }
