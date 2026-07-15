@@ -90,10 +90,6 @@ void updatePWMValues() {
 
 __ATTR_ITCM_TEXT
 void motorControlTask() {
-# if ENABLE_DT_TRACE_FOR_DEBUG == 1
-	float dt = getDeltaTime(MOTOR_CONTROL_TIMER_CHANNEL);
-	pwmData.updateDt = dt;
-#endif
 	if (fcStatusData.canFly) {
 		float throttleControl = controlData.throttleControl;
 		float pitchControl = controlData.pitchControl;
@@ -104,11 +100,9 @@ void motorControlTask() {
 		pwmData.PWM_VALUES[2] = throttleControl + pitchControl - rollControl - yawControl;
 		pwmData.PWM_VALUES[3] = throttleControl + pitchControl + rollControl + yawControl;
 		updateMotorPWMValues();
-		//updatePWMValues();
 	} else {
 		stopOutputs();
 	}
-
 }
 
 __ATTR_ITCM_TEXT

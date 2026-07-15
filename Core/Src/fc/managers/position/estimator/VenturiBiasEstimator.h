@@ -12,6 +12,9 @@ struct _VENTURI_ESTIMATE_DATA {
 };
 extern VENTURI_ESTIMATE_DATA venturiEstimateData;
 
+// 1 = clamp the tilt-derived speed model against EKF ground speed (wind-hover fix)
+#define VENTURI_EST_USE_EKF_SPEED               1
+
 #define VENTURI_EST_PITCH_ANGLE_MIN             0.5f   // High = Ignores slow cruise tilt | Low = Traps stationary hover drift
 #define VENTURI_EST_PITCH_ANGLE_MAX             30.0f  // High = Scales deep into speed runs | Low = Safe model clipping ceiling
 #define VENTURI_EST_SPEED_MAX                   25.0f  // High = Accurate high-speed tracking | Low = Limits math runaway damage

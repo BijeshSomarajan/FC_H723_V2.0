@@ -37,8 +37,11 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_COMP_ENABLED      1
 #define ALT_MGR_TILT_COMP_MIN_ANGLE    1.0f
 #define ALT_MGR_TILT_COMP_MAX_ANGLE    30.0f
-#define ALT_MGR_TILT_COMP_TAU_RISE     0.001f
-#define ALT_MGR_TILT_COMP_TAU_FADE     0.5f
+//#define ALT_MGR_TILT_COMP_TAU_RISE     0.001f
+#define ALT_MGR_TILT_COMP_TAU_RISE     0.08f   // was 0.001f
+//#define ALT_MGR_TILT_COMP_TAU_FADE     0.5f
+#define ALT_MGR_TILT_COMP_TAU_FADE     0.12f   // was 0.5f
+
 #define ALT_MGR_TILT_COMP_MAX_LIMIT    120.0f
 #define ALT_MGR_TILT_COMP_GAIN         0.85f
 

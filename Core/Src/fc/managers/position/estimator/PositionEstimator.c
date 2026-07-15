@@ -47,7 +47,6 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 	return 1;
 }
 
-
 __ATTR_ITCM_TEXT
 void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias) {
 	if (axis <= POS_EKF_Z_AXIS) {
@@ -353,14 +352,20 @@ void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, f
 	 * ============================================================ */
 	float d2 = (y * y) / S;
 	if (d2 > ekf->gateSize[axis]) {
-	    if (ekf->rejectCount[axis] < ekf->panicLimit[axis]) {
-	        ekf->rejectCount[axis]++;
-	        return;
-	    }
-	    ekf->rejectCount[axis] = 0;
-	    return;
+		ekf->rejectCount[axis]++;
+		if (ekf->rejectCount[axis] < ekf->panicLimit[axis]) {
+			return;
+		}
+		/* PANIC: filter has diverged from the sensor. Inflate covariance so the
+		 * gate reopens and the next measurements pull the state back, instead of
+		 * rejecting forever and flying blind on inertial prediction. */
+		ekf->rejectCount[axis] = 0;
+		for (int r = 0; r < POS_EKF_AXIS_DIM; r++) {
+			ekf->P[i + r][i + r] = constrainToRangeF(ekf->P[i + r][i + r] * POS_EKF_PANIC_P_INFLATE,
+			POS_EKF_P_MIN, POS_EKF_P_MAX);
+		}
+		return;  // next measurement will pass the (now wider) gate
 	}
-
 	ekf->rejectCount[axis] = 0;
 
 	/* ============================================================
@@ -443,14 +448,11 @@ void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, f
 	 * ============================================================ */
 
 	for (int r = 0; r < 4; r++) {
-	    for (int c = r + 1; c < 4; c++) {
-	        float sym = 0.5f * (
-	            ekf->P[i + r][i + c] +
-	            ekf->P[i + c][i + r]
-	        );
+		for (int c = r + 1; c < 4; c++) {
+			float sym = 0.5f * (ekf->P[i + r][i + c] + ekf->P[i + c][i + r]);
 
-	        ekf->P[i + r][i + c] = sym;
-	        ekf->P[i + c][i + r] = sym;
-	    }
+			ekf->P[i + r][i + c] = sym;
+			ekf->P[i + c][i + r] = sym;
+		}
 	}
 }
