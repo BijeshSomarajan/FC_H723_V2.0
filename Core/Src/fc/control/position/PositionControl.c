@@ -60,9 +60,12 @@ void resetPositionControl(uint8_t hard) {
 		pidReset(&positionYPID);
 		pidReset(&positionXRatePID);
 		pidReset(&positionYRatePID);
+		positionXRatePID.pInput = positionCordinateData.xVelocity;
+		positionYRatePID.pInput = positionCordinateData.yVelocity;
 		controlData.positionXControl = 0;
 		controlData.positionYControl = 0;
 	}
+
 	pidResetI(&positionXRatePID);
 	pidResetI(&positionYRatePID);
 	positionControlXVelDist = 0.0f;
@@ -80,106 +83,96 @@ float velFFXTest, velFFYTest;
 
 __ATTR_ITCM_TEXT
 void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, float rateDGain) {
-    /*---------------- 1. PID Update ----------------*/
-    float velocityTargetX = positionXPID.pid;
-    float velocityTargetY = positionYPID.pid;
+	/*---------------- 1. PID Update ----------------*/
+	float velocityTargetX = positionXPID.pid;
+	float velocityTargetY = positionYPID.pid;
 
-    pidUpdateWithGains(&positionXRatePID, positionCordinateData.xVelocity, velocityTargetX, dt, ratePGain, rateIGain, rateDGain);
-    pidUpdateWithGains(&positionYRatePID, positionCordinateData.yVelocity, velocityTargetY, dt, ratePGain, rateIGain, rateDGain);
+	float xVelocity = positionCordinateData.xVelocity * POSITION_CONTROL_VEL_GAIN;
+	float yVelocity = positionCordinateData.yVelocity * POSITION_CONTROL_VEL_GAIN;
 
-    float outputX = positionXRatePID.pid;
-    float outputY = positionYRatePID.pid;
+	pidUpdateWithGains(&positionXRatePID, xVelocity, velocityTargetX, dt, ratePGain, rateIGain, rateDGain);
+	pidUpdateWithGains(&positionYRatePID, yVelocity, velocityTargetY, dt, ratePGain, rateIGain, rateDGain);
 
-    /*---------------- 2. Disturbance Observer (DOB) ----------------*/
+	float outputX = positionXRatePID.pid;
+	float outputY = positionYRatePID.pid;
+
+	/*---------------- 2. Disturbance Observer (DOB) ----------------*/
 #if POSITION_CONTROL_DOB_ENABLED == 1
-    // Velocity Disturbance
-    float velErrX = positionCordinateData.xVelocity - velocityTargetX;
-    float velErrY = positionCordinateData.yVelocity - velocityTargetY;
-    float alphaVel = dt / (POSITION_CONTROL_DOB_VEL_TAU + dt);
+	// Velocity Disturbance
+	float velErrX = xVelocity - velocityTargetX;
+	float velErrY = yVelocity - velocityTargetY;
+	float alphaVel = dt / (POSITION_CONTROL_DOB_VEL_TAU + dt);
 
-    positionControlXVelDist += alphaVel * (velErrX - positionControlXVelDist);
-    positionControlYVelDist += alphaVel * (velErrY - positionControlYVelDist);
+	positionControlXVelDist += alphaVel * (velErrX - positionControlXVelDist);
+	positionControlYVelDist += alphaVel * (velErrY - positionControlYVelDist);
 
-    positionControlXVelDist = constrainToRangeF(positionControlXVelDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
-    positionControlYVelDist = constrainToRangeF(positionControlYVelDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
+	positionControlXVelDist = constrainToRangeF(positionControlXVelDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
+	positionControlYVelDist = constrainToRangeF(positionControlYVelDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
 
-    // Acceleration Disturbance
-    /*
-    float expectedAccX = controlData.previousEffectiveXControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K;
-    float expectedAccY = controlData.previousEffectiveYControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K;
-    float distAccX = constrainToRangeF(positionCordinateData.xAcceleration - expectedAccX, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
-    float distAccY = constrainToRangeF(positionCordinateData.yAcceleration - expectedAccY, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
-    */
+	// Acceleration Disturbance
+	float alphaAtt = dt / (POSITION_CONTROL_DOB_ATT_TAU + dt);
+	dobExpectedAccXFilt += alphaAtt * ((controlData.previousEffectiveXControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K) - dobExpectedAccXFilt);
+	dobExpectedAccYFilt += alphaAtt * ((controlData.previousEffectiveYControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K) - dobExpectedAccYFilt);
+	float distAccX = constrainToRangeF(positionCordinateData.xAcceleration - dobExpectedAccXFilt, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
+	float distAccY = constrainToRangeF(positionCordinateData.yAcceleration - dobExpectedAccYFilt, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
 
-    float alphaAtt = dt / (POSITION_CONTROL_DOB_ATT_TAU + dt);
-    dobExpectedAccXFilt += alphaAtt * ((controlData.previousEffectiveXControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K) - dobExpectedAccXFilt);
-    dobExpectedAccYFilt += alphaAtt * ((controlData.previousEffectiveYControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K) - dobExpectedAccYFilt);
-    float distAccX = constrainToRangeF(positionCordinateData.xAcceleration - dobExpectedAccXFilt, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
-    float distAccY = constrainToRangeF(positionCordinateData.yAcceleration - dobExpectedAccYFilt, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
+	float alphaAcc = dt / (POSITION_CONTROL_DOB_ACC_TAU + dt);
+	positionControlXAccDist += alphaAcc * (distAccX - positionControlXAccDist);
+	positionControlYAccDist += alphaAcc * (distAccY - positionControlYAccDist);
 
+	// Clamp acceleration state
+	positionControlXAccDist = constrainToRangeF(positionControlXAccDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
+	positionControlYAccDist = constrainToRangeF(positionControlYAccDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
 
-    float alphaAcc = dt / (POSITION_CONTROL_DOB_ACC_TAU + dt);
-    positionControlXAccDist += alphaAcc * (distAccX - positionControlXAccDist);
-    positionControlYAccDist += alphaAcc * (distAccY - positionControlYAccDist);
-
-    // Clamp acceleration state
-    positionControlXAccDist = constrainToRangeF(positionControlXAccDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
-    positionControlYAccDist = constrainToRangeF(positionControlYAccDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
-
-    // Apply Disturbance Compensation
-    outputX -= constrainToRangeF(positionControlXVelDist * POSITION_CONTROL_DOB_VEL_GAIN + positionControlXAccDist * POSITION_CONTROL_DOB_ACC_GAIN, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
-    outputY -= constrainToRangeF(positionControlYVelDist * POSITION_CONTROL_DOB_VEL_GAIN + positionControlYAccDist * POSITION_CONTROL_DOB_ACC_GAIN, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
+	// Apply Disturbance Compensation
+	outputX -= constrainToRangeF(positionControlXVelDist * POSITION_CONTROL_DOB_VEL_GAIN + positionControlXAccDist * POSITION_CONTROL_DOB_ACC_GAIN, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
+	outputY -= constrainToRangeF(positionControlYVelDist * POSITION_CONTROL_DOB_VEL_GAIN + positionControlYAccDist * POSITION_CONTROL_DOB_ACC_GAIN, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
 #endif
 
-    /*---------------- 3. Feedforward ----------------*/
+	/*---------------- 3. Feedforward ----------------*/
 #if POSITION_CONTROL_VEL_FF_ENABLED == 1
-    outputX += (velocityTargetX * POSITION_CONTROL_VEL_FF_GAIN);
-    outputY += (velocityTargetY * POSITION_CONTROL_VEL_FF_GAIN);
+	outputX += (velocityTargetX * POSITION_CONTROL_VEL_FF_GAIN);
+	outputY += (velocityTargetY * POSITION_CONTROL_VEL_FF_GAIN);
 #endif
 
-    /*---------------- 4. Vector Saturation & Anti-Windup ----------------*/
-    float magSq = (outputX * outputX) + (outputY * outputY);
-    float limit = posHoldRatePIDLimit;
-    float limitSq = limit * limit;
+	/*---------------- 4. Vector Saturation & Anti-Windup ----------------*/
+	float magSq = (outputX * outputX) + (outputY * outputY);
+	float limit = posHoldRatePIDLimit;
+	float limitSq = limit * limit;
 
-    if (magSq > limitSq) {
-        float mag = fastSqrtf(magSq);
+	if (magSq > limitSq) {
+		float mag = fastSqrtf(magSq);
+		// Divide-by-zero protection
+		if (mag > 1e-6f) {
+			float scale = limit / mag;
 
-        // Divide-by-zero protection
-        if (mag > 1e-6f) {
-            float scale = limit / mag;
+			float saturatedX = outputX * scale;
+			float saturatedY = outputY * scale;
 
-            float saturatedX = outputX * scale;
-            float saturatedY = outputY * scale;
+			// Back-Calculation (Anti-Windup Bleeding)
+			float diffX = saturatedX - outputX;
+			float diffY = saturatedY - outputY;
 
-            // Back-Calculation (Anti-Windup Bleeding)
-            float diffX = saturatedX - outputX;
-            float diffY = saturatedY - outputY;
+			// Use macro for tuning: #define POSITION_CONTROL_RATE_PID_I_AW_GAIN 0.2f
+			positionXRatePID.i += (diffX * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
+			positionYRatePID.i += (diffY * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
 
-            // Use macro for tuning: #define POSITION_CONTROL_RATE_PID_I_AW_GAIN 0.2f
-            positionXRatePID.i += (diffX * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
-            positionYRatePID.i += (diffY * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
+			// Hard Integrator Clamp
+			positionXRatePID.i = constrainToRangeF(positionXRatePID.i, positionXRatePID.limitIMin, positionXRatePID.limitIMax);
+			positionYRatePID.i = constrainToRangeF(positionYRatePID.i, positionYRatePID.limitIMin, positionYRatePID.limitIMax);
 
-            // Hard Integrator Clamp
-            positionXRatePID.i = constrainToRangeF(positionXRatePID.i, positionXRatePID.limitIMin, positionXRatePID.limitIMax);
-            positionYRatePID.i = constrainToRangeF(positionYRatePID.i, positionYRatePID.limitIMin, positionYRatePID.limitIMax);
+			outputX = saturatedX;
+			outputY = saturatedY;
+		}
+	}
 
-            outputX = saturatedX;
-            outputY = saturatedY;
-        }
-    }
+	/*---------------- 5. Final Output Assignment ----------------*/
 
-    /*---------------- 5. Final Output Assignment ----------------*/
-#if DISABLE_POSITION_CONTROL_FOR_DEBUG == 1
-    controlData.positionXControl = 0.0f;
-    controlData.positionYControl = 0.0f;
-#else
-    controlData.positionXControl = outputX;
-    controlData.positionYControl = outputY;
-#endif
+	controlData.positionXControl = outputX;
+	controlData.positionYControl = outputY;
 
-    controlData.previousEffectiveXControl = controlData.positionXControl;
-    controlData.previousEffectiveYControl = controlData.positionYControl;
+	controlData.previousEffectiveXControl = controlData.positionXControl;
+	controlData.previousEffectiveYControl = controlData.positionYControl;
 }
 
 __ATTR_ITCM_TEXT

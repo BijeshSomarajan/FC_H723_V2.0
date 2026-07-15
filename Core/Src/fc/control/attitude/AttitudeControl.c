@@ -102,12 +102,6 @@ float updateHeadingDelta() {
 __ATTR_ITCM_TEXT
 void controlAttitudeRateWithGains(float dt,float ratePGain,float rateIGain, float rateDGain) {
 
-#if DISABLE_ATT_CONTROL_FOR_DEBUG == 1
-	float pitchRate = 0;
-	float rollRate = 0;
-	float yawRate = 0;
-#else
-
 #if ATT_CONTROL_USE_CTRL_RATES == 1
 	float pitchRate = sensorAttitudeData.pitchCtrlRate;
 	float rollRate = sensorAttitudeData.rollCtrlRate;
@@ -116,8 +110,6 @@ void controlAttitudeRateWithGains(float dt,float ratePGain,float rateIGain, floa
 	float pitchRate = sensorAttitudeData.pitchRate;
 	float rollRate = sensorAttitudeData.rollRate;
 	float yawRate = sensorAttitudeData.yawRate;
-#endif
-
 #endif
 
 	pidUpdateWithGains(&attitudePitchRatePID, pitchRate, attitudePitchPID.pid, dt, ratePGain, rateIGain, rateDGain);
@@ -133,16 +125,11 @@ void controlAttitudeRateWithGains(float dt,float ratePGain,float rateIGain, floa
 
 __ATTR_ITCM_TEXT
 void controlAttitudeAngle(float dt, float expectedPitch, float expectedRoll, float expectedYaw) {
-#if DISABLE_ATT_CONTROL_FOR_DEBUG == 1
-	float headingDelta = 0;
-	float pitch = 0;
-	float roll = 0;
-#else
 	float headingDelta = updateHeadingDelta();
 	fcStatusData.headingDelta = headingDelta;
 	float pitch = sensorAttitudeData.pitch;
 	float roll = sensorAttitudeData.roll;
-#endif
+
 	pidUpdate(&attitudePitchPID, pitch, expectedPitch, dt);
 	pidUpdate(&attitudeRollPID, roll, expectedRoll, dt);
 	pidUpdate(&attitudeYawPID, headingDelta, expectedYaw, dt);

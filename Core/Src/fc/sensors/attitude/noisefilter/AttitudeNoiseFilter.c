@@ -55,12 +55,6 @@ void updateNoiseFilterCoefficients() {
 
 	if (fftContextGyroX.hasProcessUpdate) {
 		fftContextGyroX.hasProcessUpdate = 0;
-
-# if ENABLE_DT_TRACE_FOR_DEBUG == 1
-		float dt = getDeltaTime(NOISE_FILTER_FFTX_TIMER_CHANNEL);
-		sensorAttitudeData.noiseFilterProcessXDt = dt;
-#endif
-
 		for (int freqIndx = 0; freqIndx < SENSOR_FFT_GYRO_FREQUENCY_N; freqIndx++) {
 			float topXFreq = constrainToRangeF(fftContextGyroX.topFreq[freqIndx], SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY, SENSOR_FFT_NTF_GYRO_MAX_CUTOFF_FREQUENCY);
 			if (fabsf(noiseFilterFftNtfGyroX[freqIndx].lastCenterFreq - topXFreq) >= SENSOR_FFT_NTF_CF_DELTA_THRESHOLD) {
@@ -72,12 +66,6 @@ void updateNoiseFilterCoefficients() {
 
 	if (fftContextGyroY.hasProcessUpdate) {
 		fftContextGyroY.hasProcessUpdate = 0;
-
-# if ENABLE_DT_TRACE_FOR_DEBUG == 1
-		float dt = getDeltaTime(NOISE_FILTER_FFTY_TIMER_CHANNEL);
-		sensorAttitudeData.noiseFilterProcessYDt = dt;
-#endif
-
 		for (int freqIndx = 0; freqIndx < SENSOR_FFT_GYRO_FREQUENCY_N; freqIndx++) {
 			float topYFreq = constrainToRangeF(fftContextGyroY.topFreq[freqIndx], SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY, SENSOR_FFT_NTF_GYRO_MAX_CUTOFF_FREQUENCY);
 			if (fabsf(noiseFilterFftNtfGyroY[freqIndx].lastCenterFreq - topYFreq) >= SENSOR_FFT_NTF_CF_DELTA_THRESHOLD) {
@@ -89,12 +77,6 @@ void updateNoiseFilterCoefficients() {
 
 	if (fftContextGyroZ.hasProcessUpdate) {
 		fftContextGyroZ.hasProcessUpdate = 0;
-
-# if ENABLE_DT_TRACE_FOR_DEBUG == 1
-		float dt = getDeltaTime(NOISE_FILTER_FFTZ_TIMER_CHANNEL);
-		sensorAttitudeData.noiseFilterProcessZDt = dt;
-#endif
-
 		for (int freqIndx = 0; freqIndx < SENSOR_FFT_GYRO_FREQUENCY_N; freqIndx++) {
 			float topZFreq = constrainToRangeF(fftContextGyroZ.topFreq[freqIndx], SENSOR_FFT_NTF_GYRO_MIN_CUTOFF_FREQUENCY, SENSOR_FFT_NTF_GYRO_MAX_CUTOFF_FREQUENCY);
 			if (fabsf(noiseFilterFftNtfGyroZ[freqIndx].lastCenterFreq - topZFreq) >= SENSOR_FFT_NTF_CF_DELTA_THRESHOLD) {

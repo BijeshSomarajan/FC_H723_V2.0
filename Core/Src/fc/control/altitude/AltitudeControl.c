@@ -138,9 +138,6 @@ void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 	output -= altControlZDisturbanceEstimate * ALT_CONTROL_ACC_DISTURBANCE_FF_GAIN;
 	output = constrainToRangeF(output, -altAccPIDLimit, altAccPIDLimit);
 #endif
-#if DISABLE_ALT_CONTROL_FOR_DEBUG == 1
-    output = 0;
-#endif
 	controlData.altitudeControl = output;
 	controlData.altitudeControlDt = dt;
 }
