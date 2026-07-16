@@ -1,17 +1,22 @@
 #include "IMU.h"
 
-#if IMU_FILTER_SELECTED == IMU_FILTER_MANHONY_BF
+#if IMU_FILTER_SELECTED == IMU_FILTER_MANHONY
 #include "../sensors/attitude/AttitudeSensor.h"
 #include "MahonyFilter.h"
+#include "../logger/Logger.h"
+#include <stdio.h>
 
-float __ATTR_DTCM_BSS mahonyFilter_BF_KP = MAHONY_FILTER_KP;
-float __ATTR_DTCM_BSS mahonyFilter_BF_KI = MAHONY_FILTER_KI;
-float __ATTR_DTCM_BSS mahonyFilter_MaxSpinRateRad = 0;
+float __ATTR_DTCM_BSS mahonyFilterKP = MAHONY_FILTER_KP;
+float __ATTR_DTCM_BSS mahonyFilterKI = MAHONY_FILTER_KI;
+float __ATTR_DTCM_BSS mahonyFilterMaxSpinRateRad = 0;
 
 // Integral error terms
-float __ATTR_DTCM_BSS mahonyFilter_BF_IBx = 0.0f;
-float __ATTR_DTCM_BSS mahonyFilter_BF_IBy = 0.0f;
-float __ATTR_DTCM_BSS mahonyFilter_BF_IBz = 0.0f;
+float __ATTR_DTCM_BSS mahonyFilterIBx = 0.0f;
+float __ATTR_DTCM_BSS mahonyFilterIBy = 0.0f;
+float __ATTR_DTCM_BSS mahonyFilterIBz = 0.0f;
+float __ATTR_DTCM_BSS mahonyFilterMagGainRatio = MAHONY_FILTER_MAG_GAIN_RATIO;
+float __ATTR_DTCM_BSS mahonyFilterMagRefNorm = 0.0f;   // 0 = unlearned; seeds on first sample
+uint8_t __ATTR_DTCM_BSS mahonyFilterStabilizeMode = 1;
 
 uint16_t imuFilterGetStabilizationCount() {
 	return MAHONY_FILTER_STAB_COUNT;
@@ -42,25 +47,16 @@ void imuFilterUpdateAngles(void) {
  * Updates compass heading based on magnetic inclination and external error offsets
  */
 __ATTR_ITCM_TEXT
-void imuFilterUpdateHeading(float headingBias) {
-	imuData.heading = -imuData.yaw;
+void imuFilterUpdateHeading() {
+	float heading = imuData.yaw;
 	// Normalize to [0, 360]
-	if (imuData.heading < 0.0f) {
-		imuData.heading += 360.0f;
+	if (heading < 0.0f) {
+		heading += 360.0f;
 	}
-	if (imuData.heading > 360.0f) {
-		imuData.heading -= 360.0f;
+	if (heading > 360.0f) {
+		heading -= 360.0f;
 	}
-
-	imuData.heading -= headingBias;
-
-	// Final Wrap-around
-	if (imuData.heading > 360.0f) {
-		imuData.heading -= 360.0f;
-	}
-	if (imuData.heading < 0.0f) {
-		imuData.heading += 360.0f;
-	}
+	imuData.heading = heading;
 }
 
 /**
@@ -106,28 +102,57 @@ void imuFilterUpdate(float dt) {
 	my = sensorAttitudeData.myFiltered;
 	mz = sensorAttitudeData.mzFiltered;
 	halfDt = 0.5f * dt;
-	// 2. Magnetometer Correction (Heading Only)
+
+	// 2. Magnetometer Correction (Heading Only) — norm-gated, slow channel
 	float magSq = (mx * mx) + (my * my) + (mz * mz);
 	if (magSq > MAHONY_FILTER_MIN_MAG_MAGNITUDE) {
 		recipNorm = fastInvSqrtf(magSq);
-		mx *= recipNorm;
-		my *= recipNorm;
-		mz *= recipNorm;
-		// Project measured mag field into Earth Frame (EF)
-		float hx = imuData.rMatrix[0][0] * mx + imuData.rMatrix[0][1] * my + imuData.rMatrix[0][2] * mz;
-		float hy = imuData.rMatrix[1][0] * mx + imuData.rMatrix[1][1] * my + imuData.rMatrix[1][2] * mz;
-		// Calculate EF reference magnitude
-		float bx = fastSqrtf(hx * hx + hy * hy);
-		// Calculate Earth-Frame Yaw error (Planar Assumption)
-		float ez_ef = -(hy * bx);
-		// Project EF error back to Body Frame using Matrix Column 2 (Transpose rotation)
-		// Corrects yaw while maintaining roll/pitch stability during tilt
-		ex += imuData.rMatrix[0][2] * ez_ef;
-		ey += imuData.rMatrix[1][2] * ez_ef;
-		ez += imuData.rMatrix[2][2] * ez_ef;
+		float magNorm = magSq * recipNorm;              // = sqrt(magSq), reuses invsqrt
+		/* ---- [C] Reference norm: seed once, then learn slowly when clean ---- */
+		if (mahonyFilterMagRefNorm <= 0.0f) {
+			mahonyFilterMagRefNorm = magNorm;          // first valid sample seeds it
+		}
+		/* ---- [A] Trust weight from norm deviation (distortion detector) ---- */
+		if (mahonyFilterStabilizeMode) {
+			/* Ground stabilization: motors off, field is trustworthy.
+			 * Track the norm directly (fast) so the ref is valid before flight. */
+			if (mahonyFilterMagRefNorm <= 0.0f) {
+				mahonyFilterMagRefNorm = magNorm;
+			} else {
+				mahonyFilterMagRefNorm += 0.01f * (magNorm - mahonyFilterMagRefNorm); // tau ~ 31ms at 3.2k
+			}
+		}
+		float normDev = fabsf(magNorm - mahonyFilterMagRefNorm) / mahonyFilterMagRefNorm;
+		float magW = 1.0f;
+		if (normDev > MAHONY_FILTER_MAG_NORM_GATE_START) {
+			magW = 1.0f - ((normDev - MAHONY_FILTER_MAG_NORM_GATE_START) * MAHONY_FILTER_MAG_NORM_GATE_INV_W);
+			if (magW < 0.0f)
+				magW = 0.0f;
+		} else if (!mahonyFilterStabilizeMode) {
+			/* In flight and clean: slow environmental tracking only */
+			float alphaRef = dt / (MAHONY_FILTER_MAG_REF_LEARN_TAU + dt);
+			mahonyFilterMagRefNorm += alphaRef * (magNorm - mahonyFilterMagRefNorm);
+		}
+		if (magW > 0.0f) {
+			mx *= recipNorm;
+			my *= recipNorm;
+			mz *= recipNorm;
+			// Project measured mag field into Earth Frame (EF)
+			float hx = imuData.rMatrix[0][0] * mx + imuData.rMatrix[0][1] * my + imuData.rMatrix[0][2] * mz;
+			float hy = imuData.rMatrix[1][0] * mx + imuData.rMatrix[1][1] * my + imuData.rMatrix[1][2] * mz;
+			// Calculate EF reference magnitude
+			float bx = fastSqrtf(hx * hx + hy * hy);
+			// Calculate Earth-Frame Yaw error (Planar Assumption)
+			// [B] scaled by trust weight and the slow mag-channel ratio
+			float ez_ef = -(hy * bx) * magW * mahonyFilterMagGainRatio;
+			// [D] Project EF yaw error to Body Frame: earth-Z in body frame = row 2
+			ex += imuData.rMatrix[2][0] * ez_ef;
+			ey += imuData.rMatrix[2][1] * ez_ef;
+			ez += imuData.rMatrix[2][2] * ez_ef;
+		}
 	}
 
-	// 3. Accelerometer Correction (Tilt/Horizon) — norm-gated
+	// 3. Accelerometer Correction (Tilt/Horizon) — norm-gated (unchanged)
 	float accSq = (ax * ax) + (ay * ay) + (az * az);
 	if ((accSq > MAHONY_FILTER_ACC_GATE_MIN_SQ) && (accSq < MAHONY_FILTER_ACC_GATE_MAX_SQ)) {
 		recipNorm = fastInvSqrtf(accSq);
@@ -135,11 +160,13 @@ void imuFilterUpdate(float dt) {
 		// Trapezoid weight: 1.0 inside full-trust band, linear fade to hard edges
 		float w = 1.0f;
 		if (accNorm < MAHONY_FILTER_ACC_GATE_FULL_LO) {
-		    w = (accNorm - MAHONY_FILTER_ACC_GATE_MIN) * MAHONY_FILTER_ACC_GATE_INV_W_LO;
-		    if (w < 0.0f) w = 0.0f;
+			w = (accNorm - MAHONY_FILTER_ACC_GATE_MIN) * MAHONY_FILTER_ACC_GATE_INV_W_LO;
+			if (w < 0.0f)
+				w = 0.0f;
 		} else if (accNorm > MAHONY_FILTER_ACC_GATE_FULL_HI) {
-		    w = (MAHONY_FILTER_ACC_GATE_MAX - accNorm) * MAHONY_FILTER_ACC_GATE_INV_W_HI;
-		    if (w < 0.0f) w = 0.0f;
+			w = (MAHONY_FILTER_ACC_GATE_MAX - accNorm) * MAHONY_FILTER_ACC_GATE_INV_W_HI;
+			if (w < 0.0f)
+				w = 0.0f;
 		}
 		ax *= recipNorm;
 		ay *= recipNorm;
@@ -149,24 +176,26 @@ void imuFilterUpdate(float dt) {
 		ez += w * ((ax * imuData.rMatrix[2][1]) - (ay * imuData.rMatrix[2][0]));
 	}
 
-	// 4. Error Integration (Integral Feedback for Gyro Bias)
-	if (mahonyFilter_BF_KI > 0.0f) {
+	// 4. Error Integration (Integral Feedback for Gyro Bias) — unchanged
+	// (mag portion of ex/ey/ez is already gated & scaled, so the bias
+	//  integrator is automatically protected from distortion)
+	if (mahonyFilterKI > 0.0f) {
 		spin_rate = fastSqrtf((gx * gx) + (gy * gy) + (gz * gz));
 		// Anti-windup: Stop integration during high-rate spins
-		if (spin_rate <= mahonyFilter_MaxSpinRateRad) {
-			mahonyFilter_BF_IBx += (mahonyFilter_BF_KI * ex * dt);
-			mahonyFilter_BF_IBy += (mahonyFilter_BF_KI * ey * dt);
-			mahonyFilter_BF_IBz += (mahonyFilter_BF_KI * ez * dt);
+		if (spin_rate <= mahonyFilterMaxSpinRateRad) {
+			mahonyFilterIBx += (mahonyFilterKI * ex * dt);
+			mahonyFilterIBy += (mahonyFilterKI * ey * dt);
+			mahonyFilterIBz += (mahonyFilterKI * ez * dt);
 		}
 	} else {
-		mahonyFilter_BF_IBx = 0;
-		mahonyFilter_BF_IBy = 0;
-		mahonyFilter_BF_IBz = 0;
+		mahonyFilterIBx = 0;
+		mahonyFilterIBy = 0;
+		mahonyFilterIBz = 0;
 	}
 	// 5. Apply Feedback to Gyro Rates
-	gx += (mahonyFilter_BF_KP * ex) + mahonyFilter_BF_IBx;
-	gy += (mahonyFilter_BF_KP * ey) + mahonyFilter_BF_IBy;
-	gz += (mahonyFilter_BF_KP * ez) + mahonyFilter_BF_IBz;
+	gx += (mahonyFilterKP * ex) + mahonyFilterIBx;
+	gy += (mahonyFilterKP * ey) + mahonyFilterIBy;
+	gz += (mahonyFilterKP * ez) + mahonyFilterIBz;
 	// 6. Quaternion Integration (Atomic Update)
 	gx *= halfDt;
 	gy *= halfDt;
@@ -190,19 +219,25 @@ void imuFilterUpdate(float dt) {
 /* --- Initialization and Utility Functions --- */
 void imuFilterSetMode(uint8_t stabilize) {
 	if (stabilize) {
-		mahonyFilter_BF_KP = MAHONY_FILTER_STABILIZE_KP;
-		mahonyFilter_BF_KI = MAHONY_FILTER_STABILIZE_KI;
+		mahonyFilterKP = MAHONY_FILTER_STABILIZE_KP;
+		mahonyFilterKI = MAHONY_FILTER_STABILIZE_KI;
+		mahonyFilterMagGainRatio = MAHONY_FILTER_STABILIZE_MAG_GAIN_RATIO;
 	} else {
-		mahonyFilter_BF_KP = MAHONY_FILTER_KP;
-		mahonyFilter_BF_KI = MAHONY_FILTER_KI;
+		mahonyFilterKP = MAHONY_FILTER_KP;
+		mahonyFilterKI = MAHONY_FILTER_KI;
+		mahonyFilterMagGainRatio = MAHONY_FILTER_MAG_GAIN_RATIO;
+		mahonyFilterIBx = 0.0f;
+		mahonyFilterIBy = 0.0f;
+		mahonyFilterIBz = 0.0f;
 	}
+	mahonyFilterStabilizeMode = stabilize;
 }
 
 uint8_t imuFilterInit(uint8_t stabilize) {
 	imuFilterSetMode(stabilize);
 	imuFilterReset();
 	mahonyFilterUpdateRotationMatrix();
-	mahonyFilter_MaxSpinRateRad = convertDegToRadF(MAHONY_FILTER_SPIN_RATE_LIMIT);
+	mahonyFilterMaxSpinRateRad = convertDegToRadF(MAHONY_FILTER_SPIN_RATE_LIMIT);
 	return 1;
 }
 

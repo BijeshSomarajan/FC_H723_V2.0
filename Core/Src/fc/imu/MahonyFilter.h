@@ -1,12 +1,36 @@
 #include "IMU.h"
 
-#if IMU_FILTER_SELECTED == IMU_FILTER_MANHONY_BF
+#if IMU_FILTER_SELECTED == IMU_FILTER_MANHONY
 
 #include "../util/MathUtil.h"
 #include <math.h>
 
 #define MAHONY_FILTER_SPIN_RATE_LIMIT 30
 #define MAHONY_FILTER_MIN_MAG_MAGNITUDE 0.000001f
+
+/* --- Mahony Mag Norm Gate & Channel Gain ---
+// Mag correction trusted only when the field magnitude matches the learned
+// local reference (motor-current distortion changes the norm).
+//
+//   weight
+//    1.0 |________
+//        |        \
+//        |         \
+//    0.0 |          \__________
+//        +---GATE_START---GATE_FULL--->  |norm deviation| (fraction of ref)
+//              0.10          0.30
+*/
+#define MAHONY_FILTER_MAG_NORM_GATE_START     0.10f   // fade begins at 10% deviation
+#define MAHONY_FILTER_MAG_NORM_GATE_FULL      0.30f   // fully ignored at 30% deviation
+#define MAHONY_FILTER_MAG_NORM_GATE_INV_W     (1.0f / (MAHONY_FILTER_MAG_NORM_GATE_FULL - MAHONY_FILTER_MAG_NORM_GATE_START))
+ // Mag channel gain as a fraction of KP. Heading only needs to correct slow
+// gyro drift: 0.15 * KP(0.6) -> heading tau ~ 11 s in flight.
+#define MAHONY_FILTER_MAG_GAIN_RATIO          0.15f
+// During ground stabilization we want fast initial heading alignment.
+#define MAHONY_FILTER_STABILIZE_MAG_GAIN_RATIO 1.0f
+ // Reference-norm learner: very slow LPF, only adapts when the field is clean.
+#define MAHONY_FILTER_MAG_REF_LEARN_TAU       30.0f   // seconds
+
 
 /* --- Mahony Accel Norm Gate ---
 // Accel correction trusted only when |a| ≈ 1g (gravity-dominated sample).
@@ -47,6 +71,6 @@ uint8_t imuFilterInit(uint8_t stabilize);
 void imuFilterReset(void);
 uint16_t imuFilterGetStabilizationCount(void);
 void imuFilterUpdateAngles(void);
-void imuFilterUpdateHeading(float imuHeadingBias);
+void imuFilterUpdateHeading(void);
 
 #endif

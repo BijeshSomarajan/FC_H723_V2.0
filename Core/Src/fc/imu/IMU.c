@@ -3,13 +3,10 @@
 #include <sys/_stdint.h>
 
 #include "../sensors/attitude/AttitudeSensor.h"
-#include "../calibration/Calibration.h"
 #include "MahonyFilter.h"
 
 IMU_DATA imuData;
 extern SENSOR_ATTITUDE_DATA sensorAttitudeData;
-
-float imuHeadingCorrection = 0;
 
 uint16_t getImuStabilizationCount() {
 	return imuFilterGetStabilizationCount();
@@ -18,9 +15,8 @@ uint16_t getImuStabilizationCount() {
 /*****************************************************************************************************************/
 // Initializes imuData.
 /*****************************************************************************************************************/
-uint8_t imuInit(float pMagInclination) {
+uint8_t imuInit() {
 	imuReset(1);
-	imuHeadingCorrection = get1KXScaledCalibrationValue(CALIB_PROP_HEADING_BIAS_ADDR);
 	imuFilterInit(1);
 	return 1;
 }
@@ -76,7 +72,7 @@ __ATTR_ITCM_TEXT
 void imuAHRSUpdate(float dt) {
 	imuFilterUpdate(dt);
 	imuFilterUpdateAngles();
-	imuFilterUpdateHeading(imuHeadingCorrection);
+	imuFilterUpdateHeading();
 	updateLinearMovements(dt);
 	imuData.arhsDt = dt;
 }

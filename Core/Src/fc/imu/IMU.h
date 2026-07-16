@@ -10,10 +10,10 @@
 #define MAG_INCLINATION -1.1f
 #define MAG_ANGLE_CORRECTION -10.0f
 
-#define IMU_FILTER_MANHONY_BF 1
+#define IMU_FILTER_MANHONY 1
 #define IMU_FILTER_MADGWICK 2
 
-#define IMU_FILTER_SELECTED IMU_FILTER_MANHONY_BF   
+#define IMU_FILTER_SELECTED IMU_FILTER_MANHONY
 
 /**
  * Structure representing IMU data
@@ -42,7 +42,7 @@ struct _IMU_DATA {
 extern IMU_DATA imuData;
 
 uint16_t getImuStabilizationCount(void);
-uint8_t imuInit(float magIncl);
+uint8_t imuInit(void);
 void imuSetMode(uint8_t stabilize);
 void imuReset(uint8_t hard);
 void imuAHRSUpdate(float dt);
