@@ -15,7 +15,7 @@
 /*------ Disturbance Estimations -----*/
 #define POSITION_CONTROL_DOB_ENABLED    1
 #define POSITION_CONTROL_DOB_ACC_TAU     0.04f
-#define POSITION_CONTROL_DOB_ACC_GAIN    0.40f     // was 0.55f
+#define POSITION_CONTROL_DOB_ACC_GAIN    0.30f     // was 0.55f
 // Model the attitude loop lag so the acc-DOB stops fighting its own commands
 #define POSITION_CONTROL_DOB_ATT_TAU     0.15f
 
@@ -25,7 +25,7 @@
 #define POSITION_CONTROL_DOB_ACCEL_MODEL_K 0.171f
 #define POSITION_CONTROL_DOB_ACC_LIMIT    3.0f
 #define POSITION_CONTROL_DOB_STATE_LIMIT  3.0f
-#define POSITION_CONTROL_DOB_OUTPUT_LIMIT 6.0f // was 3.0f
+#define POSITION_CONTROL_DOB_OUTPUT_LIMIT 3.0f // was 3.0f
 
 uint8_t initPositionControl(float masterControlFrequency, float rateControlFrequency);
 void resetPositionControl(uint8_t hard);

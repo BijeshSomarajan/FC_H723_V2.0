@@ -169,20 +169,18 @@ void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt) {
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, yPos, dynamicRp, H_P_GNSS);
 }
 
+
 __ATTR_ITCM_TEXT
 void updateZPositionSL(float offset, float zPos, float dt) {
 	positionCordinateData.positionZSLUpdateDt = dt;
 	positionCordinateData.zPositionRawSL = zPos;
-	float zMeasAbs = offset + zPos;                      // <-- compute once
 	float motionScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
 	/* ---------------- BARO ---------------- */
 	float dynamicRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN;
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
-	//dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
-	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zMeasAbs, motionScale);
+	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
 #endif
-	//positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, zMeasAbs, dynamicRPSL, H_BARO_WITH_BIAS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
 	/* ---------------- VENTURI ---------------- */
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
 	float venturiBias = getVenturiBiasEstimate(dt);
@@ -226,6 +224,7 @@ void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float
 	*xEarth = (xBody * headingCosValue) - (yBody * headingSinValue);
 	*yEarth = (xBody * headingSinValue) + (yBody * headingCosValue);
 }
+
 
 __ATTR_ITCM_TEXT
 void updateZVelocityGNSS(float sAcc, float velZ, uint8_t navigationModeActive, float dt) {

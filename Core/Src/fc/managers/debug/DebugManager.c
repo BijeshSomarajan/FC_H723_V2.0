@@ -124,6 +124,14 @@ void debugIMU() {
 	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
 }
 
+void debugAlt() {
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altitudeSLFiltered * 100;
+	DEBUG_DATA_BUFFER[3] = sensorAltitudeData.altitudeTerrainFiltered * 100;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+}
+
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
 		return;
@@ -137,5 +145,6 @@ void debugTask() {
 	//debugCRSF();
 	//debugNoise();
 	//debugPID();
-	debugIMU();
+	//debugIMU();
+	debugAlt();
 }
