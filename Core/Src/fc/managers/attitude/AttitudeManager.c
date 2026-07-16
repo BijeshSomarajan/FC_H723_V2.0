@@ -17,7 +17,7 @@
 #include "../../managers/position/common/PositionCommon.h"
 #include "../../managers/position/PositionManager.h"
 #include "../../dsp/LowPassFilter.h"
-
+#include "../../calibration/Calibration.h"
 extern POSITION_COMMAND_DATA positionCommandData;
 
 uint8_t attitudeManagerWasInStabMode = 0;
@@ -28,7 +28,7 @@ void attRateControlTimerCallback(void);
 float attitudeManagerCrashThresholdG;
 uint16_t attitudeManagerCrashTriggerCounter = 0;
 float attitudeAngleControlDt = 0;
-
+float headingBias;
 LOWPASSFILTER attitudePitchCtrlRateLPF, attitudeRollCtrlRateLPF, attitudeYawCtrlRateLPF;
 
 __ATTR_ITCM_TEXT
@@ -64,14 +64,13 @@ __ATTR_ITCM_TEXT
 void alignImuAnglesToBoard() {
 	sensorAttitudeData.pitch = -imuData.roll;
 	sensorAttitudeData.roll = -imuData.pitch;
-	float temp = 90 - imuData.heading;
+	float temp = imuData.heading + 90.0f + headingBias;
 	if (temp < 0) {
-		sensorAttitudeData.heading = temp + 360.0f;
+		temp = temp + 360.0f;
 	} else if (temp > 360) {
-		sensorAttitudeData.heading = temp - 360.0f;
-	} else {
-		sensorAttitudeData.heading = temp;
+		temp = temp - 360.0f;
 	}
+	sensorAttitudeData.heading = temp;
 }
 
 __ATTR_ITCM_TEXT
@@ -190,14 +189,14 @@ uint8_t initAttitudeManager() {
 		logString("[Attitude Manager] Sensor Init > Success\n");
 		initAttitudeNoiseFilter(ATTITUDE_SENSOR_AGT_READ_FREQUENCY, ATTITUDE_SENSOR_AGT_READ_FREQUENCY, ATTITUDE_SENSOR_MAG_READ_FREQUENCY, ATTITUDE_SENSOR_AGT_READ_FREQUENCY);
 		startAttitudeMgmtTimers();
-		imuInit(0);
+		imuInit();
 		initAttitudeControl();
 		attitudeManagerCrashThresholdG = getMaxValidG() * ATTITUDE_SENSOR_ACC_CRASH_G_GAIN;
 
 		lowPassFilterInit(&attitudePitchCtrlRateLPF, ATTITUDE_CTRL_RATE_LPF_FREQUENCY);
 		lowPassFilterInit(&attitudeRollCtrlRateLPF, ATTITUDE_CTRL_RATE_LPF_FREQUENCY);
 		lowPassFilterInit(&attitudeYawCtrlRateLPF, ATTITUDE_CTRL_RATE_LPF_FREQUENCY);
-
+		headingBias = get1KXScaledCalibrationValue(CALIB_PROP_HEADING_BIAS_ADDR);
 		logString("[Attitude Manager] All tasks > Started\n");
 	} else {
 		logString("[Attitude Manager] Init > Failed!\n");

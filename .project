@@ -3,7 +3,6 @@
 	<name>FC_H723_V2.0</name>
 	<comment></comment>
 	<projects>
-		<project>fcCalibration</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

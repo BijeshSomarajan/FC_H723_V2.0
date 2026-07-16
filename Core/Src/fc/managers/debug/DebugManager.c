@@ -67,6 +67,7 @@ void debugGPS() {
 	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition * 1000;
 	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
+
 uint8_t sendX = 0;
 void debugCRSF() {
 	DEBUG_DATA_BUFFER[0] = fcStatusData.canStart;
@@ -81,7 +82,6 @@ void debugCRSF() {
 	DEBUG_DATA_BUFFER[8] = fcStatusData.isNavRTHModeActive;
 
 	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
-
 }
 
 
@@ -111,6 +111,19 @@ void debugNoise() {
 	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
 }
 
+void debugIMU() {
+
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.roll * 10;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.heading * 10;
+
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.pitchRate * 10;
+	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.rollRate * 10;
+	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.yawRate * 10;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
+}
+
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
 		return;
@@ -123,5 +136,6 @@ void debugTask() {
 	//debugBattery();
 	//debugCRSF();
 	//debugNoise();
-	debugPID();
+	//debugPID();
+	debugIMU();
 }
