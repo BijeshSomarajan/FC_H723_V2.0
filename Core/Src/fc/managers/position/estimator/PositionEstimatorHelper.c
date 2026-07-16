@@ -186,7 +186,7 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 
 	/* BP = slow residual drift only; soft zero-anchor keeps it bounded in
 	 * baro-only mode. (Replaces the old venturi H_BIAS injection.) */
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, 0.0f, POS_ESTIMATOR_BP_ANCHOR_R, H_BIAS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, 0.0f, POS_ESTIMATOR_Z_POS_BIAS_ANCHOR_RP, H_BIAS);
 }
 
 __ATTR_ITCM_TEXT

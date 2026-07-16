@@ -5,11 +5,6 @@
 #define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
 #define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          1
 
-// 1-sigma error of the venturi correction as a fraction of itself.
-#define POS_ESTIMATOR_VENTURI_CORR_UNCERTAINTY   0.0f
-// Soft zero-anchor for BP (baro-only observability guard)
-#define POS_ESTIMATOR_BP_ANCHOR_R                10.0f
-
 void resetPVEstimation(uint8_t axis, uint8_t keepBias);
 void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt);
 void updateZPositionSL(float offset, float zPos, float dt);
