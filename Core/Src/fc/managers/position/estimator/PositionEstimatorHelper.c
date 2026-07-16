@@ -165,15 +165,15 @@ __ATTR_ITCM_TEXT
 void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt) {
 	positionCordinateData.positionXYUpdateDt = dt;
 	float dynamicRp = getEstimatedXYRP(hAcc);
-#if POS_EST_GNSS_DELAY_COMP == 1
-	float predX, predY;
-	if (positionEKFGetLaggedPred(&positionEkf, POS_EKF_X_AXIS, H_P_GNSS, POS_EST_GNSS_LATENCY_S, &predX)) {
-		positionEKFMeasurementUpdateLagged(&positionEkf, POS_EKF_X_AXIS, xPos, dynamicRp, H_P_GNSS, predX);
+#if POS_ESTIMATOR_GNSS_DELAY_ENABLED == 1
+	float predictionX, predictionY;
+	if (positionEKFGetLaggedPrediction(&positionEkf, POS_EKF_X_AXIS, H_P_GNSS, POS_ESTIMATOR_GNSS_LATENCY_S, &predictionX)) {
+		positionEKFMeasurementUpdateLagged(&positionEkf, POS_EKF_X_AXIS, xPos, dynamicRp, H_P_GNSS, predictionX);
 	} else {
 		positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, xPos, dynamicRp, H_P_GNSS);
 	}
-	if (positionEKFGetLaggedPred(&positionEkf, POS_EKF_Y_AXIS, H_P_GNSS, POS_EST_GNSS_LATENCY_S, &predY)) {
-		positionEKFMeasurementUpdateLagged(&positionEkf, POS_EKF_Y_AXIS, yPos, dynamicRp, H_P_GNSS, predY);
+	if (positionEKFGetLaggedPrediction(&positionEkf, POS_EKF_Y_AXIS, H_P_GNSS, POS_ESTIMATOR_GNSS_LATENCY_S, &predictionY)) {
+		positionEKFMeasurementUpdateLagged(&positionEkf, POS_EKF_Y_AXIS, yPos, dynamicRp, H_P_GNSS, predictionY);
 	} else {
 		positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, yPos, dynamicRp, H_P_GNSS);
 	}
@@ -224,15 +224,15 @@ void updateXYVelocityGNSS(float sAcc, float velN, float velE, float dt) {
 	float dynamicRv = getEstimatedXYRV(sAcc);
 	float velNDb = applyDeadBandFloat(0.0f, velN, POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND);
 	float velEDb = applyDeadBandFloat(0.0f, velE, POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND);
-#if POS_EST_GNSS_DELAY_COMP == 1
-	float predX, predY;
-	if (positionEKFGetLaggedPred(&positionEkf, POS_EKF_X_AXIS, H_V_GNSS, POS_EST_GNSS_LATENCY_S, &predX)) {
-		positionEKFMeasurementUpdateLagged(&positionEkf, POS_EKF_X_AXIS, velNDb, dynamicRv, H_V_GNSS, predX);
+#if POS_ESTIMATOR_GNSS_DELAY_ENABLED == 1
+	float predictionX, predictionY;
+	if (positionEKFGetLaggedPrediction(&positionEkf, POS_EKF_X_AXIS, H_V_GNSS, POS_ESTIMATOR_GNSS_LATENCY_S, &predictionX)) {
+		positionEKFMeasurementUpdateLagged(&positionEkf, POS_EKF_X_AXIS, velNDb, dynamicRv, H_V_GNSS, predictionX);
 	} else {
 		positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, velNDb, dynamicRv, H_V_GNSS);
 	}
-	if (positionEKFGetLaggedPred(&positionEkf, POS_EKF_Y_AXIS, H_V_GNSS, POS_EST_GNSS_LATENCY_S, &predY)) {
-		positionEKFMeasurementUpdateLagged(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicRv, H_V_GNSS, predY);
+	if (positionEKFGetLaggedPrediction(&positionEkf, POS_EKF_Y_AXIS, H_V_GNSS, POS_ESTIMATOR_GNSS_LATENCY_S, &predictionY)) {
+		positionEKFMeasurementUpdateLagged(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicRv, H_V_GNSS, predictionY);
 	} else {
 		positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicRv, H_V_GNSS);
 	}
@@ -240,7 +240,6 @@ void updateXYVelocityGNSS(float sAcc, float velN, float velE, float dt) {
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_X_AXIS, velNDb, dynamicRv, H_V_GNSS);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicRv, H_V_GNSS);
 #endif
-
 }
 
 __ATTR_ITCM_TEXT

@@ -75,13 +75,13 @@ void debugCRSF() {
 	DEBUG_DATA_BUFFER[2] = rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[3] = rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[4] = rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX];
+	DEBUG_DATA_BUFFER[5] = rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] ;
+	DEBUG_DATA_BUFFER[6] = fcStatusData.isLandingModeActive;
+	DEBUG_DATA_BUFFER[7] = fcStatusData.isTerrainAltModeActive;
+	DEBUG_DATA_BUFFER[8] = fcStatusData.isNavModeActive;
+	DEBUG_DATA_BUFFER[9] = fcStatusData.isNavRTHModeActive;
 
-	DEBUG_DATA_BUFFER[5] = fcStatusData.isLandingModeActive;
-	DEBUG_DATA_BUFFER[6] = fcStatusData.isTerrainAltModeActive;
-	DEBUG_DATA_BUFFER[7] = fcStatusData.isNavModeActive;
-	DEBUG_DATA_BUFFER[8] = fcStatusData.isNavRTHModeActive;
-
-	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
+	sendConfigData(DEBUG_DATA_BUFFER, 10, CMD_FC_DATA);
 }
 
 
@@ -142,9 +142,9 @@ void debugTask() {
 	//debugGraph();
 	//debugRC();
 	//debugBattery();
-	//debugCRSF();
+	debugCRSF();
 	//debugNoise();
 	//debugPID();
 	//debugIMU();
-	debugAlt();
+	//debugAlt();
 }

@@ -26,14 +26,14 @@
 #define POS_EKF_P_MIN             1e-9f
 #define POS_EKF_P_MAX             500.0f
 
-/* --- GNSS delay compensation: state history --- */
-#define POS_EKF_HIST_LEN        48       // 48 x 10ms = 480 ms of history
-#define POS_EKF_HIST_PERIOD     0.01f    // snapshot cadence (100 Hz)
+/* --- Delay compensation: state history --- */
+#define POS_EKF_HISTORY_LEN        48       // 48 x 10ms = 480 ms of history
+#define POS_EKF_HISTORY_PERIOD     0.01f    // snapshot cadence (100 Hz)
 
 typedef struct {
 	float p[2];      // X, Y position
 	float v[2];      // X, Y velocity
-} POS_EKF_HIST_ENTRY;
+} POS_EKF_HISTORY_ENTRY;
 
 /* =========================================================================
  * Core State Structure Definition
@@ -50,13 +50,11 @@ typedef struct {
 	float innovation[POS_EKF_SPACE_DIM];               // Innovation history cache for telemetry logging
 	uint8_t axisInitialized[POS_EKF_SPACE_DIM];         // Individual health track flags
 
-	/* GNSS delay compensation (XY) */
-	POS_EKF_HIST_ENTRY hist[POS_EKF_HIST_LEN];
-	uint8_t histHead;      // index of most recent entry
-	uint8_t histCount;     // number of valid entries (0 = buffer invalid)
-	float histDtAcc;     // snapshot cadence accumulator
-	float predOverride;
-	uint8_t predOverrideValid;
+	POS_EKF_HISTORY_ENTRY historyEntries[POS_EKF_HISTORY_LEN];
+	/* History validity is shared across X/Y: any XY reset invalidates both (conservative; axes always reset together in practice) */
+	uint8_t historyHead;      // index of most recent entry
+	uint8_t historyCount;     // number of valid entries (0 = buffer invalid)
+	float historyDtAcc;     // snapshot cadence accumulator
 
 } POSITION_EKF;
 
@@ -70,8 +68,7 @@ void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float d
 void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4]);
 void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias);
 void positionEKFInvalidate(POSITION_EKF *ekf, uint8_t axis);
-
 void positionEKFMeasurementUpdateLagged(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4], float predLagged);
-uint8_t positionEKFGetLaggedPred(const POSITION_EKF *ekf, uint8_t axis, const float H[4], float lagSeconds, float *predOut);
+uint8_t positionEKFGetLaggedPrediction(const POSITION_EKF *ekf, uint8_t axis, const float H[4], float lagSeconds, float *predOut);
 
 #endif /* SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_ */

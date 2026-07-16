@@ -192,10 +192,9 @@
  * Group 8: GNSS Delay Compensation (XY only)
  * ========================================================================= */
 // [1] Fuse XY GNSS against the state at measurement time | [0] baseline behavior
-#define POS_EST_GNSS_DELAY_COMP                1
-
+#define POS_ESTIMATOR_GNSS_DELAY_ENABLED                1
 // End-to-end GNSS latency: receiver solution time + half nav period + UART
 // + processing. MEASURE this (swing test / datasheet arithmetic); do not guess.
-#define POS_EST_GNSS_LATENCY_S                 0.22f
+#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.22f
 
 #endif

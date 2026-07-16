@@ -16,7 +16,7 @@
 #include "../../sensors/position/GNSS.h"
 #include "../../sensors/battery/BatterySensor.h"
 
- /* ============================================================================
+/* ============================================================================
  * BRHS Telemetry Mapping
  * ============================================================================
  *
@@ -68,10 +68,10 @@ void prepareAndSendFCStatus() {
 	}
 	// Loiter, Pos Hold, RTH
 	FC_STATUS_BUF[1] = '-';
-	if (fcStatusData.isNavModeActive) {
-		FC_STATUS_BUF[2] = 'N'; //Nav Mode
-	} else if (fcStatusData.isNavRTHModeActive) {
+	if (fcStatusData.isNavRTHModeActive) {
 		FC_STATUS_BUF[2] = 'R';
+	} else if (fcStatusData.isNavModeActive) {
+		FC_STATUS_BUF[2] = 'N'; //Nav Mode
 	} else {
 		FC_STATUS_BUF[2] = 'S'; // Stab Mode
 	}
@@ -104,7 +104,7 @@ void prepareAndSendGNSSData(void) {
 	sendGNSSTelemetry(gnssData.latitude, gnssData.longitude, distance, fcStatusData.headingRef, fcStatusData.altitudeRef, satCountAndReliable);
 }
 
-void prepareAndSendAltitudeData(){
+void prepareAndSendAltitudeData() {
 	float bearing = calculateBearing(positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw);
 	sendAltitudeTelemetry(positionCordinateData.zPosition, bearing);
 }
