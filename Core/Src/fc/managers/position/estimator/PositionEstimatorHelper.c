@@ -107,6 +107,15 @@ float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float motionScale) {
 }
 
 __ATTR_ITCM_TEXT
+float getEstimatedVenturiRP(float motionScale) {
+// motionScale 0.0 (Smooth) -> R = BASE (0.1f)  => High Trust
+// motionScale 1.0 (Rough)  -> R = MAX (1.0f)   => Low Trust
+	float R_venturi = POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE + (motionScale * (POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX - POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE));
+// Ensure we are strictly bounded within our defined tuning limits
+	return constrainToRangeF(R_venturi, POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX);
+}
+
+__ATTR_ITCM_TEXT
 float getEstimatedXYRV(float sAcc) {
 	// 1. Enforce a sensible sensor accuracy floor (meters per second)
 	if (sAcc < POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_MIN) {
@@ -160,33 +169,24 @@ void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt) {
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, yPos, dynamicRp, H_P_GNSS);
 }
 
+
 __ATTR_ITCM_TEXT
 void updateZPositionSL(float offset, float zPos, float dt) {
 	positionCordinateData.positionZSLUpdateDt = dt;
 	positionCordinateData.zPositionRawSL = zPos;
 	float motionScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
-
-	/* Predicted systematic baro error (Venturi/dynamic pressure) */
-	float venturiBias = 0.0f;
-#if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
-	venturiBias = getVenturiBiasEstimate(dt);
-#endif
-	float zMeasRaw = offset + zPos;
-
-	/* Adaptive R: residual must be taken against the FULL model */
+	/* ---------------- BARO ---------------- */
 	float dynamicRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN;
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
-	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zMeasRaw - venturiBias, motionScale);
+	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
 #endif
-	float corrSigma = POS_ESTIMATOR_VENTURI_CORR_UNCERTAINTY * venturiBias;
-	float rEff = dynamicRPSL + (corrSigma * corrSigma);
-
-	/* RAW measurement in; venturi term lives in h(x) via hOffset */
-	positionEKFMeasurementUpdateOffset(&positionEkf, POS_EKF_Z_AXIS, zMeasRaw, rEff, H_BARO_WITH_BIAS, venturiBias);
-
-	/* BP = slow residual drift only; soft zero-anchor keeps it bounded in
-	 * baro-only mode. (Replaces the old venturi H_BIAS injection.) */
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, 0.0f, POS_ESTIMATOR_Z_POS_BIAS_ANCHOR_RP, H_BIAS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
+	/* ---------------- VENTURI ---------------- */
+#if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
+	float venturiBias = getVenturiBiasEstimate(dt);
+	float venturiR = getEstimatedVenturiRP(motionScale);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, venturiBias, venturiR, H_BIAS);
+#endif
 }
 
 __ATTR_ITCM_TEXT
@@ -224,6 +224,7 @@ void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float
 	*xEarth = (xBody * headingCosValue) - (yBody * headingSinValue);
 	*yEarth = (xBody * headingSinValue) + (yBody * headingCosValue);
 }
+
 
 __ATTR_ITCM_TEXT
 void updateZVelocityGNSS(float sAcc, float velZ, uint8_t navigationModeActive, float dt) {

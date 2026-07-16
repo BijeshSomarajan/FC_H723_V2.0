@@ -286,22 +286,12 @@ void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float d
 	}
 }
 
-/**
- * @brief Measurement update with a predicted systematic measurement error term.
- *
- * hOffset is the deterministic, modeled part of the measurement that is NOT
- * represented in the state vector (e.g. baro Venturi/dynamic-pressure error).
- * It extends the measurement model to  z = H*x + hOffset + v,  so the raw
- * measurement is fused untouched and the correction lives in h(x) where it
- * belongs. Pass 0.0f when the measurement model is purely H*x.
- */
 __ATTR_ITCM_TEXT
-void positionEKFMeasurementUpdateOffset(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4], float hOffset) {
+void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4]) {
 	const int i = axis * POS_EKF_AXIS_DIM;
 	if (!ekf->axisInitialized[axis]) {
 		if (H[POS_EKF_STATE_P] > 0.5f) {
-			/* Seed with the measurement minus its modeled systematic error */
-			ekf->x[i + POS_EKF_STATE_P] = meas - hOffset;
+			ekf->x[i + POS_EKF_STATE_P] = meas;
 		}
 		ekf->x[i + POS_EKF_STATE_V] = 0.0f;
 		ekf->x[i + POS_EKF_STATE_B] = 0.0f;
@@ -325,8 +315,7 @@ void positionEKFMeasurementUpdateOffset(POSITION_EKF *ekf, uint8_t axis, float m
 	 * 1. Innovation
 	 * ============================================================ */
 	float pred = H[0] * ekf->x[i + 0] + H[1] * ekf->x[i + 1] + H[2] * ekf->x[i + 2] + H[3] * ekf->x[i + 3];
-	/* Full measurement model: z_pred = H*x + hOffset */
-	float y = meas - (pred + hOffset);
+	float y = meas - pred;
 	ekf->innovation[axis] = y;
 
 	/* ============================================================
@@ -466,12 +455,4 @@ void positionEKFMeasurementUpdateOffset(POSITION_EKF *ekf, uint8_t axis, float m
 			ekf->P[i + c][i + r] = sym;
 		}
 	}
-}
-
-/* Backward-compatible wrapper: pure H*x measurement model (hOffset = 0).
- * All existing call sites (GNSS, terrain, flow, pseudo-measurements) keep
- * this signature unchanged. */
-__ATTR_ITCM_TEXT
-void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4]) {
-	positionEKFMeasurementUpdateOffset(ekf, axis, meas, rValue, H, 0.0f);
 }

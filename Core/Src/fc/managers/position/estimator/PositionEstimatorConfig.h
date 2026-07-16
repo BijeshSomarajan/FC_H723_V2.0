@@ -28,10 +28,10 @@
  * Group 2: EKF Core Process Noise & Validation Gates (Vertical Axis - Z)
  * ========================================================================= */
 // [+] Faster vertical position tracking response | [-] Dampens high-frequency altitude jitter but adds tracking lag
-#define POS_EKF_Z_Q_POS                       0.00002f   // was 0.01   (500x down)
+#define POS_EKF_Z_Q_POS                        0.01f
 
 // [+] Eliminates vertical velocity lag/prevents punch overshoots | [-] Smoother climb rate but introduces spongey altitude response
-#define POS_EKF_Z_Q_VEL                       0.0002f    // was 0.02   (100x down)
+#define POS_EKF_Z_Q_VEL                        0.02f
 
 // [+] Rapidly compensates for vertical IMU thermal bias shifts | [-] Holds Z-bias firm against high-frequency pressure noise
 #define POS_EKF_Z_Q_BIAS                       0.00001f
@@ -44,6 +44,7 @@
 
 // [+] Safely rides through long pressure/lidar dropouts without falling out of position hold | [-] Forces rapid filter reset during vertical sensor failure to prevent flyaways
 #define POS_EKF_Z_PANIC                        25
+
 
 /* =========================================================================
  * Group 3: Adaptive Q Tuning Engine (Structural Strain Scaling)
@@ -69,6 +70,7 @@
 // [+] Accelerometer bias states adapt quickly to physical frame flex | [-] Keeps bias estimation stable against momentary high-G structural impulses
 #define POS_EKF_Q_BIAS_STRESS_GAIN             0.0f
 
+
 #define POS_EKF_PANIC_P_INFLATE   10.0f
 
 /* =========================================================================
@@ -85,6 +87,7 @@
 
 // [+] Allows high-noise packets to be processed with maximum discount | [-] Caps maximum variance penalty, risking noise leakage during heavy multi-path
 #define POS_ESTIMATOR_DYNAMIC_XY_GNSS_RP_MAX            16.0f
+
 
 /* =========================================================================
  * Group 5: Dynamic Sensor Variance Scaling - GNSS Horizontal (XY) Velocity
@@ -104,8 +107,6 @@
 // [+] Completely discounts highly corrupted speed updates before gate check | [-] Forces filter to digest moderately noisy speed data at a capped threshold
 #define POS_ESTIMATOR_DYNAMIC_XY_GNSS_RV_MAX            10.0f
 
-// [+] Forces a highly conservative state variance initialization during re-arm | [-] Instantly resets to low variance, risking filter jumps
-#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_RV_RESET          POS_ESTIMATOR_DYNAMIC_XY_GNSS_RV_MAX
 
 /* =========================================================================
  * Group 6: Dynamic Sensor Variance Scaling - GNSS Vertical (Z) Position & Velocity
@@ -135,16 +136,14 @@
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND      POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND
 
 // [+] Softens vertical velocity measurement authority globally | [-] Forces hard lock on vertical speed updates, risking jumpy climbs
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           10.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           5.0f
 
 // [+] Safely isolates wild vertical velocity steps from blowing up the matrix | [-] Limits maximum penalty, allowing heavy vertical tracking errors to bleed through
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            200.0f
-
-// [+] Initializes vertical velocity variance conservatively on boot | [-] Aggressive initial trust that can cause an upward/downward state jump
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_RESET          POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            100.0f
 
 // [+] Guarantees vertical speed channel is ignored during blackouts | [-] Risks letting uninitialized velocity vectors corrupt the EKF
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MUTED          10000.0f
+
 
 /* =========================================================================
  * Group 7: Dynamic Sensor Variance Scaling - Terrain Rangefinder & Baro/Venturi (Z)
@@ -156,29 +155,35 @@
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX         1.0f
 
 // [+] Completely decouples lidar from altitude loop if ground lock breaks | [-] Keeps failed terrain ranges mathematically close to operational bounds
-#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED       1000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED       100.0f
 
-// 1-sigma error of the venturi correction as a fraction of itself.
-#define POS_ESTIMATOR_VENTURI_CORR_UNCERTAINTY   0.0f
-// Soft zero-anchor for BP (baro-only observability guard)
-#define POS_ESTIMATOR_Z_POS_BIAS_ANCHOR_RP    10.0f
+// [+] Dampens pressure error scaling when flying through structural funnels | [-] Aggressively reacts to aerodynamic venturi pressures as true altitude changes
+#define POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE        0.1f
 
-//#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           0.005f
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           2.0f     // was 0.005f
+// [+] Isolates the barometer during intense wind tunnel/aerodynamic events | [-] Tightens baro penalty ceiling, leaking pressure spikes into altitude estimations
+#define POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX         2.0f
+
+// [+] Increases the rate at which dynamic barometer variance scales up | [-] Slows down variance expansion, making baro updates sticky during pressure shifts
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           0.005f
+
 // [+] Dynamic barometer variance tracks immediate pressure noise spikes | [-] Heavily filters dynamic baro variance, adding phase lag to noise detection
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_ALPHA          0.20f
+
 // [+] Safeguards against baro overconfidence in perfect weather conditions | [-] Lets the EKF completely rely on raw baro pressure data down to absolute zero
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            2.0f    // was 0.3 — baro is an anchor, not a tracker  // was 30.0f  <- key change
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            30.0f
+
 // [+] Allows baro variance to scale high enough to let rangefinder completely dominate | [-] Caps barometer discount, allowing pressure noise to fight lidar
-//#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            100.0f
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            10.0f    // was 100.0f
-// [+] Bounds the maximum innovation error allowed to scale up baro variance | [-] Lets massive altitude errors continuously inflate variance exponentially
-//#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RESIDUAL_CLAMP    0.05f
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RESIDUAL_CLAMP    0.75f    // was 0.05f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            100.0f
+
 // [+] Prevents floating-point underflow division during baseline delta calculations | [-] Pulls matrix inversion closer to numerical instability boundaries
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_EPS            0.000001f
+
 // [+] Stabilizes dynamic scaling multipliers against sudden infinitesimal changes | [-] Opens up scaling loop to microsecond rounding errors
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_SCALE_EPS      0.001f
+
+// [+] Bounds the maximum innovation error allowed to scale up baro variance | [-] Lets massive altitude errors continuously inflate variance exponentially
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RESIDUAL_CLAMP    0.75f
+
 // [+] Delays baro variance inflation until high horizontal velocity tilt occurs | [-] Artificially inflates baro variance during gentle horizontal cruising
 //#define POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH          24.0f
 #define POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH          6.0f     // was 24.0f
