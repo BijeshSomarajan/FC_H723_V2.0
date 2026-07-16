@@ -80,10 +80,7 @@
 #define POS_ESTIMATOR_DYNAMIC_XY_GNSS_HACC_SCALE        1.0f
 
 // [+] Enforces a strict minimum trust floor to prevent EKF overconfidence | [-] Allows filter to assume perfect sub-centimeter GPS tracking
-#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_HACC_MIN          0.3f
-
-// [+] Increases baseline measurement noise/smoothes tracking paths | [-] Forces razor-sharp adherence to raw GPS coordinates (ideal for RTK)
-#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_RP_BASE           0.005f
+#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_HACC_MIN          0.25f// was 0.3f
 
 // [+] Allows high-noise packets to be processed with maximum discount | [-] Caps maximum variance penalty, risking noise leakage during heavy multi-path
 #define POS_ESTIMATOR_DYNAMIC_XY_GNSS_RP_MAX            16.0f
@@ -96,7 +93,7 @@
 #define POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_SCALE        1.0f
 
 // [+] Protects velocity channel from over-trusting clean telemetry by capping minimum noise | [-] Trusts raw velocity updates down to near-zero variance
-#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_MIN          0.15f // was 0.05f
+#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_MIN          0.1f // was 0.05f
 
 // [+] Completely ignores minor GPS velocity drift at a standstill | [-] Keeps velocity innovations active even for microscopic, noise-driven vectors
 #define POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND      0.0001f
@@ -130,16 +127,16 @@
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE        0.5f
 
 // [+] Enforces a minimum trust floor for vertical velocity updates | [-] Allows zero-variance assumption for vertical velocity packets
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN          POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_MIN
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN          0.1f // was 0.05f
 
 // [+] Eliminates minor vertical velocity hunting during a flat hover | [-] Keeps vertical velocity updates fully live down to absolute zero
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND      POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND      0.0001f
 
 // [+] Softens vertical velocity measurement authority globally | [-] Forces hard lock on vertical speed updates, risking jumpy climbs
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           5.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           100.0f //Z vel is very twicthy
 
 // [+] Safely isolates wild vertical velocity steps from blowing up the matrix | [-] Limits maximum penalty, allowing heavy vertical tracking errors to bleed through
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            100.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            1000.0f
 
 // [+] Guarantees vertical speed channel is ignored during blackouts | [-] Risks letting uninitialized velocity vectors corrupt the EKF
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MUTED          10000.0f
@@ -190,5 +187,15 @@
 // [+] Protects baro variance from inflating during fast vertical punch outs | [-] Discards stable barometer data prematurely during rapid vertical climbs
 //#define POS_ESTIMATOR_DYNAMIC_Z_ACC_Z_THRESH           28.0f
 #define POS_ESTIMATOR_DYNAMIC_Z_ACC_Z_THRESH           8.0f     // was 28.0f
+
+/* =========================================================================
+ * Group 8: GNSS Delay Compensation (XY only)
+ * ========================================================================= */
+// [1] Fuse XY GNSS against the state at measurement time | [0] baseline behavior
+#define POS_EST_GNSS_DELAY_COMP                1
+
+// End-to-end GNSS latency: receiver solution time + half nav period + UART
+// + processing. MEASURE this (swing test / datasheet arithmetic); do not guess.
+#define POS_EST_GNSS_LATENCY_S                 0.22f
 
 #endif

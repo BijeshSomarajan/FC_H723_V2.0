@@ -42,6 +42,7 @@ uint8_t positionEKFInit(POSITION_EKF *ekf) {
 		} else {
 			ekf->P[i + POS_EKF_STATE_BP][i + POS_EKF_STATE_BP] = POS_EKF_P_MIN;
 		}
+
 	}
 
 	return 1;
@@ -53,6 +54,12 @@ void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias) {
 		int i = axis * POS_EKF_AXIS_DIM;
 		ekf->axisInitialized[axis] = 0;
 		ekf->rejectCount[axis] = 0;
+
+		/* History describes the pre-reset trajectory — invalidate for XY resets */
+		if (axis != POS_EKF_Z_AXIS) {
+			ekf->histCount = 0;
+			ekf->histDtAcc = 0.0f;
+		}
 
 		/* Reset state estimates */
 		ekf->x[i + POS_EKF_STATE_P] = 0.0f; // Explicitly zero position now
@@ -91,6 +98,13 @@ void positionEKFInvalidate(POSITION_EKF *ekf, uint8_t axis) {
 		int i = axis * POS_EKF_AXIS_DIM;
 		ekf->axisInitialized[axis] = 0;
 		ekf->rejectCount[axis] = 0;
+
+		/* History describes the pre-reset trajectory — invalidate for XY resets */
+		if (axis != POS_EKF_Z_AXIS) {
+			ekf->histCount = 0;
+			ekf->histDtAcc = 0.0f;
+		}
+
 		ekf->x[i + POS_EKF_STATE_V] = 0.0f;
 	}
 }
@@ -284,6 +298,59 @@ void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float d
 		ekf->P[i + POS_EKF_STATE_B][i + POS_EKF_STATE_BP] = P23;
 		ekf->P[i + POS_EKF_STATE_BP][i + POS_EKF_STATE_B] = P23;
 	}
+
+
+	/* --- State history snapshot (XY) for GNSS delay compensation --- */
+	ekf->histDtAcc += dt;
+	if (ekf->histDtAcc >= POS_EKF_HIST_PERIOD) {
+		ekf->histDtAcc -= POS_EKF_HIST_PERIOD;
+		ekf->histHead = (uint8_t) ((ekf->histHead + 1u) % POS_EKF_HIST_LEN);
+		for (int a = 0; a < 2; a++) {
+			const int i = a * POS_EKF_AXIS_DIM;
+			ekf->hist[ekf->histHead].p[a] = ekf->x[i + POS_EKF_STATE_P];
+			ekf->hist[ekf->histHead].v[a] = ekf->x[i + POS_EKF_STATE_V];
+		}
+		if (ekf->histCount < POS_EKF_HIST_LEN) {
+			ekf->histCount++;
+		}
+	}
+
+}
+
+
+__ATTR_ITCM_TEXT
+uint8_t positionEKFGetLaggedPred(const POSITION_EKF *ekf, uint8_t axis, const float H[4], float lagSeconds, float *predOut) {
+	if (axis >= POS_EKF_Z_AXIS) {
+		return 0; /* XY only */
+	}
+	if (ekf->histCount == 0 || lagSeconds <= (0.5f * POS_EKF_HIST_PERIOD)) {
+		return 0; /* no history, or lag below buffer resolution: baseline path is already correct */
+	}
+	int lag = (int) (lagSeconds / POS_EKF_HIST_PERIOD + 0.5f);
+
+	if (lag > (int) ekf->histCount - 1) {
+		lag = (int) ekf->histCount - 1; /* graceful degrade while buffer fills */
+	}
+	const int idx = ((int) ekf->histHead - lag + POS_EKF_HIST_LEN) % POS_EKF_HIST_LEN;
+	/* Single-state H only (pure position or pure velocity measurement).
+	 * A mixed-H XY measurement would need pred = H·x_hist — not used today. */
+	if (H[POS_EKF_STATE_P] > 0.5f) {
+		*predOut = ekf->hist[idx].p[axis];
+		return 1;
+	}
+	if (H[POS_EKF_STATE_V] > 0.5f) {
+		*predOut = ekf->hist[idx].v[axis];
+		return 1;
+	}
+	return 0;
+}
+
+__ATTR_ITCM_TEXT
+void positionEKFMeasurementUpdateLagged(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4], float predLagged) {
+	ekf->predOverride = predLagged;
+	ekf->predOverrideValid = 1;
+	positionEKFMeasurementUpdate(ekf, axis, meas, rValue, H);
+	ekf->predOverrideValid = 0; /* safety: never leak to another sensor */
 }
 
 __ATTR_ITCM_TEXT
@@ -306,6 +373,11 @@ void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, f
 			ekf->P[i + POS_EKF_STATE_BP][i + POS_EKF_STATE_BP] = POS_EKF_P_MIN;
 		}
 
+		if (axis != POS_EKF_Z_AXIS) {
+			ekf->histCount = 0; /* pre-init history is garbage relative to the snapped state */
+			ekf->histDtAcc = 0.0f;
+		}
+
 		ekf->rejectCount[axis] = 0;
 		ekf->axisInitialized[axis] = 1;
 		return;
@@ -315,13 +387,18 @@ void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, f
 	 * 1. Innovation
 	 * ============================================================ */
 	float pred = H[0] * ekf->x[i + 0] + H[1] * ekf->x[i + 1] + H[2] * ekf->x[i + 2] + H[3] * ekf->x[i + 3];
+
+	if (ekf->predOverrideValid) {
+		pred = ekf->predOverride; /* innovation vs time-matched state */
+		ekf->predOverrideValid = 0; /* single-shot: consumed immediately */
+	}
+
 	float y = meas - pred;
 	ekf->innovation[axis] = y;
 
 	/* ============================================================
 	 * 2. Load covariance
 	 * ============================================================ */
-
 	float P[4][4];
 
 	for (int r = 0; r < 4; r++) {

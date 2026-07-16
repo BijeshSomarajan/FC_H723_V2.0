@@ -26,6 +26,15 @@
 #define POS_EKF_P_MIN             1e-9f
 #define POS_EKF_P_MAX             500.0f
 
+/* --- GNSS delay compensation: state history --- */
+#define POS_EKF_HIST_LEN        48       // 48 x 10ms = 480 ms of history
+#define POS_EKF_HIST_PERIOD     0.01f    // snapshot cadence (100 Hz)
+
+typedef struct {
+	float p[2];      // X, Y position
+	float v[2];      // X, Y velocity
+} POS_EKF_HIST_ENTRY;
+
 /* =========================================================================
  * Core State Structure Definition
  * ========================================================================= */
@@ -41,6 +50,14 @@ typedef struct {
 	float innovation[POS_EKF_SPACE_DIM];               // Innovation history cache for telemetry logging
 	uint8_t axisInitialized[POS_EKF_SPACE_DIM];         // Individual health track flags
 
+	/* GNSS delay compensation (XY) */
+	POS_EKF_HIST_ENTRY hist[POS_EKF_HIST_LEN];
+	uint8_t histHead;      // index of most recent entry
+	uint8_t histCount;     // number of valid entries (0 = buffer invalid)
+	float histDtAcc;     // snapshot cadence accumulator
+	float predOverride;
+	uint8_t predOverrideValid;
+
 } POSITION_EKF;
 
 extern POSITION_EKF positionEkf;
@@ -51,6 +68,10 @@ extern POSITION_EKF positionEkf;
 uint8_t positionEKFInit(POSITION_EKF *ekf);
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt);
 void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4]);
-void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias) ;
+void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias);
 void positionEKFInvalidate(POSITION_EKF *ekf, uint8_t axis);
+
+void positionEKFMeasurementUpdateLagged(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4], float predLagged);
+uint8_t positionEKFGetLaggedPred(const POSITION_EKF *ekf, uint8_t axis, const float H[4], float lagSeconds, float *predOut);
+
 #endif /* SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_ */
