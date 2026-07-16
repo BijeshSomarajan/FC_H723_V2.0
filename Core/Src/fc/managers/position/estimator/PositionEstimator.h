@@ -51,6 +51,7 @@ extern POSITION_EKF positionEkf;
 uint8_t positionEKFInit(POSITION_EKF *ekf);
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt);
 void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4]);
+void positionEKFMeasurementUpdateOffset(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4], float hOffset);
 void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias) ;
 void positionEKFInvalidate(POSITION_EKF *ekf, uint8_t axis);
 #endif /* SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_ */

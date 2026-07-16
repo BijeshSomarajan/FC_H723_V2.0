@@ -163,12 +163,6 @@
 // [+] Completely decouples lidar from altitude loop if ground lock breaks | [-] Keeps failed terrain ranges mathematically close to operational bounds
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED       1000.0f
 
-// [+] Dampens pressure error scaling when flying through structural funnels | [-] Aggressively reacts to aerodynamic venturi pressures as true altitude changes
-#define POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE        0.1f
-
-// [+] Isolates the barometer during intense wind tunnel/aerodynamic events | [-] Tightens baro penalty ceiling, leaking pressure spikes into altitude estimations
-#define POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX         2.0f
-
 //#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           0.005f
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           2.0f     // was 0.005f
 // [+] Dynamic barometer variance tracks immediate pressure noise spikes | [-] Heavily filters dynamic baro variance, adding phase lag to noise detection

@@ -24,24 +24,57 @@ uint8_t initVenturiBiasEstimator(void) {
 }
 
 /**
- * @brief Updates the aerodynamic Venturi/Bernoulli pressure drop compensation bias.
+ * @brief Signed still-air speed model for ONE body axis.
  *
- * REWORKED (wind robustness):
- *  1. Tilt magnitude now uses BOTH pitch and roll, so crosswind / lateral
- *     flight is modeled instead of ignored.
- *  2. The tilt-driven speed model is treated as an unsigned magnitude
- *     (the bias is quadratic in speed, so sign carried no information).
- *  3. The model speed is GATED against the EKF ground speed with fminf().
- *     Rationale:
- *       - Wind hover:      tilt high, ground speed ~0  -> bias ~0 (was: saturated 0.5 m!)
- *       - Downwind drift:  tilt ~0,  ground speed high -> bias ~0 (correct: airspeed ~0)
- *       - Still-air cruise: tilt and ground speed agree -> bias as before
- *       - Upwind cruise:   bias is UNDER-estimated (ground < air speed).
- *         This is deliberately conservative; a wrong-but-small bias is far
- *         less harmful than a wrong-but-saturated one.
+ * Restores the original signed integration semantics (v2 magnitude model
+ * broke braking: reverse tilt must DECELERATE the state, not accelerate it):
+ *  - tilt accelerates the state in its own sign
+ *  - drag opposes current speed
+ *  - zero-cross clamp prevents braking overshoot through zero
+ *  - deadband bleed drains residual speed when the axis is level
+ */
+__ATTR_ITCM_TEXT
+static float venturiIntegrateAxisSpeed(float speed, float tiltDeg, float dt) {
+	tiltDeg = applyDeadBandFloat(0.0f, tiltDeg, VENTURI_EST_PITCH_ANGLE_MIN);
+	tiltDeg = constrainToRangeF(tiltDeg, -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);
+
+	float tiltAccel = tanApprox(convertDegToRadF(tiltDeg)) * GRAVITY_MSS * VENTURI_EST_ACCEL_GAIN;
+	float drag = speed * VENTURI_EST_DRAG_GAIN;
+
+	float prevSpeed = speed;
+	speed += (tiltAccel - drag) * dt;
+
+	/* Zero-cross braking clamp: if tilt opposes motion and the step crossed
+	 * zero, stop at zero instead of building speed in the opposite sense. */
+	if ((prevSpeed > 0.0f && tiltAccel < 0.0f && speed <= 0.0f) || (prevSpeed < 0.0f && tiltAccel > 0.0f && speed >= 0.0f)) {
+		speed = 0.0f;
+	}
+
+	/* Deadband bleed when this axis is level */
+	if (tiltDeg == 0.0f) {
+		speed -= (speed * VENTURI_EST_DAMPING_GAIN * dt);
+		if (fabsf(speed) < 0.001f) {
+			speed = 0.0f;
+		}
+	}
+
+	return constrainToRangeF(speed, -VENTURI_EST_SPEED_MAX, VENTURI_EST_SPEED_MAX);
+}
+
+/**
+ * @brief Estimates the Venturi/Bernoulli baro pressure-drop bias [m].
  *
- * @param dt Delta time since last execution loop in seconds.
- * @return float Low-pass filtered baro position-bias compensation value [m].
+ * v3 changes:
+ *  - Signed per-axis speed states (pitch -> longitudinal, roll -> lateral),
+ *    combined as a magnitude only at the bias stage. Braking now decays the
+ *    state correctly; crosswind/lateral flight is modeled.
+ *  - The EKF ground-speed gate is applied ONLY when the XY velocity estimate
+ *    is actually valid (GNSS/flow lock). In baro-only mode the gate is
+ *    bypassed - previously it silently zeroed all compensation there.
+ *
+ * The returned value is intended to be SUBTRACTED directly from the baro
+ * measurement before EKF fusion (see updateZPositionSL), not fused as a
+ * BP pseudo-measurement.
  */
 __ATTR_ITCM_TEXT
 float getVenturiBiasEstimate(float dt) {
@@ -50,47 +83,26 @@ float getVenturiBiasEstimate(float dt) {
 		resetVenturiBiasEstimator();
 		return 0.0f;
 	}
-
-	/* 2. Tilt magnitude from BOTH axes (deadband + clamp per axis) */
-	float pitch = applyDeadBandFloat(0.0f, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN);
-	float roll  = applyDeadBandFloat(0.0f, sensorAttitudeData.roll,  VENTURI_EST_PITCH_ANGLE_MIN);
-	pitch = constrainToRangeF(pitch, -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);
-	roll  = constrainToRangeF(roll,  -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);
-
-	float tanP = tanApprox(convertDegToRadF(pitch));
-	float tanR = tanApprox(convertDegToRadF(roll));
-	float tiltAccelMag = fastSqrtf((tanP * tanP) + (tanR * tanR)) * GRAVITY_MSS * VENTURI_EST_ACCEL_GAIN;
-
-	/* 3. Still-air speed model, magnitude only (lateralSpeed is now >= 0) */
-	float drag = venturiEstimateData.lateralSpeed * VENTURI_EST_DRAG_GAIN;
-	venturiEstimateData.lateralSpeed += (tiltAccelMag - drag) * dt;
-
-	/* 4. Deadband bleed: sticks/attitude level -> drain remaining speed memory */
-	if (tiltAccelMag <= 0.0f) {
-		venturiEstimateData.lateralSpeed -= (venturiEstimateData.lateralSpeed * VENTURI_EST_DAMPING_GAIN * dt);
-	}
-	venturiEstimateData.lateralSpeed = constrainToRangeF(venturiEstimateData.lateralSpeed, 0.0f, VENTURI_EST_SPEED_MAX);
-	if (venturiEstimateData.lateralSpeed < 0.001f) {
-		venturiEstimateData.lateralSpeed = 0.0f;
-	}
-
-	/* 5. Ground-speed gate against the EKF horizontal velocity.
-	 *    This is the wind-hover fix: tilt alone can no longer generate bias. */
-	float airspeedProxy = venturiEstimateData.lateralSpeed;
+	/* 2. Per-axis signed speed model */
+	venturiEstimateData.lateralSpeed = venturiIntegrateAxisSpeed(venturiEstimateData.lateralSpeed, sensorAttitudeData.pitch, dt);
+	venturiEstimateData.lateralSpeedY = venturiIntegrateAxisSpeed(venturiEstimateData.lateralSpeedY, sensorAttitudeData.roll, dt);
+	float speedMag = fastSqrtf((venturiEstimateData.lateralSpeed * venturiEstimateData.lateralSpeed) + (venturiEstimateData.lateralSpeedY * venturiEstimateData.lateralSpeedY));
+	/* 3. Ground-speed gate - ONLY when the XY estimate is trustworthy.
+	 * Map VENTURI_EST_XY_VEL_VALID() in the header to your actual validity
+	 * flag (GNSS lock / optical-flow healthy). In pure baro mode it must
+	 * evaluate to 0 so the tilt model passes through un-gated. */
+	float airspeedProxy = speedMag;
 #if VENTURI_EST_USE_EKF_SPEED == 1
-	/* NOTE: verify field names / add your XY-velocity-valid flag here.
-	 * If XY velocity can be unavailable (no GNSS/flow), fall through to the
-	 * pure tilt model ONLY when the estimate is flagged invalid. */
-	float ekfSpeed = fastSqrtf((positionCordinateData.xVelocity * positionCordinateData.xVelocity)
-	                         + (positionCordinateData.yVelocity * positionCordinateData.yVelocity));
-	airspeedProxy = fminf(airspeedProxy, ekfSpeed);
+	if (fcStatusData.isNavModeActive) {
+		float ekfSpeed = fastSqrtf((positionCordinateData.xVelocity * positionCordinateData.xVelocity) + (positionCordinateData.yVelocity * positionCordinateData.yVelocity));
+		airspeedProxy = fminf(airspeedProxy, ekfSpeed);
+	}
 #endif
-
-	/* 6. Quadratic Bernoulli bias translation + clamp */
+	venturiEstimateData.speedMagnitude = airspeedProxy; /* telemetry */
+	/* 4. Quadratic Bernoulli bias translation + clamp */
 	float bias = (airspeedProxy * airspeedProxy) * VENTURI_EST_BIAS_GAIN;
 	bias = constrainToRangeF(bias, 0.0f, VENTURI_EST_BIAS_VALUE_MAX);
-
-	/* 7. LPF smoothing to match pneumatic lag */
+	/* 5. LPF smoothing to match pneumatic lag */
 	venturiEstimateData.venturiBias = lowPassFilterUpdate(&venturiBiasLPF, bias, dt);
 	return venturiEstimateData.venturiBias;
 }
@@ -98,6 +110,8 @@ float getVenturiBiasEstimate(float dt) {
 void resetVenturiBiasEstimator(void) {
 	venturiEstimateData.venturiBias = 0.0f;
 	venturiEstimateData.lateralSpeed = 0.0f;
+	venturiEstimateData.lateralSpeedY = 0.0f;
+	venturiEstimateData.speedMagnitude = 0.0f;
 	venturiEstimateData.pitchAngleAbsFiltered = 0.0f;
 	lowPassFilterReset(&venturiBiasLPF);
 }
