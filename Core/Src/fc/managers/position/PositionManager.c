@@ -42,7 +42,7 @@ float positionMgrPosHoldRatePIDGain;
 
 float positionMgrRTHVxCommand, positionMgrRTHVyCommand;
 float positionMgrRTHCompleteDt = 0;
-float sensorReadOFlowDt = 0;
+uint8_t positionMgrRTHWasActive = 0;
 
 // Static variables to persist sampling state across function calls
 uint16_t positionMgrHomeRefSampleCount = 0;
@@ -208,7 +208,7 @@ void updateRTHVelocityCommand(float dt) {
 		dirY = dy * invDist;
 	}
 	// Base cruise speed
-	float targetSpeed = POSITION_MGR_RTH_CRUISE_SPEED;
+	float targetSpeed = fminf(POSITION_MGR_RTH_CRUISE_SPEED, fastSqrtf(2.0f * POSITION_MGR_RTH_BRAKE_DECEL * distance));
 	// Slow down near home
 	if (distance < POSITION_MGR_RTH_NEAR_HOME_RADIUS) {
 		float scale = distance / POSITION_MGR_RTH_NEAR_HOME_RADIUS;
@@ -304,8 +304,17 @@ void updatePositionCordinateCommand(float dt) {
 			break;
 		case POS_HOLD_STATE_LOCKED:
 			if (fcStatusData.isNavRTHModeActive) {
+				if (!positionMgrRTHWasActive) {           // rising edge: fresh RTH cycle
+					positionMgrPosHoldElapseDtSum = 0.0f;
+					positionMgrRTHVxCommand = 0.0f;
+					positionMgrRTHVyCommand = 0.0f;
+					positionMgrRTHCompleteDt = 0.0f;
+					fcStatusData.isRTHComplete = 0;
+				}
+				positionMgrRTHWasActive = 1;
 				handleRTHNavigation(dt);
 			} else {
+				positionMgrRTHWasActive = 0;
 				controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
 			}
 			break;
@@ -446,6 +455,7 @@ void resetPositionManager(void) {
 	positionMgrRTHVxCommand = 0;
 	positionMgrRTHVyCommand = 0;
 	positionMgrRTHCompleteDt = 0;
+	positionMgrRTHWasActive = 0;
 	controlData.posBrakeCompThDelta = 0.0f;
 
 }

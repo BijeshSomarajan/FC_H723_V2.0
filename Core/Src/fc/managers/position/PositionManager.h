@@ -92,7 +92,9 @@
 // 7. RETURN TO HOME (RTH) NAVIGATION PROFILE
 // =============================================================================
 /* Higher: High-velocity transit back to home base. Lower: Safe, deliberate, conservative RTH cruising speed (saves battery but fights wind poorly). */
-#define POSITION_MGR_RTH_CRUISE_SPEED                  15.0f
+#define POSITION_MGR_RTH_CRUISE_SPEED                  10.0f //Note this will be clamped by the Postion PID settings
+
+#define POSITION_MGR_RTH_BRAKE_DECEL   2.5f   // m/s²
 
 /* Higher: Starts a gradual, smooth slowing down sequence far away from home. Lower: Screams toward home at full cruise speed until the last second, risking large overshoots. */
 #define POSITION_MGR_RTH_NEAR_HOME_RADIUS              1.5f
