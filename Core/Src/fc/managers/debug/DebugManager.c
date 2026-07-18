@@ -31,11 +31,13 @@
 #include "../motor/MotorManager.h"
 #include "../../logger/Logger.h"
 #include "../../sensors/rc/RCTelemetry.h"
+#include "../../control/position/PositionControl.h"
 
 int32_t DEBUG_DATA_BUFFER[16];
 extern LOWPASSFILTER thControlRefLPF;
 extern uint8_t altControlAccEnabled;
 extern POSITION_EKF positionEkf;
+extern PID positionXPID, positionYPID, positionXRatePID, positionYRatePID;
 void debugTask(void);
 
 uint8_t initDebugManager(void) {
@@ -128,9 +130,18 @@ void debugIMU() {
 
 void debugAlt() {
 	//sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
-	sprintf(buf, "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, sensorAltitudeData.altitudeSLFiltered,
-			sensorAttitudeData.pitch, venturiEstimateData.venturiBias, venturiEstimateData.lateralSpeed,controlData.tiltCompThDelta, controlData.throttleControl,
-			fcStatusData.currentThrottle, positionEkf.x[POS_EKF_Z_AXIS * POS_EKF_AXIS_DIM + POS_EKF_STATE_BP],venturiEstimateData.brakeDwell);
+	sprintf(buf, "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, sensorAltitudeData.altitudeSLFiltered, sensorAttitudeData.pitch, venturiEstimateData.venturiBias, venturiEstimateData.lateralSpeed,
+			controlData.tiltCompThDelta, controlData.throttleControl, fcStatusData.currentThrottle, positionEkf.x[POS_EKF_Z_AXIS * POS_EKF_AXIS_DIM + POS_EKF_STATE_BP], venturiEstimateData.brakeDwell);
+	logString(buf);
+}
+
+float dtAcc;
+void debugPosHold(float dt) {
+	dtAcc+=dt;
+	//sprintf(buf, "%.1f,%lf,%lf,%lf,%lf,%.4f,%.4f,%.4f,%.4f,%d,%d,%d,%.2f,%.2f\r\n",dtAcc,gnssData.latitude,gnssData.longitude,fcStatusData.positionLatHome,fcStatusData.positionLongHome,fcStatusData.positionXRef,positionCordinateData.xPosition,fcStatusData.positionYRef,positionCordinateData.yPosition,fcStatusData.isNavModeActive,fcStatusData.postionHoldState,fcStatusData.isPositionHomeSet,positionXPID.pid,positionYPID.pid);
+
+	sprintf(buf, "%.1f,%lf,%lf,%.4f,%.4f,%.4f,%.4f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%d\r\n",dtAcc,gnssData.latitude,gnssData.longitude,fcStatusData.positionXRef,positionCordinateData.xPosition,positionCordinateData.xVelocity,fcStatusData.positionYRef,positionCordinateData.yPosition,positionCordinateData.yVelocity,positionXPID.pid,positionYPID.pid,positionXRatePID.pid,positionYRatePID.pid,fcStatusData.isNavModeActive,fcStatusData.postionHoldState);
+
 	logString(buf);
 }
 
@@ -138,7 +149,7 @@ void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
 		return;
 	}
-	float dt = 0.001f;
+	float dt = 1.0f/DEBUG_TASK_FREQUENCY;
 	(void) dt;
 	//debugString();
 	//debugGraph();
@@ -148,5 +159,6 @@ void debugTask() {
 	//debugNoise();
 	//debugPID();
 	//debugIMU();
-	debugAlt();
+	//debugAlt();
+	debugPosHold(dt);
 }

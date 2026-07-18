@@ -411,6 +411,12 @@ void loadAndProcessGNSSData() {
 				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt);
 			}
 
+		} else if (!fcStatusData.canFly) {
+			fcStatusData.isPositionHomeSet = 0;
+			positionMgrHomeRefSampleCount = 0;
+			positionMgrHomeRefLatSum = 0;
+			positionMgrHomeRefLongSum = 0;
+			positionMgrHomeRefhMSLSum = 0;
 		}
 	}
 }

@@ -9,6 +9,7 @@ typedef struct _GNSS_DATA GNSS_DATA;
 struct _GNSS_DATA {
 	double latitude;
 	double longitude;
+
 	float velN;
 	float velE;
 	float velD;

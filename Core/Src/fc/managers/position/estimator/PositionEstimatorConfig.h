@@ -66,8 +66,8 @@
  * carried by the velocity+bias states; this only sets how fast raw position
  * uncertainty grows on top of them. Rarely needs touching.
  * Range: 1e-6 .. 1e-4. Too high: position wanders between fixes. */
-#define POS_EKF_X_Q_POS                       0.00001f
-#define POS_EKF_Y_Q_POS                       0.00001f
+#define POS_EKF_X_Q_POS                      0.0003f // was 0.00001f
+#define POS_EKF_Y_Q_POS                      0.0003f // was 0.00001f
 
 /* Velocity random walk, (m/s)^2 per step -> 1.0 (m/s)^2/s effective.
  * THE main Q knob for XY feel. Sets how quickly the filter admits "my
@@ -76,8 +76,8 @@
  * Raise (e.g. 0.002-0.005): snappier stops, less lag, more GNSS-step noise.
  * Lower (e.g. 0.0005): silkier velocity, but tilt/bias error lingers longer.
  * Tuned against SACC_MIN 0.1 + delay comp; retune if either changes. */
-#define POS_EKF_X_Q_VEL                       0.001f
-#define POS_EKF_Y_Q_VEL                       0.001f
+#define POS_EKF_X_Q_VEL                      0.003f //0.001f
+#define POS_EKF_Y_Q_VEL                      0.003f //0.001f
 
 /* Accel-bias random walk, (m/s^2)^2 per step -> 0.01/s effective.
  * Absorbs tilt-induced gravity leakage (1 deg attitude error = 0.17 m/s^2
@@ -102,8 +102,8 @@
  * blind on inertial before the gate is forced back open (P x PANIC_P_INFLATE).
  * Lower = faster recovery from real divergence, higher risk of swallowing a
  * multipath burst. 1-2 s of inertial-only XY is safe; keep in that band. */
-#define POS_EKF_X_PANIC                        8
-#define POS_EKF_Y_PANIC                        8
+#define POS_EKF_X_PANIC                        25
+#define POS_EKF_Y_PANIC                        25
 
 /* =========================================================================
  * Group 2: EKF Core Process Noise & Validation Gates (Vertical Axis - Z)
@@ -152,7 +152,7 @@
 /* 45 m/s^2 (~4.5 g lateral) before XY Q starts inflating - i.e. only truly
  * violent events. Normal gusts (2-4 m/s^2) never touch it. Lower toward
  * 15-20 only if hard braking visibly upsets the XY estimate. */
-#define POS_EKF_ACC_THRESH_XY                  45.0f
+#define POS_EKF_ACC_THRESH_XY                  10.0f// 45.0f
 
 /* 60 m/s^2 vertical - hard landings / prop strikes territory. */
 #define POS_EKF_ACC_THRESH_Z                   60.0f
@@ -188,7 +188,7 @@
  * Lower -> tighter hold, more GPS-noise chasing. 0.25 is near the physical
  * floor for standard (non-RTK) GNSS - do not go below ~0.2 without RTK.
  * History: 0.3 -> 0.25 after delay comp made fixes honest during motion. */
-#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_HACC_MIN          0.25f// was 0.3f
+#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_HACC_MIN          0.3f// was 0.3f
 
 /* Variance ceiling 16 m^2 (sigma 4 m): even a terrible fix is processed at
  * this weight rather than ignored (gate handles true outliers). */
@@ -212,7 +212,7 @@
  *   phantom velocity in wind -> slow to-and-fro hunting.
  * 0.1 is tuned WITH delay comp ON (latency-honest innovations). If delay
  * comp is disabled, expect to need ~0.15 again. */
-#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_MIN          0.1f // was 0.05f
+#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_MIN         0.15f // was 0.05f
 
 /* Standstill deadband on the measurement itself, m/s. 0.0001 = effectively
  * off (kept live so micro-drift is still corrected). */
@@ -246,8 +246,8 @@
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE        0.5f
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN          0.1f // was 0.05f
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND      0.0001f
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           100.0f //Z vel is very twicthy
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            1000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           500.0f //Z vel is very twicthy
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            5000.0f
 
 /* Used when no valid nav fix: fully detached. */
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MUTED          10000.0f
@@ -260,7 +260,7 @@
  * worse of distance-fraction and (1 - quality). MUTED when invalid. */
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE        0.01f
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX         1.0f
-#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED       100.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED       1000.0f
 
 /* Venturi bias pseudo-measurement (models dynamic-pressure baro suction
  * when translating). Trusted when smooth (R 0.1), discounted 20x when
@@ -323,6 +323,14 @@
  * module, nav rate, or baud ever changes, RE-MEASURE. Symptoms of error:
  * too small -> residual backtrack after stick release (settles behind);
  * too large -> creeps FORWARD past the release point. */
-#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.22f
+#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.12f
+
+// PositionEstimatorConfig.h — Group 9
+#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED    1
+#define POS_ESTIMATOR_Z_CRUISE_SPEED_LO        1.0f   // m/s — below this: pure hover trust profile
+#define POS_ESTIMATOR_Z_CRUISE_SPEED_HI        3.0f   // m/s — above this: full cruise profile
+#define POS_ESTIMATOR_Z_CRUISE_TAU_RISE        0.3f   // s — engage quickly as translation starts
+#define POS_ESTIMATOR_Z_CRUISE_TAU_FALL        1.0f   // s — release slowly: the pressure field
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_CRUISE      1.0f   // (m/s)^2 — GNSS-Z vel trust during cruise (σ 1 m/s)
 
 #endif

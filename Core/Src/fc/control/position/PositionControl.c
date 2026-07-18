@@ -78,17 +78,14 @@ void resetPositionControl(uint8_t hard) {
 	dobExpectedAccYFilt = 0.0f;
 }
 
-float xDobTest, yDobTest;
-float velFFXTest, velFFYTest;
-
 __ATTR_ITCM_TEXT
 void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, float rateDGain) {
 	/*---------------- 1. PID Update ----------------*/
 	float velocityTargetX = positionXPID.pid;
 	float velocityTargetY = positionYPID.pid;
 
-	float xVelocity = positionCordinateData.xVelocity * POSITION_CONTROL_VEL_GAIN;
-	float yVelocity = positionCordinateData.yVelocity * POSITION_CONTROL_VEL_GAIN;
+	float xVelocity = positionCordinateData.xVelocity;
+	float yVelocity = positionCordinateData.yVelocity;
 
 	pidUpdateWithGains(&positionXRatePID, xVelocity, velocityTargetX, dt, ratePGain, rateIGain, rateDGain);
 	pidUpdateWithGains(&positionYRatePID, yVelocity, velocityTargetY, dt, ratePGain, rateIGain, rateDGain);
@@ -154,12 +151,15 @@ void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, fl
 			float diffY = saturatedY - outputY;
 
 			// Use macro for tuning: #define POSITION_CONTROL_RATE_PID_I_AW_GAIN 0.2f
-			positionXRatePID.i += (diffX * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
-			positionYRatePID.i += (diffY * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
+			//positionXRatePID.i += (diffX * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
+			//positionYRatePID.i += (diffY * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
+
+			float xRatePidI = 	positionXRatePID.i + (diffX * POSITION_CONTROL_RATE_PID_I_ANTIWINDUP_GAIN * dt);
+			float yRatePidI = 	positionYRatePID.i + (diffY * POSITION_CONTROL_RATE_PID_I_ANTIWINDUP_GAIN * dt);
 
 			// Hard Integrator Clamp
-			positionXRatePID.i = constrainToRangeF(positionXRatePID.i, positionXRatePID.limitIMin, positionXRatePID.limitIMax);
-			positionYRatePID.i = constrainToRangeF(positionYRatePID.i, positionYRatePID.limitIMin, positionYRatePID.limitIMax);
+			positionXRatePID.i = constrainToRangeF(xRatePidI, positionXRatePID.limitIMin, positionXRatePID.limitIMax);
+			positionYRatePID.i = constrainToRangeF(yRatePidI, positionYRatePID.limitIMin, positionYRatePID.limitIMax);
 
 			outputX = saturatedX;
 			outputY = saturatedY;

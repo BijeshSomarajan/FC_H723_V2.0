@@ -121,7 +121,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  *   does -> momentary under-compensation blip).
  * Lower: bias lingers after stops -> the estimate reads low -> post-stop
  *   climb. Tune only from a log showing the bias/artifact decay mismatch. */
-#define VENTURI_EST_DAMPING_GAIN                2.5f
+#define VENTURI_EST_DAMPING_GAIN                1.0f //2.5f
 
 /* ---------------- Speed -> bias translation ---------------- */
 
@@ -143,7 +143,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * ~4.5 m/s. Raise toward 1.0 only with outdoor high-speed calibration data
  * showing the real artifact exceeds 0.5 m - never to "fix" a dip (that is
  * always the gain or the decay, not the clamp). */
-#define VENTURI_EST_BIAS_VALUE_MAX              0.5f
+#define VENTURI_EST_BIAS_VALUE_MAX              0.75f
 
 /* Output LPF, Hz (tau ~0.45 s). Matches the pneumatic settling of the real
  * pressure field so the bias doesn't step. Part of the measured ~0.8 s total
@@ -151,7 +151,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Raise toward 0.7-1.0 Hz if logs show bias arriving late vs the artifact;
  * lower if the bias output is jittery. Note the EKF's BP fusion adds its own
  * ~0.5 s - tune this from end-to-end logs (artifact vs BP), not in isolation. */
-#define VENTURI_EST_BIAS_LPF_FREQ               0.35f
+#define VENTURI_EST_BIAS_LPF_FREQ               0.25f
 
 uint8_t initVenturiBiasEstimator(void);
 float getVenturiBiasEstimate(float dt);

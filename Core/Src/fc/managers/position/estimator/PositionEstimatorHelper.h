@@ -15,4 +15,6 @@ void updateXYVelocityGNSS(float sAcc, float velN, float velE, float dt);
 void updateXYVelocityOFlow(float flowPitchRad, float flowRollRad, float qual, float terrainAltitude, float minDistance, float maxDistance, uint8_t terrainAltValid, uint8_t terrainNavValid, float pitchRate, float rollRate, float heading, float dt);
 void updateZVelocityGNSS(float sAcc, float velD, uint8_t navigationModeActive, float dt);
 
+float getGroundSpeed(void);
+
 #endif /* SRC_FC_MANAGERS_POSITION_ESTIMATOR_POSITIONESTIMATORHELPER_H_ */
