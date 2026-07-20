@@ -137,19 +137,21 @@ void debugAlt() {
 
 float dtAcc;
 void debugPosHold(float dt) {
-	dtAcc+=dt;
+	dtAcc += dt;
 	//sprintf(buf, "%.1f,%lf,%lf,%lf,%lf,%.4f,%.4f,%.4f,%.4f,%d,%d,%d,%.2f,%.2f\r\n",dtAcc,gnssData.latitude,gnssData.longitude,fcStatusData.positionLatHome,fcStatusData.positionLongHome,fcStatusData.positionXRef,positionCordinateData.xPosition,fcStatusData.positionYRef,positionCordinateData.yPosition,fcStatusData.isNavModeActive,fcStatusData.postionHoldState,fcStatusData.isPositionHomeSet,positionXPID.pid,positionYPID.pid);
 
-	sprintf(buf, "%.1f,%lf,%lf,%.4f,%.4f,%.4f,%.4f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%d\r\n",dtAcc,gnssData.latitude,gnssData.longitude,fcStatusData.positionXRef,positionCordinateData.xPosition,positionCordinateData.xVelocity,fcStatusData.positionYRef,positionCordinateData.yPosition,positionCordinateData.yVelocity,positionXPID.pid,positionYPID.pid,positionXRatePID.pid,positionYRatePID.pid,fcStatusData.isNavModeActive,fcStatusData.postionHoldState);
+	sprintf(buf, "%.1f,%lf,%lf,%.4f,%.4f,%.4f,%.4f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%d\r\n", dtAcc, gnssData.latitude, gnssData.longitude, fcStatusData.positionXRef, positionCordinateData.xPosition, positionCordinateData.xVelocity, fcStatusData.positionYRef, positionCordinateData.yPosition,
+			positionCordinateData.yVelocity, positionXPID.pid, positionYPID.pid, positionXRatePID.pid, positionYRatePID.pid, fcStatusData.isNavModeActive, fcStatusData.postionHoldState);
 
 	logString(buf);
 }
-
+extern float altControlZDisturbanceEstimate,testR_venturi;
+extern PID altPID,altRatePID,altAccPID;
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
 		return;
 	}
-	float dt = 1.0f/DEBUG_TASK_FREQUENCY;
+	float dt = 1.0f / DEBUG_TASK_FREQUENCY;
 	(void) dt;
 	//debugString();
 	//debugGraph();
@@ -160,5 +162,7 @@ void debugTask() {
 	//debugPID();
 	//debugIMU();
 	//debugAlt();
-	debugPosHold(dt);
+	//debugPosHold(dt);
+	sprintf(buf, "%.2f,%.2f,%.3f,%.2f,%.2f,%.2f,%.2f,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.1f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, positionCordinateData.zAcceleration ,controlData.altitudeControl,controlData.throttleControl,fcStatusData.hoverThrottle, altControlZDisturbanceEstimate,fcStatusData.isFlying,altPID.pid,altRatePID.pid,altRatePID.i,altAccPID.pid,controlData.tiltCompThDelta,controlData.posBrakeCompThDelta,venturiEstimateData.venturiBias,testR_venturi,sensorAttitudeData.pitch);
+	logString(buf);
 }

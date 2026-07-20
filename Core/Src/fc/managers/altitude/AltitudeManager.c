@@ -38,13 +38,13 @@ float altMgrCurrentThrottleDelta = 0;
 float altMgrCurrentThrottleRate = 0;
 float altMgrCurrentThrottleRateGain = 1.0f;
 float altMgrPreviousThrottle = 0.0f;
-
 float altMgrAccDtAccumulation = 0.0f;
 float altMgrVelDtAccumulation = 0.0f;
 float altMgrAltDtAccumulation = 0.0f;
 float altMgrLowThDtAccumulation = 0.0f;
 
 float altMgrCurrentTiltCompThDelta = 0.0f;
+float altMgrTiltCompIntermediate = 0.0f;
 
 uint8_t altMgrLandingPulseActive = 0;
 float altMgrLandingPulseDt = 0;
@@ -151,7 +151,6 @@ void handleThrottleChange(float dt) {
 			nextThrottle = altMgrPreviousThrottle;
 		}
 	}
-
 	fcStatusData.currentThrottle = nextThrottle;
 	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
@@ -213,8 +212,41 @@ float getClampedCurrentAltitude() {
 	return fcStatusData.altitudeRef + altitudeDelta;
 }
 
-// Add this to your global/struct state definitions alongside your other tracker:
-float altMgrTiltCompIntermediate = 0.0f;
+/**
+ * Learn the true hover throttle.
+ * Seeded from the liftoff calibration (measured in ground effect, does not
+ * track battery sag), then slowly trimmed from the actual mixed throttle
+ * whenever the vehicle is genuinely hovering: flying, not climbing, not
+ * heavily tilted. Bounded to a sanity band around the seed.
+ */
+
+__ATTR_ITCM_TEXT
+void updateHoverThrottleEstimate(float dt) {
+	float seed = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
+	if (fcStatusData.hoverThrottle <= 0.0f) {
+		fcStatusData.hoverThrottle = seed; /* first use: take the seed */
+		return;
+	}
+#if ALT_CONTROL_HOVER_LEARN_ENABLED == 1
+	if (!fcStatusData.isFlying) {
+		return;
+	}
+	/* Climbing/descending throttle is not hover throttle */
+	if (fabsf(positionCordinateData.zVelocity) > ALT_CONTROL_HOVER_LEARN_VEL_MAX) {
+		return;
+	}
+	/* Tilted flight needs extra throttle that is not hover thrust */
+	float liftComponent = cosApproxF(convertDegToRadF(sensorAttitudeData.pitch)) * cosApproxF(convertDegToRadF(sensorAttitudeData.roll));
+	if (liftComponent < ALT_CONTROL_HOVER_LEARN_LIFT_MIN) {
+		return;
+	}
+	float alpha = dt / (ALT_CONTROL_HOVER_LEARN_TAU + dt);
+	fcStatusData.hoverThrottle += alpha * (controlData.throttleControl - fcStatusData.hoverThrottle);
+	fcStatusData.hoverThrottle = constrainToRangeF(fcStatusData.hoverThrottle, seed * ALT_CONTROL_HOVER_LEARN_MIN_RATIO, seed * ALT_CONTROL_HOVER_LEARN_MAX_RATIO);
+#endif
+}
+
+
 __ATTR_ITCM_TEXT
 void calculateTiltCompThrottle(float dt) {
 	float target = 0.0f;
@@ -236,7 +268,7 @@ void calculateTiltCompThrottle(float dt) {
 	if (liftComponent < deadbandComponent) {
 		float clampedLift = fmaxf(liftComponent, maxAngleComponent);
 		float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
-		float hoverThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
+		float hoverThrottle = fcStatusData.hoverThrottle;
 
 		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_GAIN;
 		target = fminf(target, ALT_MGR_TILT_COMP_MAX_LIMIT);
@@ -264,6 +296,7 @@ void calculateTiltCompThrottle(float dt) {
 __ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
 	handleLanding(dt);
+	updateHoverThrottleEstimate(dt);
 	if (!rcData.throttleCentered || altMgrLandingPulseActive) {
 		// EDGE TRIGGER:
 		if (altMgrWasThrottleCentered != 0) {
@@ -343,7 +376,7 @@ void resetAltMgrStates() {
 	altControlGains.accPGain = 1.0f;
 	altControlGains.accDGain = 1.0f;
 	fcStatusData.throttleControlPercent = 0;
-
+	fcStatusData.hoverThrottle = 0;
 	altMgrWasThrottleCentered = 0;
 	altMgrPreviousThrottleControl = 0;
 	altMgrPreviousCurrentThrottle = 0;

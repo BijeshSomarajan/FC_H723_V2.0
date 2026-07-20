@@ -139,12 +139,14 @@ float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float motionScale) {
 	return dynamicR;
 }
 
+float testR_venturi;
 __ATTR_ITCM_TEXT
 float getEstimatedVenturiRP(float motionScale) {
 // motionScale 0.0 (Smooth) -> R = BASE (0.1f)  => High Trust
 // motionScale 1.0 (Rough)  -> R = MAX (1.0f)   => Low Trust
 	float R_venturi = POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE + (motionScale * (POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX - POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE));
-// Ensure we are strictly bounded within our defined tuning limits
+	testR_venturi = R_venturi;
+	// Ensure we are strictly bounded within our defined tuning limits
 	return constrainToRangeF(R_venturi, POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_VENTURI_RP_MAX);
 }
 

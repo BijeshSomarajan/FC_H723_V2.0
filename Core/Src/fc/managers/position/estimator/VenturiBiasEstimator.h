@@ -69,7 +69,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Lower: catches slow-cruise tilt, but a miscalibrated level trim then
  *   integrates forever. 0.5 assumes a well-trimmed horizon (which this
  *   airframe has, post-Mahony fixes). */
-#define VENTURI_EST_PITCH_ANGLE_MIN             0.5f
+#define VENTURI_EST_PITCH_ANGLE_MIN             0.75f
 
 /* Pitch clamp, deg. Caps the model's accel input during aggressive maneuvers
  * so a stunt doesn't slingshot the speed state. Matches the attitude
@@ -121,7 +121,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  *   does -> momentary under-compensation blip).
  * Lower: bias lingers after stops -> the estimate reads low -> post-stop
  *   climb. Tune only from a log showing the bias/artifact decay mismatch. */
-#define VENTURI_EST_DAMPING_GAIN                1.0f //2.5f
+#define VENTURI_EST_DAMPING_GAIN               2.5f
 
 /* ---------------- Speed -> bias translation ---------------- */
 
@@ -136,7 +136,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * or after touching ACCEL_GAIN/DRAG_GAIN.
  * PENDING: direction split (GAIN_FWD/GAIN_BWD) - the artifact is measured
  * asymmetric with flight direction; backward-leg calibration not yet flown. */
-#define VENTURI_EST_BIAS_GAIN                   0.025f//was 0.07f
+#define VENTURI_EST_BIAS_GAIN                   0.03f//was 0.07f
 
 /* Output clamp, m. Safety ceiling on how much altitude the model may claim
  * the baro is lying by. With GAIN 0.025 this engages at model speed

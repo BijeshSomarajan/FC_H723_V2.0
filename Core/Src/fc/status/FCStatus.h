@@ -40,6 +40,8 @@ struct _FC_STATUS_DATA {
 	float throttlePercent;
 	float throttleControlPercent;
 	float liftOffThrottlePercent;
+	// Learned hover throttle in throttle units.
+	float hoverThrottle;
 
 	//The config mode
 	uint8_t isConfigMode;
