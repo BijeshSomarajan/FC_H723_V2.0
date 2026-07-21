@@ -116,7 +116,10 @@ void manageAltControlSettings(float dt) {
 		altControlGains.ratePGain = ALT_MGR_ALT_CONTROL_SETTING_RATE_P_GAIN * totalAttenuation;
 		altControlGains.rateIGain = ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN * totalAttenuation;
 		altControlGains.accPGain = ALT_MGR_ALT_CONTROL_SETTING_ACC_P_GAIN * totalAttenuation;
+		altControlGains.dobGain = ALT_MGR_ALT_CONTROL_SETTING_DOB_GAIN * totalAttenuation;
+		// I freez during movements.
 		resetAltitudeRIControl();
+		resetAltitudeDOBControl();
 	} else {
 		altMgrCurrentThrottleDelta = 0;
 		altMgrCurrentThrottleRate = 0;
@@ -131,6 +134,9 @@ void manageAltControlSettings(float dt) {
 		}
 		if (altControlGains.accPGain < 1.0f) {
 			altControlGains.accPGain += (dt / ALT_MGR_ALT_CONTROL_SETTING_AP_TAU) * (1.0f - altControlGains.accPGain);
+		}
+		if (altControlGains.dobGain < 1.0f) {
+			altControlGains.dobGain += (dt / ALT_MGR_ALT_CONTROL_SETTING_DOB_TAU) * (1.0f - altControlGains.dobGain);
 		}
 	}
 }
@@ -241,11 +247,10 @@ void updateHoverThrottleEstimate(float dt) {
 		return;
 	}
 	float alpha = dt / (ALT_CONTROL_HOVER_LEARN_TAU + dt);
-	fcStatusData.hoverThrottle += alpha * (controlData.throttleControl - fcStatusData.hoverThrottle);
+	fcStatusData.hoverThrottle += alpha * ((controlData.throttleControlBase + controlData.altitudeDOBControl) - fcStatusData.hoverThrottle);
 	fcStatusData.hoverThrottle = constrainToRangeF(fcStatusData.hoverThrottle, seed * ALT_CONTROL_HOVER_LEARN_MIN_RATIO, seed * ALT_CONTROL_HOVER_LEARN_MAX_RATIO);
 #endif
 }
-
 
 __ATTR_ITCM_TEXT
 void calculateTiltCompThrottle(float dt) {
@@ -305,6 +310,7 @@ void manageAltitude(float dt) {
 			altMgrPreviousThrottle = fcStatusData.currentThrottle;
 			// 2. Clear the mixing output instantly to handle multi-rate execution lag
 			controlData.altitudeControl = 0.0f;
+			resetAltitudeDOBControl();
 		}
 		handleThrottleChange(dt);
 		fcStatusData.altitudeRef = positionCordinateData.zPosition;
@@ -355,10 +361,12 @@ void manageAltitude(float dt) {
 	}
 
 	// High-rate mixer equation now perfectly protected against stale values
-	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta + controlData.posBrakeCompThDelta;
+	controlData.throttleControlBase = fcStatusData.currentThrottle + controlData.altitudeControl;
+	controlData.throttleControl = controlData.throttleControlBase + controlData.altitudeDOBControl + controlData.tiltCompThDelta + controlData.posBrakeCompThDelta;
 	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttleControlPercent = controlData.throttleControl / MAX_PERMISSIBLE_THROTTLE_DELTA;
 	altMgrPreviousCurrentThrottle = fcStatusData.currentThrottle;
+
 	lowPassFilterUpdate(&altMgrThrottleControlLPF, controlData.throttleControl, dt);
 }
 
@@ -366,6 +374,7 @@ void resetAltMgrStates() {
 	fcStatusData.throttlePercent = 0;
 	fcStatusData.currentThrottle = 0;
 	controlData.throttleControl = 0;
+	controlData.throttleControlBase = 0;
 	controlData.tiltCompThDelta = 0;
 	fcStatusData.isFlying = 0;
 
@@ -375,6 +384,8 @@ void resetAltMgrStates() {
 	altControlGains.rateDGain = 1.0f;
 	altControlGains.accPGain = 1.0f;
 	altControlGains.accDGain = 1.0f;
+	altControlGains.dobGain = 1.0f;
+
 	fcStatusData.throttleControlPercent = 0;
 	fcStatusData.hoverThrottle = 0;
 	altMgrWasThrottleCentered = 0;
@@ -455,7 +466,8 @@ void doAltitudeManagement(void) {
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 		if (dataAvailableMask & SENSOR_DATA_LIDAR) {
 			updateTerrainAltDataReliability(altMgrTerrainAltUpdateDt);
-			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQual, POSITION_TERRAIN_ALT_DIST_MIN, POSITION_TERRAIN_ALT_DIST_MAX, fcStatusData.isTerrainAltDataReliable && fcStatusData.isTerrainAltModeActive, altMgrTerrainAltUpdateDt);
+			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQual, POSITION_TERRAIN_ALT_DIST_MIN, POSITION_TERRAIN_ALT_DIST_MAX, fcStatusData.isTerrainAltDataReliable && fcStatusData.isTerrainAltModeActive,
+					altMgrTerrainAltUpdateDt);
 			altMgrTerrainAltUpdateDt = 0.0f;
 		}
 #endif

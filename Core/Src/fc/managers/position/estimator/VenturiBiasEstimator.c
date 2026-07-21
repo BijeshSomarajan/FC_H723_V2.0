@@ -35,6 +35,7 @@ float getVenturiBiasEstimate(float dt) {
 		resetVenturiBiasEstimator();
 		return 0.0f;
 	}
+
 	// 2. Extract and clamp signed pitch input
 	float imuPitch = applyDeadBandFloat(0.0f, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN);
 	imuPitch = constrainToRangeF(imuPitch, -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);
@@ -53,7 +54,7 @@ float getVenturiBiasEstimate(float dt) {
 	// If acceleration is actively opposing the current direction of flight (braking phase)
 	if ((prevSpeed > 0.0f && lateralAccel < 0.0f) || (prevSpeed < 0.0f && lateralAccel > 0.0f)) {
 		// Clamp to exactly zero if the mathematical step overshoots the zero boundary
-		if ((prevSpeed > 0.0f && venturiEstimateData.lateralSpeed <= 0.0f) || (prevSpeed < 0.0f && venturiEstimateData.lateralSpeed >= 0.0f)) {
+		if (((prevSpeed > 0.0f && venturiEstimateData.lateralSpeed <= 0.0f) || (prevSpeed < 0.0f && venturiEstimateData.lateralSpeed >= 0.0f)) && fabsf(prevSpeed) > VENTURI_EST_BRAKE_ARM_SPEED) {
 			venturiEstimateData.lateralSpeed = 0.0f;
 			venturiEstimateData.brakeDwell = VENTURI_EST_BRAKE_DWELL;   // e.g. 0.5f s
 		}

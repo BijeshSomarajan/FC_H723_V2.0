@@ -163,6 +163,6 @@ void debugTask() {
 	//debugIMU();
 	//debugAlt();
 	//debugPosHold(dt);
-	sprintf(buf, "%.2f,%.2f,%.3f,%.2f,%.2f,%.2f,%.2f,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.1f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, positionCordinateData.zAcceleration ,controlData.altitudeControl,controlData.throttleControl,fcStatusData.hoverThrottle, altControlZDisturbanceEstimate,fcStatusData.isFlying,altPID.pid,altRatePID.pid,altRatePID.i,altAccPID.pid,controlData.tiltCompThDelta,controlData.posBrakeCompThDelta,venturiEstimateData.venturiBias,testR_venturi,sensorAttitudeData.pitch);
+	sprintf(buf, "%.2f,%.2f,%.3f,%.2f,%.2f,%.2f,%.2f,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%.1f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, positionCordinateData.zAcceleration ,controlData.altitudeControl,controlData.throttleControl,fcStatusData.hoverThrottle, altControlZDisturbanceEstimate,fcStatusData.isFlying,altPID.pid,altRatePID.pid,altRatePID.i,altAccPID.pid,controlData.tiltCompThDelta,controlData.posBrakeCompThDelta,venturiEstimateData.venturiBias,testR_venturi,sensorAttitudeData.pitch,controlData.altitudeDOBControl,venturiEstimateData.lateralSpeed,venturiEstimateData.brakeDwell);
 	logString(buf);
 }

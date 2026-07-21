@@ -71,11 +71,11 @@ struct _ALTITUDE_CONTROL_GAINS {
 	float masterPGain;
 	float ratePGain;
 	float rateIGain;
-	float rateIBleed;
 	float rateDGain;
 	float accPGain;
 	float accDGain;
 
+	float dobGain;
 };
 
 uint8_t initAltitudeControl(void);
@@ -91,6 +91,7 @@ void applyAltitudeControlRIMinLimitToValue(float value);
 
 void resetAltitudeRateControl(void);
 void resetAltitudeMasterControl(void);
+void resetAltitudeDOBControl(void);
 
 void controlAltitudeAltWithGains(float dt, float expectedAltitude, float currentAltitude, ALTITUDE_CONTROL_GAINS altControlGains);
 void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains);
@@ -128,18 +129,6 @@ void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 // Sanity band around the liftoff seed - the learner may never wander outside.
 #define ALT_CONTROL_HOVER_LEARN_MIN_RATIO      0.60f
 #define ALT_CONTROL_HOVER_LEARN_MAX_RATIO      1.60f
-
-/* --------------------------------------------------------------------------
- * Acceleration feedforward (replaces ALT_CONTROL_VEL_FEED_FWD)
- * --------------------------------------------------------------------------
- * output = accelTarget * K * ACC_FF_GAIN
- * 1.0 = full model authority (exact tracking, independent of acc Kp).
- * Start at 0.5, raise if response is sluggish. At Vel LIMIT 3.0 m/s^2 and
- * K = 51, FF alone can reach 3.0 * 51 * 1.0 = 153 throttle units.
- */
-#define ALT_CONTROL_ACC_FF_ENABLED             1
-#define ALT_CONTROL_ACC_FF_GAIN                1.0f
-
 /* --------------------------------------------------------------------------
  * Disturbance observer (REAL: compares measured accel against the accel the
  * previous THROTTLE OUTPUT should have produced, through the inverse plant
@@ -166,20 +155,6 @@ void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 // guard: at K = 51 and gain 0.5 it bounds DOB authority to ~102 throttle
 // units, a meaningful share of the budget below.
 #define ALT_CONTROL_DOB_ACC_LIMIT              4.0f
-
-/* --------------------------------------------------------------------------
- * Total output ceiling, throttle units.
- * --------------------------------------------------------------------------
- * Bounds FF + acc-PID correction + DOB TOGETHER. The acc PID's own limit
- * (calibration, 100) bounds only its own term.
- * Budget at hoverThrottle 500, K = 51 units per m/s^2:
- *     FF        vel target 3.0 m/s^2  ->  153
- *     acc PID   limit 100             ->  100   (~2.0 m/s^2 correction)
- *     DOB       4.0 clamp x 0.5 gain  ->  102   (~2.0 m/s^2)
- * Peaks do not coincide; typical composition ~130. Mixer headroom above hover
- * is ~500 units less ~120 reserved for tilt comp, so 250 fits with margin.
- */
-#define ALT_CONTROL_OUTPUT_LIMIT               250.0f
-
+#define ALT_CONTROL_DOB_OUTPUT_LIMIT           80.0f
 
 #endif

@@ -153,6 +153,15 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * ~0.5 s - tune this from end-to-end logs (artifact vs BP), not in isolation. */
 #define VENTURI_EST_BIAS_LPF_FREQ               0.25f
 
+/* Minimum |lateralSpeed| immediately BEFORE a zero-cross for the brake dwell
+ * to arm, m/s. Below this the crossing is decaying residue from a previous
+ * manoeuvre, not a brake tail, and holding integration through it eats the
+ * compensation of the leg that is just starting. Measured in AltHoldLog_21_3:
+ * all 11 arming events fired at |lateralSpeed| <= 0.20 m/s, and the leg with
+ * 100% dwell produced exactly zero bias. The real brake case this protects
+ * (~3.9 m/s phantom) is far above this threshold and still arms normally. */
+#define VENTURI_EST_BRAKE_ARM_SPEED             0.75f
+
 uint8_t initVenturiBiasEstimator(void);
 float getVenturiBiasEstimate(float dt);
 void resetVenturiBiasEstimator(void);

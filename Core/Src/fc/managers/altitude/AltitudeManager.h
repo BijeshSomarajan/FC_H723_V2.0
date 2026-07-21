@@ -43,7 +43,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_COMP_TAU_FADE     0.12f   // was 0.5f
 
 #define ALT_MGR_TILT_COMP_MAX_LIMIT    80.0f
-#define ALT_MGR_TILT_COMP_GAIN         20.0f
+#define ALT_MGR_TILT_COMP_GAIN         1.5f
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.
@@ -67,7 +67,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_CONTROL_SETTING_MASTER_P_GAIN  0.0f  // Light feel
 #define ALT_MGR_ALT_CONTROL_SETTING_MP_TAU         0.01f // Fast lock
 
-#define ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN    0.5f  // Rate I is also reset
+#define ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN    0.5f
 #define ALT_MGR_ALT_CONTROL_SETTING_RI_TAU         0.5f  // Smooth handover
 
 #define ALT_MGR_ALT_CONTROL_SETTING_RATE_P_GAIN    0.1f
@@ -75,6 +75,9 @@ void resetAltitudeManager(void);
 
 #define ALT_MGR_ALT_CONTROL_SETTING_ACC_P_GAIN     0.1f // Zero fighting
 #define ALT_MGR_ALT_CONTROL_SETTING_AP_TAU         0.01f
+
+#define ALT_MGR_ALT_CONTROL_SETTING_DOB_GAIN       0.0f
+#define ALT_MGR_ALT_CONTROL_SETTING_DOB_TAU        0.3f // Smooth handover
 
 /* Autolanding configuration */
 #define ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD       0.75f
