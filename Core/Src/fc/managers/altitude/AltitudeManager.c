@@ -44,7 +44,6 @@ float altMgrAltDtAccumulation = 0.0f;
 float altMgrLowThDtAccumulation = 0.0f;
 
 float altMgrCurrentTiltCompThDelta = 0.0f;
-float altMgrTiltCompIntermediate = 0.0f;
 
 uint8_t altMgrLandingPulseActive = 0;
 float altMgrLandingPulseDt = 0;
@@ -255,48 +254,38 @@ void updateHoverThrottleEstimate(float dt) {
 __ATTR_ITCM_TEXT
 void calculateTiltCompThrottle(float dt) {
 	float target = 0.0f;
-
-	// 1. Get attitude and convert to radians
+	/* 1. Attitude -> lift scaling: fraction of thrust still pointing up */
 	float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
-	float rollRad = convertDegToRadF(sensorAttitudeData.roll);
-
-	// 2. Compute the composite vertical lift scaling vector
-	float cosP = cosApproxF(pitchRad);
-	float cosR = cosApproxF(rollRad);
-	float liftComponent = cosP * cosR;
-
-	// 3. Pre-calculate physical macro boundaries into cosine float space
+	float rollRad  = convertDegToRadF(sensorAttitudeData.roll);
+	float liftComponent = cosApproxF(pitchRad) * cosApproxF(rollRad);
+	/* 2. Physical boundaries in cosine space */
 	float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MIN_ANGLE));
-	float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE));
-
-	// 4. Check if the vehicle has tilted past the minimum deadband threshold
+	float maxAngleComponent  = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE));
+	/* 3. Past the deadband -> compute the extra throttle the tilt costs.
+	 *    (1/lift - 1) is a DELTA on top of the existing hover throttle,
+	 *    which is why the -1 is correct: the base is already applied. */
 	if (liftComponent < deadbandComponent) {
-		float clampedLift = fmaxf(liftComponent, maxAngleComponent);
+		float clampedLift    = fmaxf(liftComponent, maxAngleComponent);
 		float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
-		float hoverThrottle = fcStatusData.hoverThrottle;
-
-		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_GAIN;
-		target = fminf(target, ALT_MGR_TILT_COMP_MAX_LIMIT);
+		/* GAIN must be 1.0 for full compensation. Anything below 1.0 is
+		 * deliberate under-compensation and will read as steady-state sag. */
+		target = fcStatusData.hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_GAIN;
 	}
-
-	// 5. OPTIMIZED: Asymmetric Cascaded Second-Order S-Curve Filter Step
-	// Determines tau based on whether the overall profile is expanding or contracting
-	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TAU_RISE : ALT_MGR_TILT_COMP_TAU_FADE;
-
-	// Adjust alpha for a cascaded system. To maintain a similar overall transient window
-	// as your original first-order filter, reduce your base TAU values by roughly 30-40%.
-	float alpha = dt / (activeTau + dt);
 	target = constrainToRangeF(target, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
-
-	// Stage 1: Primary smoothing (Generates the baseline transition profile)
-	altMgrTiltCompIntermediate += alpha * (target - altMgrTiltCompIntermediate);
-
-	// Stage 2: Secondary smoothing (Rounds off the acceleration corners -> Completes the S-Curve)
-	altMgrCurrentTiltCompThDelta += alpha * (altMgrTiltCompIntermediate - altMgrCurrentTiltCompThDelta);
-
-	// 6. Pipe the filtered delta directly into the actuator mixer matrix
+	/* 4. Single-pole asymmetric filter. One state, one direction, so the
+	 *    rise/fade split is meaningful. Faster in than out: compensate tilt
+	 *    promptly, relax gently. TAU values are now honest - no cascade
+	 *    de-rating needed, so if you carried the "reduce by 30-40%" note,
+	 *    undo it and set TAU to the real transient window you want. */
+	float activeTau = (target >= altMgrCurrentTiltCompThDelta)
+	                ? ALT_MGR_TILT_COMP_TAU_RISE
+	                : ALT_MGR_TILT_COMP_TAU_FADE;
+	float alpha = dt / (activeTau + dt);
+	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
+	/* 5. Into the mixer */
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
+
 
 __ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
@@ -362,7 +351,7 @@ void manageAltitude(float dt) {
 
 	// High-rate mixer equation now perfectly protected against stale values
 	controlData.throttleControlBase = fcStatusData.currentThrottle + controlData.altitudeControl;
-	controlData.throttleControl = controlData.throttleControlBase + controlData.altitudeDOBControl + controlData.tiltCompThDelta + controlData.posBrakeCompThDelta;
+	controlData.throttleControl = controlData.throttleControlBase + controlData.altitudeDOBControl + controlData.tiltCompThDelta;
 	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttleControlPercent = controlData.throttleControl / MAX_PERMISSIBLE_THROTTLE_DELTA;
 	altMgrPreviousCurrentThrottle = fcStatusData.currentThrottle;

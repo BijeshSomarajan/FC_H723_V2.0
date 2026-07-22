@@ -72,14 +72,117 @@ void resetPositionControl(uint8_t hard) {
 	positionControlYVelDist = 0.0f;
 	positionControlXAccDist = 0.0f;
 	positionControlYAccDist = 0.0f;
-	controlData.previousEffectiveXControl = 0.0f;
-	controlData.previousEffectiveYControl = 0.0f;
-	dobExpectedAccXFilt = 0.0f;
-	dobExpectedAccYFilt = 0.0f;
+	/* Observer describes the airframe, not the controller. Keep it current
+	 * instead of zeroing, so distAcc starts at zero on every re-entry. */
+	dobExpectedAccXFilt = positionCordinateData.xAcceleration;
+	dobExpectedAccYFilt = positionCordinateData.yAcceleration;
+
+}
+
+/* Tilt command that, per the DOB plant model, produces a commanded
+ * acceleration. accelCmd is earth-frame m/s^2 (signed). Returns a control
+ * value in the same units as positionXControl, i.e. degrees of tilt.
+ *
+ * This is the term the rate PID integrator otherwise has to manufacture by
+ * accumulating velocity error across the whole brake - which is what
+ * overshoots when the velocity target reaches zero. Supplying it directly
+ * keeps the integrator near zero and the loop out of angle saturation. */
+__ATTR_ITCM_TEXT
+float positionControlAccelFF(float accelCmd) {
+#if POSITION_CONTROL_ACCEL_FF_ENABLED == 1
+	float k = POSITION_CONTROL_DOB_ACCEL_MODEL_K;
+	if (k < 1e-6f) {
+		return 0.0f; /* guard: never divide by a zero model */
+	}
+	return (accelCmd / k) * POSITION_CONTROL_ACCEL_FF_GAIN;
+#else
+	(void)accelCmd;
+	return 0.0f;
+#endif
+}
+
+
+/* Single-axis disturbance observer.
+ *
+ * Estimates an external velocity+acceleration disturbance and returns the
+ * compensating control delta to SUBTRACT from that axis' rate output.
+ *
+ *   velDist : slow-filtered velocity error state  (per-axis, persistent)
+ *   accDist : filtered (measured - modelled) accel  (per-axis, persistent)
+ *   measVel : this axis' measured velocity
+ *   velTarget : this axis' velocity setpoint
+ *   measAcc : this axis' measured acceleration
+ *   prevCtrl: last effective control on this axis (drives the plant model)
+ *
+ * Pure extraction of the former inline block: identical math, identical
+ * state updates, run once per axis. Returns the value that was previously
+ * computed inside the `outputX -= (...)` expression. */
+__ATTR_ITCM_TEXT
+static float positionControlDOBAxis(float *velDist, float *accDist, float measVel, float velTarget, float measAcc, float prevCtrl, float *dobExpectedAccFilt, float dt) {
+	// Velocity Disturbance
+	float velErr = measVel - velTarget;
+	float alphaVel = dt / (POSITION_CONTROL_DOB_VEL_TAU + dt);
+
+	*velDist += alphaVel * (velErr - *velDist);
+	*velDist = constrainToRangeF(*velDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
+
+	// Acceleration Disturbance
+	float alphaAtt = dt / (POSITION_CONTROL_DOB_ATT_TAU + dt);
+	*dobExpectedAccFilt += alphaAtt * ((prevCtrl * POSITION_CONTROL_DOB_ACCEL_MODEL_K) - *dobExpectedAccFilt);
+	float distAcc = constrainToRangeF(measAcc - *dobExpectedAccFilt, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
+
+	float alphaAcc = dt / (POSITION_CONTROL_DOB_ACC_TAU + dt);
+	*accDist += alphaAcc * (distAcc - *accDist);
+
+	// Clamp acceleration state
+	*accDist = constrainToRangeF(*accDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
+
+	// Compensation delta to subtract from the rate output
+	return constrainToRangeF((*velDist) * POSITION_CONTROL_DOB_VEL_GAIN + (*accDist) * POSITION_CONTROL_DOB_ACC_GAIN, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
+}
+
+
+/* Joint (2D) vector saturation with back-calculation anti-windup.
+ *
+ * The rate output is a vector; its MAGNITUDE is limited to posHoldRatePIDLimit,
+ * and the clipped-off part bleeds each axis' rate integrator. This is
+ * inherently two-axis - the magnitude couples X and Y - so it stays one call
+ * rather than a per-axis helper. Operates in place on the two output refs and
+ * mutates the two rate PID integrators exactly as the former inline block. */
+__ATTR_ITCM_TEXT
+static void positionControlApplyRateSaturation(float *outX, float *outY, float dt) {
+	float magSq = ((*outX) * (*outX)) + ((*outY) * (*outY));
+	float limit = posHoldRatePIDLimit;
+	float limitSq = limit * limit;
+
+	if (magSq > limitSq) {
+		float mag = fastSqrtf(magSq);
+		// Divide-by-zero protection
+		if (mag > 1e-6f) {
+			float scale = limit / mag;
+
+			float saturatedX = (*outX) * scale;
+			float saturatedY = (*outY) * scale;
+
+			// Back-Calculation (Anti-Windup Bleeding)
+			float diffX = saturatedX - (*outX);
+			float diffY = saturatedY - (*outY);
+
+			float xRatePidI = positionXRatePID.i + (diffX * POSITION_CONTROL_RATE_PID_I_ANTIWINDUP_GAIN * dt);
+			float yRatePidI = positionYRatePID.i + (diffY * POSITION_CONTROL_RATE_PID_I_ANTIWINDUP_GAIN * dt);
+
+			// Hard Integrator Clamp
+			positionXRatePID.i = constrainToRangeF(xRatePidI, positionXRatePID.limitIMin, positionXRatePID.limitIMax);
+			positionYRatePID.i = constrainToRangeF(yRatePidI, positionYRatePID.limitIMin, positionYRatePID.limitIMax);
+
+			*outX = saturatedX;
+			*outY = saturatedY;
+		}
+	}
 }
 
 __ATTR_ITCM_TEXT
-void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, float rateDGain) {
+void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, float rateDGain, float accFFX, float accFFY) {
 	/*---------------- 1. PID Update ----------------*/
 	float velocityTargetX = positionXPID.pid;
 	float velocityTargetY = positionYPID.pid;
@@ -95,35 +198,8 @@ void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, fl
 
 	/*---------------- 2. Disturbance Observer (DOB) ----------------*/
 #if POSITION_CONTROL_DOB_ENABLED == 1
-	// Velocity Disturbance
-	float velErrX = xVelocity - velocityTargetX;
-	float velErrY = yVelocity - velocityTargetY;
-	float alphaVel = dt / (POSITION_CONTROL_DOB_VEL_TAU + dt);
-
-	positionControlXVelDist += alphaVel * (velErrX - positionControlXVelDist);
-	positionControlYVelDist += alphaVel * (velErrY - positionControlYVelDist);
-
-	positionControlXVelDist = constrainToRangeF(positionControlXVelDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
-	positionControlYVelDist = constrainToRangeF(positionControlYVelDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
-
-	// Acceleration Disturbance
-	float alphaAtt = dt / (POSITION_CONTROL_DOB_ATT_TAU + dt);
-	dobExpectedAccXFilt += alphaAtt * ((controlData.previousEffectiveXControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K) - dobExpectedAccXFilt);
-	dobExpectedAccYFilt += alphaAtt * ((controlData.previousEffectiveYControl * POSITION_CONTROL_DOB_ACCEL_MODEL_K) - dobExpectedAccYFilt);
-	float distAccX = constrainToRangeF(positionCordinateData.xAcceleration - dobExpectedAccXFilt, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
-	float distAccY = constrainToRangeF(positionCordinateData.yAcceleration - dobExpectedAccYFilt, -POSITION_CONTROL_DOB_ACC_LIMIT, POSITION_CONTROL_DOB_ACC_LIMIT);
-
-	float alphaAcc = dt / (POSITION_CONTROL_DOB_ACC_TAU + dt);
-	positionControlXAccDist += alphaAcc * (distAccX - positionControlXAccDist);
-	positionControlYAccDist += alphaAcc * (distAccY - positionControlYAccDist);
-
-	// Clamp acceleration state
-	positionControlXAccDist = constrainToRangeF(positionControlXAccDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
-	positionControlYAccDist = constrainToRangeF(positionControlYAccDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
-
-	// Apply Disturbance Compensation
-	outputX -= constrainToRangeF(positionControlXVelDist * POSITION_CONTROL_DOB_VEL_GAIN + positionControlXAccDist * POSITION_CONTROL_DOB_ACC_GAIN, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
-	outputY -= constrainToRangeF(positionControlYVelDist * POSITION_CONTROL_DOB_VEL_GAIN + positionControlYAccDist * POSITION_CONTROL_DOB_ACC_GAIN, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
+	outputX -= positionControlDOBAxis(&positionControlXVelDist, &positionControlXAccDist, xVelocity, velocityTargetX, positionCordinateData.xAcceleration, controlData.previousEffectiveXControl, &dobExpectedAccXFilt, dt);
+	outputY -= positionControlDOBAxis(&positionControlYVelDist, &positionControlYAccDist, yVelocity, velocityTargetY, positionCordinateData.yAcceleration, controlData.previousEffectiveYControl, &dobExpectedAccYFilt, dt);
 #endif
 
 	/*---------------- 3. Feedforward ----------------*/
@@ -132,39 +208,13 @@ void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, fl
 	outputY += (velocityTargetY * POSITION_CONTROL_VEL_FF_GAIN);
 #endif
 
+#if POSITION_CONTROL_ACCEL_FF_ENABLED == 1
+	outputX += positionControlAccelFF(accFFX);
+	outputY += positionControlAccelFF(accFFY);
+#endif
+
 	/*---------------- 4. Vector Saturation & Anti-Windup ----------------*/
-	float magSq = (outputX * outputX) + (outputY * outputY);
-	float limit = posHoldRatePIDLimit;
-	float limitSq = limit * limit;
-
-	if (magSq > limitSq) {
-		float mag = fastSqrtf(magSq);
-		// Divide-by-zero protection
-		if (mag > 1e-6f) {
-			float scale = limit / mag;
-
-			float saturatedX = outputX * scale;
-			float saturatedY = outputY * scale;
-
-			// Back-Calculation (Anti-Windup Bleeding)
-			float diffX = saturatedX - outputX;
-			float diffY = saturatedY - outputY;
-
-			// Use macro for tuning: #define POSITION_CONTROL_RATE_PID_I_AW_GAIN 0.2f
-			//positionXRatePID.i += (diffX * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
-			//positionYRatePID.i += (diffY * POSITION_CONTROL_RATE_PID_I_AW_GAIN);
-
-			float xRatePidI = 	positionXRatePID.i + (diffX * POSITION_CONTROL_RATE_PID_I_ANTIWINDUP_GAIN * dt);
-			float yRatePidI = 	positionYRatePID.i + (diffY * POSITION_CONTROL_RATE_PID_I_ANTIWINDUP_GAIN * dt);
-
-			// Hard Integrator Clamp
-			positionXRatePID.i = constrainToRangeF(xRatePidI, positionXRatePID.limitIMin, positionXRatePID.limitIMax);
-			positionYRatePID.i = constrainToRangeF(yRatePidI, positionYRatePID.limitIMin, positionYRatePID.limitIMax);
-
-			outputX = saturatedX;
-			outputY = saturatedY;
-		}
-	}
+	positionControlApplyRateSaturation(&outputX, &outputY, dt);
 
 	/*---------------- 5. Final Output Assignment ----------------*/
 
@@ -173,6 +223,7 @@ void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, fl
 
 	controlData.previousEffectiveXControl = controlData.positionXControl;
 	controlData.previousEffectiveYControl = controlData.positionYControl;
+
 }
 
 __ATTR_ITCM_TEXT

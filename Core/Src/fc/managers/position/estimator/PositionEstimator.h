@@ -69,6 +69,7 @@ void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, f
 void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias);
 void positionEKFInvalidate(POSITION_EKF *ekf, uint8_t axis);
 void positionEKFMeasurementUpdateLagged(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4], float predLagged);
+void positionEKFHistoryRebase(POSITION_EKF *ekf, uint8_t axis, float dp, float dv);
 uint8_t positionEKFGetLaggedPrediction(const POSITION_EKF *ekf, uint8_t axis, const float H[4], float lagSeconds, float *predOut);
 
 #endif /* SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_ */

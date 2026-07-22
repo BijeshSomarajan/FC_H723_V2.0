@@ -49,7 +49,7 @@ uint16_t positionMgrHomeRefSampleCount = 0;
 double positionMgrHomeRefLatSum = 0.0;
 double positionMgrHomeRefLongSum = 0.0;
 double positionMgrHomeRefhMSLSum = 0.0;
-
+float positionMgrBrakeVx, positionMgrBrakeVy, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy;
 void managePositionTask(void);
 
 uint8_t initPositionManager(void) {
@@ -134,7 +134,6 @@ __ATTR_ITCM_TEXT
 void resetPositionCommands() {
 	positionCommandData.pitchCommand = 0.0f;
 	positionCommandData.rollCommand = 0.0f;
-	controlData.posBrakeCompThDelta = 0.0f;
 	positionMgrRTHVxCommand = 0;
 	positionMgrRTHVyCommand = 0;
 	fcStatusData.isRTHComplete = 0;
@@ -152,7 +151,7 @@ void updatePositionRateCommand(float dt) {
 			} else {
 				positionMgrPosHoldRatePIDGain = 1.0f;
 			}
-			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f);
+			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy);
 			float pitchCommand, rollCommand;
 			convertEarthToBodyCordinates(controlData.positionXControl, controlData.positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
 			positionCommandData.pitchCommand = pitchCommand;
@@ -168,25 +167,34 @@ void updatePositionRateCommand(float dt) {
 }
 
 __ATTR_ITCM_TEXT
+void resetBrakingStates() {
+	positionMgrBrakeVx = 0;
+	positionMgrBrakeVy = 0;
+	positionMgrBrakeAccFFx = 0;
+	positionMgrBrakeAccFFy = 0;
+}
+__ATTR_ITCM_TEXT
 void doBraking(float dt) {
 	positionMgrPosHoldElapseDtSum += dt;
-	float brakeStrength = POSITION_MGR_POS_HOLD_BRAKE_STRENGTH;
-	float vxCmd = -positionCordinateData.xVelocity * brakeStrength;
-	float vyCmd = -positionCordinateData.yVelocity * brakeStrength;
-	vxCmd = constrainToRangeF(vxCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
-	vyCmd = constrainToRangeF(vyCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+	float step = POSITION_MGR_POS_HOLD_BRAKE_DECEL * dt; /* new define, 1.0f */
+	positionMgrBrakeVx -= constrainToRangeF(positionMgrBrakeVx, -step, step);
+	positionMgrBrakeVy -= constrainToRangeF(positionMgrBrakeVy, -step, step);
+
+	/* earth-frame decel the ramp is currently commanding, sign opposes motion */
+	float sgnx = (positionMgrBrakeVx > 0.0f) ? 1.0f : ((positionMgrBrakeVx < 0.0f) ? -1.0f : 0.0f);
+	float sgny = (positionMgrBrakeVy > 0.0f) ? 1.0f : ((positionMgrBrakeVy < 0.0f) ? -1.0f : 0.0f);
+	positionMgrBrakeAccFFx = -sgnx * POSITION_MGR_POS_HOLD_BRAKE_DECEL;
+	positionMgrBrakeAccFFy = -sgny * POSITION_MGR_POS_HOLD_BRAKE_DECEL;
+
+	float vxCmd = constrainToRangeF(positionMgrBrakeVx, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+	float vyCmd = constrainToRangeF(positionMgrBrakeVy, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
 	setExpectedPositionVelocity(dt, vxCmd, vyCmd);
-	// Calculate the magnitude of the counter-velocity command vector
-	float brakingMagnitude = fastSqrtf((vxCmd * vxCmd) + (vyCmd * vyCmd));
-	// Map the magnitude to a proactive throttle boost factor
-	float brakingThrustKick = brakingMagnitude * POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_GAIN;
-	controlData.posBrakeCompThDelta = fminf(brakingThrustKick, POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_LIMIT);
 	// Termination conditions
 	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED);
 	uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
 	if (lowGroundSpeed || timeoutReached) {
 		positionMgrPosHoldElapseDtSum = 0.0f;
-		controlData.posBrakeCompThDelta = 0.0f;
+		resetBrakingStates();
 		resetPositionControl(1);
 		fcStatusData.postionHoldState = POS_HOLD_STATE_SETTLING;
 	}
@@ -280,6 +288,7 @@ __ATTR_ITCM_TEXT
 void updatePositionCordinateCommand(float dt) {
 	if (!rcData.pitchCentered || !rcData.rollCentered) {
 		resetPositionCommands();
+		resetBrakingStates();
 		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		return;
 	}
@@ -287,6 +296,9 @@ void updatePositionCordinateCommand(float dt) {
 		switch (fcStatusData.postionHoldState) {
 		case POS_HOLD_STATE_IDLE:
 			resetPositionCommands();
+			resetBrakingStates();
+			positionMgrBrakeVx = positionCordinateData.xVelocity;
+			positionMgrBrakeVy = positionCordinateData.yVelocity;
 			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
 			break;
 		case POS_HOLD_STATE_BRAKING:
@@ -294,6 +306,7 @@ void updatePositionCordinateCommand(float dt) {
 			break;
 		case POS_HOLD_STATE_SETTLING:
 			positionMgrPosHoldElapseDtSum += dt;
+			resetBrakingStates();
 			setExpectedPositionVelocity(dt, 0.0f, 0.0f);
 			if ((positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD && getGroundSpeed() <= 2.0f * POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED) || positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT) {
 				updatePositionReference();
@@ -303,6 +316,7 @@ void updatePositionCordinateCommand(float dt) {
 			}
 			break;
 		case POS_HOLD_STATE_LOCKED:
+			resetBrakingStates();
 			if (fcStatusData.isNavRTHModeActive) {
 				if (!positionMgrRTHWasActive) {           // rising edge: fresh RTH cycle
 					positionMgrPosHoldElapseDtSum = 0.0f;
@@ -462,7 +476,5 @@ void resetPositionManager(void) {
 	positionMgrRTHVyCommand = 0;
 	positionMgrRTHCompleteDt = 0;
 	positionMgrRTHWasActive = 0;
-	controlData.posBrakeCompThDelta = 0.0f;
-
 }
 

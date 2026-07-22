@@ -216,7 +216,7 @@
 
 /* Standstill deadband on the measurement itself, m/s. 0.0001 = effectively
  * off (kept live so micro-drift is still corrected). */
-#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND      0.0001f
+#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_VEL_DEADBAND      0.0f
 
 /* UNUSED IN EFFECT: additive base is dominated by the SACC_MIN floor
  * (0.001 << 0.01). Kept for formula symmetry; do not tune. */
@@ -323,7 +323,7 @@
  * module, nav rate, or baud ever changes, RE-MEASURE. Symptoms of error:
  * too small -> residual backtrack after stick release (settles behind);
  * too large -> creeps FORWARD past the release point. */
-#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.10f
+#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.05f
 
 // PositionEstimatorConfig.h — Group 9
 #define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED    1

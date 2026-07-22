@@ -147,12 +147,16 @@ void debugPosHold(float dt) {
 }
 extern float altControlZDisturbanceEstimate,testR_venturi;
 extern PID altPID,altRatePID,altAccPID;
+extern float dobExpectedAccXFilt,positionControlXAccDist;
+
+float nowMs = 0;
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
 		return;
 	}
 	float dt = 1.0f / DEBUG_TASK_FREQUENCY;
 	(void) dt;
+	nowMs+=dt;
 	//debugString();
 	//debugGraph();
 	//debugRC();
@@ -163,6 +167,25 @@ void debugTask() {
 	//debugIMU();
 	//debugAlt();
 	//debugPosHold(dt);
-	sprintf(buf, "%.2f,%.2f,%.3f,%.2f,%.2f,%.2f,%.2f,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%.1f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, positionCordinateData.zAcceleration ,controlData.altitudeControl,controlData.throttleControl,fcStatusData.hoverThrottle, altControlZDisturbanceEstimate,fcStatusData.isFlying,altPID.pid,altRatePID.pid,altRatePID.i,altAccPID.pid,controlData.tiltCompThDelta,controlData.posBrakeCompThDelta,venturiEstimateData.venturiBias,testR_venturi,sensorAttitudeData.pitch,controlData.altitudeDOBControl,venturiEstimateData.lateralSpeed,venturiEstimateData.brakeDwell);
+	//sprintf(buf, "%.2f,%.2f,%.3f,%.2f,%.2f,%.2f,%.2f,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%.1f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, positionCordinateData.zAcceleration ,controlData.altitudeControl,controlData.throttleControl,fcStatusData.hoverThrottle, altControlZDisturbanceEstimate,fcStatusData.isFlying,altPID.pid,altRatePID.pid,altRatePID.i,altAccPID.pid,controlData.tiltCompThDelta,controlData.posBrakeCompThDelta,venturiEstimateData.venturiBias,testR_venturi,sensorAttitudeData.pitch,controlData.altitudeDOBControl,venturiEstimateData.lateralSpeed,venturiEstimateData.brakeDwell);
+	//logString(buf);
+	sprintf(buf,
+	    "%.2f,%d,%d,%d,%d,"
+	    "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,"
+	    "%.3f,%.3f,%.3f,%.3f,%.3f,"
+	    "%.3f,%.3f,%.3f\r\n",
+	     nowMs,
+	    fcStatusData.isPositionHomeSet,
+	    fcStatusData.isNavModeActive,
+	    (rcData.pitchCentered && rcData.rollCentered),
+	    fcStatusData.postionHoldState,
+	    fcStatusData.positionXRef, positionCordinateData.xPosition,
+	    positionCordinateData.xVelocity, positionXPID.pid,
+	    controlData.positionXControl, positionXRatePID.i,
+	    positionCordinateData.xAcceleration, dobExpectedAccXFilt,
+	    positionControlXAccDist,
+	    positionEkf.innovation[POS_EKF_X_AXIS],
+	    fcStatusData.positionYRef, positionCordinateData.yPosition,
+	    positionCordinateData.yVelocity, controlData.positionYControl);
 	logString(buf);
 }

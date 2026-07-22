@@ -343,6 +343,21 @@ uint8_t positionEKFGetLaggedPrediction(const POSITION_EKF *ekf, uint8_t axis, co
 	return 0;
 }
 
+/* PositionEstimator.c — fold a correction into every stored snapshot so the
+ * next lagged innovation doesn't re-report an error we already removed. */
+__ATTR_ITCM_TEXT
+void positionEKFHistoryRebase(POSITION_EKF *ekf, uint8_t axis, float dp, float dv) {
+	if (axis > POS_EKF_Y_AXIS || ekf->historyCount == 0) {
+		return; /* history is XY only */
+	}
+	uint8_t idx = ekf->historyHead;
+	for (uint8_t n = 0; n < ekf->historyCount; n++) {
+		ekf->historyEntries[idx].p[axis] += dp;
+		ekf->historyEntries[idx].v[axis] += dv;
+		idx = (idx == 0) ? (POS_EKF_HISTORY_LEN - 1) : (uint8_t) (idx - 1);
+	}
+}
+
 __ATTR_ITCM_TEXT
 static void positionEKFMeasurementUpdateInternal(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4], uint8_t usePredOverride, float predOverride) {
 	const int i = axis * POS_EKF_AXIS_DIM;
@@ -524,6 +539,15 @@ static void positionEKFMeasurementUpdateInternal(POSITION_EKF *ekf, uint8_t axis
 			ekf->P[i + c][i + r] = sym;
 		}
 	}
+
+	/* ============================================================
+	 * 12. Rebasing the history
+	 * ============================================================ */
+
+	float dp = K[POS_EKF_STATE_P] * ekf->innovation[axis];
+	float dv = K[POS_EKF_STATE_V] * ekf->innovation[axis];
+	positionEKFHistoryRebase(ekf, axis, dp, dv);
+
 }
 
 __ATTR_ITCM_TEXT

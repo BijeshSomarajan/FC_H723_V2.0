@@ -7,9 +7,11 @@ typedef struct _CONTROL_DATA CONTROL_DATA;
 struct _CONTROL_DATA {
 	float throttleControl;
 	float throttleControlBase;
+
 	float pitchControl;
 	float rollControl;
 	float yawControl;
+
 	float altitudeControl;
 	float altitudeDOBControl;
 
@@ -24,7 +26,7 @@ struct _CONTROL_DATA {
 
 	float altitudeControlDt;
 	float tiltCompThDelta;
-	float posBrakeCompThDelta;
+
 };
 
 
