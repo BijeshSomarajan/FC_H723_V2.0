@@ -45,7 +45,7 @@ struct _FC_STATUS_DATA {
 
 	//The config mode
 	uint8_t isConfigMode;
-	float batteryVolt;
+	float maxBatteryVolt;
 };
 
 extern FC_STATUS_DATA fcStatusData;

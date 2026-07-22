@@ -123,7 +123,7 @@ void telemetryUpdateTask() {
 		break;
 
 	case TELEMETRY_STEP_BATTERY:
-		sendBatteryTelemetry(batteryData.voltage, fcStatusData.batteryVolt, 0, 0);
+		sendBatteryTelemetry(batteryData.voltage, fcStatusData.maxBatteryVolt, 0, 0);
 		break;
 	case TELEMETRY_STEP_GNSS:
 		prepareAndSendGNSSData();

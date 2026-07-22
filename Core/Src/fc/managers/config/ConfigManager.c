@@ -37,7 +37,7 @@ uint8_t initConfigManager() {
 			} else {
 				//Load the persisted calibrations
 				loadCalibration();
-				fcStatusData.batteryVolt = get1KXScaledCalibrationValue(CALIB_PROP_VBAT_ADDR);
+				fcStatusData.maxBatteryVolt = get1KXScaledCalibrationValue(CALIB_PROP_VBAT_ADDR);
 				logString("[Config Manager] : Calibration -> Was Initialized , Loaded\n");
 			}
 			status = initConfigHelper();
