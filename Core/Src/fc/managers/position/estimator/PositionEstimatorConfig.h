@@ -66,8 +66,8 @@
  * carried by the velocity+bias states; this only sets how fast raw position
  * uncertainty grows on top of them. Rarely needs touching.
  * Range: 1e-6 .. 1e-4. Too high: position wanders between fixes. */
-#define POS_EKF_X_Q_POS                     0.0001f // was 0.00001f
-#define POS_EKF_Y_Q_POS                     0.0001f // was 0.00001f
+#define POS_EKF_X_Q_POS                     0.0003f // was 0.00001f
+#define POS_EKF_Y_Q_POS                     0.0003f // was 0.00001f
 
 /* Velocity random walk, (m/s)^2 per step -> 1.0 (m/s)^2/s effective.
  * THE main Q knob for XY feel. Sets how quickly the filter admits "my
@@ -259,8 +259,8 @@
 /* Rangefinder: R scales from BASE (1 sigma = 10 cm) to MAX (1 m) on the
  * worse of distance-fraction and (1 - quality). MUTED when invalid. */
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE        0.01f
-#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX         1.0f
-#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED       1000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX         10.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED       10000.0f
 
 /* Venturi bias pseudo-measurement (models dynamic-pressure baro suction
  * when translating). Trusted when smooth (R 0.1), discounted 20x when
@@ -288,12 +288,10 @@
  *   print into altitude: the historical dips-and-balloon failure at 0.3).
  * Raise -> smoother, more accel-reliant (needs clean Z accel).
  * History: 0.3 (dips!) -> 30 (validated). */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN             100.0f
-
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            1200.0f
 /* Ceiling reached under high motionScale - lets rangefinder dominate and
  * shrugs off maneuver-induced pressure noise. */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            1000.0f
-
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            10000.0f
 /* Numerical guards - never tune. */
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_EPS            0.000001f
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_SCALE_EPS      0.001f
@@ -323,7 +321,7 @@
  * module, nav rate, or baud ever changes, RE-MEASURE. Symptoms of error:
  * too small -> residual backtrack after stick release (settles behind);
  * too large -> creeps FORWARD past the release point. */
-#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.05f
+#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.10f
 
 // PositionEstimatorConfig.h — Group 9
 #define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED    1

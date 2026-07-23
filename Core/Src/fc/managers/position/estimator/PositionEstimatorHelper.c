@@ -223,7 +223,7 @@ void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt) {
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, yPos, dynamicRp, H_P_GNSS);
 #endif
 }
-
+float testdynamicRPSL = 0;
 __ATTR_ITCM_TEXT
 void updateZPositionSL(float offset, float zPos, float dt) {
 	positionCordinateData.positionZSLUpdateDt = dt;
@@ -240,15 +240,25 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 	float dynamicRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN;
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
 	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
+	testdynamicRPSL = dynamicRPSL;
 #endif
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
 
-	// ---------------- VENTURI ----------------
+#if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
+	float venturiBias = getVenturiBiasEstimate(dt);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos + venturiBias, dynamicRPSL, H_BARO_WITH_BIAS);
+#else
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
+#endif
+
+// ---------------- VENTURI ----------------
+/*
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
 	float venturiBias = getVenturiBiasEstimate(dt);
 	float venturiR = getEstimatedVenturiRP(motionScale);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, venturiBias, venturiR, H_BIAS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, -venturiBias, venturiR, H_BIAS);
 #endif
+*/
+
 }
 
 __ATTR_ITCM_TEXT

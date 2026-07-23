@@ -52,10 +52,12 @@
 
 typedef struct _VENTURI_ESTIMATE_DATA VENTURI_ESTIMATE_DATA;
 struct _VENTURI_ESTIMATE_DATA {
-	float pitchAngleAbsFiltered;
-	float venturiBias;       // final output fed to EKF BP state [m]
-	float lateralSpeed;      // pitch-proxy horizontal speed state [m/s], signed
-	float brakeDwell;        // remaining hold time after a braking zero-cross [s]
+	float venturiBias;         // final output fed to EKF BP state [m]
+	float lateralSpeedPitch;   // pitch-proxy horizontal speed state [m/s], signed
+	float lateralSpeedRoll;    // ROLL-axis signed speed  [m/s]
+	float lateralSpeedMag;    // sqrt(vPitch^2 + vRoll^2) [m/s]
+	float brakeDwellPitch;     // remaining hold time after a braking zero-cross [s]
+	float brakeDwellRoll;     // ROLL-axis dwell remaining  [s]
 	float effectiveThrottle;
 };
 extern VENTURI_ESTIMATE_DATA venturiEstimateData;
@@ -69,13 +71,14 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Lower: catches slow-cruise tilt, but a miscalibrated level trim then
  *   integrates forever. 0.5 assumes a well-trimmed horizon (which this
  *   airframe has, post-Mahony fixes). */
-#define VENTURI_EST_PITCH_ANGLE_MIN             0.75f
+#define VENTURI_EST_PITCH_ANGLE_MIN             0.5f
+#define VENTURI_EST_ROLL_ANGLE_MIN              0.5f
 
 /* Pitch clamp, deg. Caps the model's accel input during aggressive maneuvers
  * so a stunt doesn't slingshot the speed state. Matches the attitude
  * envelope; no reason to tune independently of it. */
 #define VENTURI_EST_PITCH_ANGLE_MAX             30.0f
-
+#define VENTURI_EST_ROLL_ANGLE_MAX              30.0f
 /* ---------------- Speed-model dynamics ---------------- */
 
 /* Hard cap on the model speed state, m/s. Pure runaway protection - with
@@ -136,7 +139,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * or after touching ACCEL_GAIN/DRAG_GAIN.
  * PENDING: direction split (GAIN_FWD/GAIN_BWD) - the artifact is measured
  * asymmetric with flight direction; backward-leg calibration not yet flown. */
-#define VENTURI_EST_BIAS_GAIN                   0.03f//was 0.07f
+#define VENTURI_EST_BIAS_GAIN                    0.036f //0.03f//was 0.07f
 
 /* Output clamp, m. Safety ceiling on how much altitude the model may claim
  * the baro is lying by. With GAIN 0.025 this engages at model speed
@@ -151,7 +154,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Raise toward 0.7-1.0 Hz if logs show bias arriving late vs the artifact;
  * lower if the bias output is jittery. Note the EKF's BP fusion adds its own
  * ~0.5 s - tune this from end-to-end logs (artifact vs BP), not in isolation. */
-#define VENTURI_EST_BIAS_LPF_FREQ               0.25f
+#define VENTURI_EST_BIAS_LPF_FREQ               2.0f
 
 /* Minimum |lateralSpeed| immediately BEFORE a zero-cross for the brake dwell
  * to arm, m/s. Below this the crossing is decaying residue from a previous
@@ -161,6 +164,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * 100% dwell produced exactly zero bias. The real brake case this protects
  * (~3.9 m/s phantom) is far above this threshold and still arms normally. */
 #define VENTURI_EST_BRAKE_ARM_SPEED             0.75f
+#define VENTURI_EST_DRAG_GAIN_Q                 0.10f
 
 uint8_t initVenturiBiasEstimator(void);
 float getVenturiBiasEstimate(float dt);

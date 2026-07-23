@@ -130,8 +130,8 @@ void debugIMU() {
 
 void debugAlt() {
 	//sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
-	sprintf(buf, "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, sensorAltitudeData.altitudeSLFiltered, sensorAttitudeData.pitch, venturiEstimateData.venturiBias, venturiEstimateData.lateralSpeed,
-			controlData.tiltCompThDelta, controlData.throttleControl, fcStatusData.currentThrottle, positionEkf.x[POS_EKF_Z_AXIS * POS_EKF_AXIS_DIM + POS_EKF_STATE_BP], venturiEstimateData.brakeDwell);
+	sprintf(buf, "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, sensorAltitudeData.altitudeSLFiltered, sensorAttitudeData.pitch, venturiEstimateData.venturiBias, venturiEstimateData.lateralSpeedPitch,
+			controlData.tiltCompThDelta, controlData.throttleControl, fcStatusData.currentThrottle, positionEkf.x[POS_EKF_Z_AXIS * POS_EKF_AXIS_DIM + POS_EKF_STATE_BP], venturiEstimateData.brakeDwellPitch);
 	logString(buf);
 }
 
@@ -145,10 +145,10 @@ void debugPosHold(float dt) {
 
 	logString(buf);
 }
-extern float altControlZDisturbanceEstimate,testR_venturi;
-extern PID altPID,altRatePID,altAccPID;
-extern float dobExpectedAccXFilt,positionControlXAccDist;
-
+extern float altControlZDisturbanceEstimate, testR_venturi;
+extern PID altPID, altRatePID, altAccPID;
+extern float dobExpectedAccXFilt, positionControlXAccDist;
+extern float testdynamicRPSL;
 float nowMs = 0;
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
@@ -156,7 +156,7 @@ void debugTask() {
 	}
 	float dt = 1.0f / DEBUG_TASK_FREQUENCY;
 	(void) dt;
-	nowMs+=dt;
+	nowMs += dt;
 	//debugString();
 	//debugGraph();
 	//debugRC();
@@ -170,31 +170,49 @@ void debugTask() {
 	//sprintf(buf, "%.2f,%.2f,%.3f,%.2f,%.2f,%.2f,%.2f,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%.1f\r\n", positionCordinateData.zPosition, positionCordinateData.zVelocity, positionCordinateData.zAcceleration ,controlData.altitudeControl,controlData.throttleControl,fcStatusData.hoverThrottle, altControlZDisturbanceEstimate,fcStatusData.isFlying,altPID.pid,altRatePID.pid,altRatePID.i,altAccPID.pid,controlData.tiltCompThDelta,controlData.posBrakeCompThDelta,venturiEstimateData.venturiBias,testR_venturi,sensorAttitudeData.pitch,controlData.altitudeDOBControl,venturiEstimateData.lateralSpeed,venturiEstimateData.brakeDwell);
 	//logString(buf);
 	/*sprintf(buf,
-	    "%.2f,%d,%d,%d,%d,"
-	    "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,"
-	    "%.3f,%.3f,%.3f,%.3f,%.3f,"
-	    "%.3f,%.3f,%.3f\r\n",
-	     nowMs,
-	    fcStatusData.isPositionHomeSet,
-	    fcStatusData.isNavModeActive,
-	    (rcData.pitchCentered && rcData.rollCentered),
-	    fcStatusData.postionHoldState,
-	    fcStatusData.positionXRef, positionCordinateData.xPosition,
-	    positionCordinateData.xVelocity, positionXPID.pid,
-	    controlData.positionXControl, positionXRatePID.i,
-	    positionCordinateData.xAcceleration, dobExpectedAccXFilt,
-	    positionControlXAccDist,
-	    positionEkf.innovation[POS_EKF_X_AXIS],
-	    fcStatusData.positionYRef, positionCordinateData.yPosition,
-	    positionCordinateData.yVelocity, controlData.positionYControl);
-	    */
-	sprintf(buf,
-		    "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\r\n",
-		    nowMs,
-			fcStatusData.maxBatteryVolt,
-			batteryData.voltage,
-	        controlData.batteryDepletionGain,
-			controlData.throttleControl,
-			controlData.throttleControl *  controlData.batteryDepletionGain);
-	logString(buf);
+	 "%.2f,%d,%d,%d,%d,"
+	 "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,"
+	 "%.3f,%.3f,%.3f,%.3f,%.3f,"
+	 "%.3f,%.3f,%.3f\r\n",
+	 nowMs,
+	 fcStatusData.isPositionHomeSet,
+	 fcStatusData.isNavModeActive,
+	 (rcData.pitchCentered && rcData.rollCentered),
+	 fcStatusData.postionHoldState,
+	 fcStatusData.positionXRef, positionCordinateData.xPosition,
+	 positionCordinateData.xVelocity, positionXPID.pid,
+	 controlData.positionXControl, positionXRatePID.i,
+	 positionCordinateData.xAcceleration, dobExpectedAccXFilt,
+	 positionControlXAccDist,
+	 positionEkf.innovation[POS_EKF_X_AXIS],
+	 fcStatusData.positionYRef, positionCordinateData.yPosition,
+	 positionCordinateData.yVelocity, controlData.positionYControl);
+	 */
+	/*
+	 sprintf(buf, "%.2f,%.3f,%.3f,%.3f,%.2f,%.3f,%.3f,%.1f,%.1f,%.2f,%.2f,%.2f,%.2f\r\n",
+	 nowMs,
+	 positionCordinateData.zPosition,
+	 positionCordinateData.zPositionRawSL,
+	 venturiEstimateData.venturiBias,
+	 venturiEstimateData.lateralSpeedPitch,
+	 positionCordinateData.zVelocity,
+	 positionCordinateData.zAcceleration,
+	 controlData.throttleControl,
+	 fcStatusData.hoverThrottle,
+	 controlData.altitudeControl,
+	 controlData.altitudeDOBControl,
+	 sensorAttitudeData.pitch,
+	 sensorAttitudeData.roll
+	 );
+
+
+	 logString(buf);
+	 */
+
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPositionRawSL * 100;
+	DEBUG_DATA_BUFFER[3] = venturiEstimateData.venturiBias * 100;
+	DEBUG_DATA_BUFFER[4] = testdynamicRPSL;
+	sendConfigData(DEBUG_DATA_BUFFER,5, CMD_FC_DATA);
 }

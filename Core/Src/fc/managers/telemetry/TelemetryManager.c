@@ -94,7 +94,7 @@ void prepareAndSendFCStatus() {
 }
 
 void prepareAndSendGNSSData(void) {
-	uint8_t satCountAndReliable = (gnssData.satCount & 0x3F) | ((uint8_t) fcStatusData.isNavDataReliable << 6);
+	uint8_t satCountAndReliable = (gnssData.satCount & 0x3F) | ((uint8_t) (fcStatusData.isNavDataReliable && fcStatusData.isPositionHomeSet) << 6);
 	float distance = 0.0f;
 	if (fcStatusData.isPositionHomeSet) {
 		float north = positionCordinateData.xPositionRaw;

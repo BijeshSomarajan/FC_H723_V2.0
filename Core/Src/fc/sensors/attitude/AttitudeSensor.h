@@ -38,7 +38,7 @@ struct _SENSOR_ATTITUDE_DATA {
 
 	float noiseFilterDataUpdateDt;
 
-	// Attitude Estimation (Pitch, Roll, Heading, Rates)
+	// Attitude Estimation (Pitch, Roll, Heading, Rates) , All in degrees.
 	float pitch;
 	float pitchRate;
 	float pitchCtrlRate;

@@ -1,29 +1,27 @@
 #include "PositionManager.h"
 
+#include <math.h>
 #include <sys/_stdint.h>
 
 #include "../../control/ControlData.h"
 #include "../../control/position/PositionControl.h"
-#include "../../calibration/Calibration.h"
 #include "../../dsp/LowPassFilter.h"
 #include "../../FCConfig.h"
 #include "../../imu/IMU.h"
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
-#include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/position/GNSS.h"
+#include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/DeltaTimer.h"
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "estimator/PositionEstimator.h"
 #include "estimator/PositionEstimatorHelper.h"
-
 #include "estimator/VenturiBiasEstimator.h"
 #include "helpers/PositionManagerHelper.h"
-#include "../../sensors/rc/RCSensor.h"
-#include "../../control/ControlData.h"
+#include "helpers/PositionManagerHomeAquisitionHelper.h"
 
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
 LOWPASSFILTER positionMgrVelXLPF, positionMgrVelYLPF, positionMgrVelZLPF;
@@ -44,11 +42,6 @@ float positionMgrRTHVxCommand, positionMgrRTHVyCommand;
 float positionMgrRTHCompleteDt = 0;
 uint8_t positionMgrRTHWasActive = 0;
 
-// Static variables to persist sampling state across function calls
-uint16_t positionMgrHomeRefSampleCount = 0;
-double positionMgrHomeRefLatSum = 0.0;
-double positionMgrHomeRefLongSum = 0.0;
-double positionMgrHomeRefhMSLSum = 0.0;
 float positionMgrBrakeVx, positionMgrBrakeVy, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy;
 void managePositionTask(void);
 
@@ -381,43 +374,29 @@ void managePositionTask(void) {
 	positionCordinateData.positionProcessDt = dt;
 }
 
+__ATTR_ITCM_TEXT
 void loadAndProcessGNSSData() {
 	if (readGNSSData()) {
 		float dt = getDeltaTime(POSITION_MANAGER_GNSS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
 		updateGNSSDataReliability(dt);
 
-		if (fcStatusData.isNavDataReliable && fcStatusData.canFly) {
+		if (fcStatusData.isNavDataReliable) {
 			uint8_t wasHomeJustSet = 0;
 			if (!fcStatusData.isPositionHomeSet) {
-				if (positionMgrHomeRefSampleCount == 0) {
-					positionMgrHomeRefLatSum = 0.0;
-					positionMgrHomeRefLongSum = 0.0;
-				}
-				positionMgrHomeRefLatSum += gnssData.latitude;
-				positionMgrHomeRefLongSum += gnssData.longitude;
-				positionMgrHomeRefhMSLSum += gnssData.heightMSL;
-				positionMgrHomeRefSampleCount++;
-				if (positionMgrHomeRefSampleCount >= POSITION_MGR_HOME_POS_STAB_COUNT) {
-					fcStatusData.positionLatHome = positionMgrHomeRefLatSum / POSITION_MGR_HOME_POS_STAB_COUNT;
-					fcStatusData.positionLongHome = positionMgrHomeRefLongSum / POSITION_MGR_HOME_POS_STAB_COUNT;
-					fcStatusData.positionZHome = positionMgrHomeRefhMSLSum / POSITION_MGR_HOME_POS_STAB_COUNT;
-					fcStatusData.isPositionHomeSet = 1;
-					wasHomeJustSet = 1;
-					positionMgrHomeRefSampleCount = 0;
-				}
+				updateHomePositionAcquisition(dt);
+				wasHomeJustSet = fcStatusData.isPositionHomeSet;
 			}
 
 			if (fcStatusData.isPositionHomeSet) {
 				convertGNSSToXYCordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
 				if (wasHomeJustSet) {
-					//positionEKFInvalidate(&positionEkf, POS_EKF_X_AXIS);
-					//positionEKFInvalidate(&positionEkf, POS_EKF_Y_AXIS);
 					resetPVEstimation(POS_EKF_X_AXIS, 1);
 					resetPVEstimation(POS_EKF_Y_AXIS, 1);
 					fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
 					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
 				}
+
 				// Update Velocity and Position
 				updateXYVelocityGNSS(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
 				updateZVelocityGNSS(gnssData.sAcc, -gnssData.velD, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt); //GNSS is +ve down ( NED )
@@ -425,12 +404,10 @@ void loadAndProcessGNSSData() {
 				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt);
 			}
 
-		} else if (!fcStatusData.canFly) {
-			fcStatusData.isPositionHomeSet = 0;
-			positionMgrHomeRefSampleCount = 0;
-			positionMgrHomeRefLatSum = 0;
-			positionMgrHomeRefLongSum = 0;
-			positionMgrHomeRefhMSLSum = 0;
+		} else {
+			if (!fcStatusData.isPositionHomeSet) {
+				resetHomePositionAcquisition();
+			}
 		}
 	}
 }
@@ -462,14 +439,13 @@ void resetPositionManager(void) {
 
 	resetVenturiBiasEstimator();
 	resetPositionControl(1);
+	resetHomePositionAcquisition();
 
 	positionManagerWasInStabMode = 0;
 	positionCommandData.pitchCommand = 0.0f;
 	positionCommandData.rollCommand = 0.0f;
 	fcStatusData.isPositionHomeSet = 0;
-	positionMgrHomeRefSampleCount = 0;
 	positionMgrPosHoldElapseDtSum = 0;
-	positionMgrHomeRefhMSLSum = 0;
 	positionMgrPosHoldRatePIDGain = 1.0f;
 	fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 	positionMgrRTHVxCommand = 0;
