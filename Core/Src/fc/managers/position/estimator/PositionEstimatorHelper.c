@@ -50,7 +50,11 @@ void calculateCruiseScale(float dt) {
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
 	float gs = 0.0f;
 	/* No GNSS -> ground speed is dead-reckoned garbage; force hover profile ... */
-	if (fcStatusData.isNavModeActive) {
+	/*if (fcStatusData.isNavModeActive) {
+		gs = getGroundSpeed();
+	}
+	*/
+if (fcStatusData.isNavModeActive && fcStatusData.isNavDataReliable) {
 		gs = getGroundSpeed();
 	}
 	float target = constrainToRangeF((gs - POS_ESTIMATOR_Z_CRUISE_SPEED_LO) / (POS_ESTIMATOR_Z_CRUISE_SPEED_HI - POS_ESTIMATOR_Z_CRUISE_SPEED_LO), 0.0f, 1.0f);
