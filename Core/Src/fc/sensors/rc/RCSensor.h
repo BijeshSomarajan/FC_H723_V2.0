@@ -10,7 +10,7 @@
 
 #define RC_RX_TYPE_FSIA 1
 #define RC_RX_TYPE_CRSF 2
-#define RC_RX_TYPE RC_RX_TYPE_CRSF
+#define RC_RX_TYPE RC_RX_TYPE_FSIA
 
 #if RC_RX_TYPE== RC_RX_TYPE_FSIA
 
