@@ -38,7 +38,6 @@ float altMgrCurrentThrottleDelta = 0;
 float altMgrCurrentThrottleRate = 0;
 float altMgrCurrentThrottleRateGain = 1.0f;
 float altMgrPreviousThrottle = 0.0f;
-
 float altMgrAccDtAccumulation = 0.0f;
 float altMgrVelDtAccumulation = 0.0f;
 float altMgrAltDtAccumulation = 0.0f;
@@ -116,7 +115,10 @@ void manageAltControlSettings(float dt) {
 		altControlGains.ratePGain = ALT_MGR_ALT_CONTROL_SETTING_RATE_P_GAIN * totalAttenuation;
 		altControlGains.rateIGain = ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN * totalAttenuation;
 		altControlGains.accPGain = ALT_MGR_ALT_CONTROL_SETTING_ACC_P_GAIN * totalAttenuation;
+		altControlGains.dobGain = ALT_MGR_ALT_CONTROL_SETTING_DOB_GAIN * totalAttenuation;
+		// I freez during movements.
 		resetAltitudeRIControl();
+		resetAltitudeDOBControl();
 	} else {
 		altMgrCurrentThrottleDelta = 0;
 		altMgrCurrentThrottleRate = 0;
@@ -131,6 +133,9 @@ void manageAltControlSettings(float dt) {
 		}
 		if (altControlGains.accPGain < 1.0f) {
 			altControlGains.accPGain += (dt / ALT_MGR_ALT_CONTROL_SETTING_AP_TAU) * (1.0f - altControlGains.accPGain);
+		}
+		if (altControlGains.dobGain < 1.0f) {
+			altControlGains.dobGain += (dt / ALT_MGR_ALT_CONTROL_SETTING_DOB_TAU) * (1.0f - altControlGains.dobGain);
 		}
 	}
 }
@@ -151,7 +156,6 @@ void handleThrottleChange(float dt) {
 			nextThrottle = altMgrPreviousThrottle;
 		}
 	}
-
 	fcStatusData.currentThrottle = nextThrottle;
 	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
@@ -213,57 +217,80 @@ float getClampedCurrentAltitude() {
 	return fcStatusData.altitudeRef + altitudeDelta;
 }
 
-// Add this to your global/struct state definitions alongside your other tracker:
-float altMgrTiltCompIntermediate = 0.0f;
+/**
+ * Learn the true hover throttle.
+ * Seeded from the liftoff calibration (measured in ground effect, does not
+ * track battery sag), then slowly trimmed from the actual mixed throttle
+ * whenever the vehicle is genuinely hovering: flying, not climbing, not
+ * heavily tilted. Bounded to a sanity band around the seed.
+ */
+
+__ATTR_ITCM_TEXT
+void updateHoverThrottleEstimate(float dt) {
+	float seed = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
+	if (fcStatusData.hoverThrottle <= 0.0f) {
+		fcStatusData.hoverThrottle = seed; /* first use: take the seed */
+		return;
+	}
+#if ALT_CONTROL_HOVER_LEARN_ENABLED == 1
+	if (!fcStatusData.isFlying) {
+		return;
+	}
+	/* Climbing/descending throttle is not hover throttle */
+	if (fabsf(positionCordinateData.zVelocity) > ALT_CONTROL_HOVER_LEARN_VEL_MAX) {
+		return;
+	}
+	/* Tilted flight needs extra throttle that is not hover thrust */
+	float liftComponent = cosApproxF(convertDegToRadF(sensorAttitudeData.pitch)) * cosApproxF(convertDegToRadF(sensorAttitudeData.roll));
+	if (liftComponent < ALT_CONTROL_HOVER_LEARN_LIFT_MIN) {
+		return;
+	}
+	float alpha = dt / (ALT_CONTROL_HOVER_LEARN_TAU + dt);
+	fcStatusData.hoverThrottle += alpha * ((controlData.throttleControlBase + controlData.altitudeDOBControl) - fcStatusData.hoverThrottle);
+	fcStatusData.hoverThrottle = constrainToRangeF(fcStatusData.hoverThrottle, seed * ALT_CONTROL_HOVER_LEARN_MIN_RATIO, seed * ALT_CONTROL_HOVER_LEARN_MAX_RATIO);
+#endif
+}
+
 __ATTR_ITCM_TEXT
 void calculateTiltCompThrottle(float dt) {
 	float target = 0.0f;
-
-	// 1. Get attitude and convert to radians
+	/* 1. Attitude -> lift scaling: fraction of thrust still pointing up */
 	float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
-	float rollRad = convertDegToRadF(sensorAttitudeData.roll);
-
-	// 2. Compute the composite vertical lift scaling vector
-	float cosP = cosApproxF(pitchRad);
-	float cosR = cosApproxF(rollRad);
-	float liftComponent = cosP * cosR;
-
-	// 3. Pre-calculate physical macro boundaries into cosine float space
+	float rollRad  = convertDegToRadF(sensorAttitudeData.roll);
+	float liftComponent = cosApproxF(pitchRad) * cosApproxF(rollRad);
+	/* 2. Physical boundaries in cosine space */
 	float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MIN_ANGLE));
-	float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE));
-
-	// 4. Check if the vehicle has tilted past the minimum deadband threshold
+	float maxAngleComponent  = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE));
+	/* 3. Past the deadband -> compute the extra throttle the tilt costs.
+	 *    (1/lift - 1) is a DELTA on top of the existing hover throttle,
+	 *    which is why the -1 is correct: the base is already applied. */
 	if (liftComponent < deadbandComponent) {
-		float clampedLift = fmaxf(liftComponent, maxAngleComponent);
+		float clampedLift    = fmaxf(liftComponent, maxAngleComponent);
 		float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
-		float hoverThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
-
-		target = hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_GAIN;
-		target = fminf(target, ALT_MGR_TILT_COMP_MAX_LIMIT);
+		/* GAIN must be 1.0 for full compensation. Anything below 1.0 is
+		 * deliberate under-compensation and will read as steady-state sag. */
+		target = fcStatusData.hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_GAIN;
 	}
-
-	// 5. OPTIMIZED: Asymmetric Cascaded Second-Order S-Curve Filter Step
-	// Determines tau based on whether the overall profile is expanding or contracting
-	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TAU_RISE : ALT_MGR_TILT_COMP_TAU_FADE;
-
-	// Adjust alpha for a cascaded system. To maintain a similar overall transient window
-	// as your original first-order filter, reduce your base TAU values by roughly 30-40%.
-	float alpha = dt / (activeTau + dt);
 	target = constrainToRangeF(target, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
-
-	// Stage 1: Primary smoothing (Generates the baseline transition profile)
-	altMgrTiltCompIntermediate += alpha * (target - altMgrTiltCompIntermediate);
-
-	// Stage 2: Secondary smoothing (Rounds off the acceleration corners -> Completes the S-Curve)
-	altMgrCurrentTiltCompThDelta += alpha * (altMgrTiltCompIntermediate - altMgrCurrentTiltCompThDelta);
-
-	// 6. Pipe the filtered delta directly into the actuator mixer matrix
+	/* 4. Single-pole asymmetric filter. One state, one direction, so the
+	 *    rise/fade split is meaningful. Faster in than out: compensate tilt
+	 *    promptly, relax gently. TAU values are now honest - no cascade
+	 *    de-rating needed, so if you carried the "reduce by 30-40%" note,
+	 *    undo it and set TAU to the real transient window you want. */
+	float activeTau = (target >= altMgrCurrentTiltCompThDelta)
+	                ? ALT_MGR_TILT_COMP_TAU_RISE
+	                : ALT_MGR_TILT_COMP_TAU_FADE;
+	float alpha = dt / (activeTau + dt);
+	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
+	/* 5. Into the mixer */
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
+
 
 __ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
 	handleLanding(dt);
+	updateHoverThrottleEstimate(dt);
 	if (!rcData.throttleCentered || altMgrLandingPulseActive) {
 		// EDGE TRIGGER:
 		if (altMgrWasThrottleCentered != 0) {
@@ -272,6 +299,7 @@ void manageAltitude(float dt) {
 			altMgrPreviousThrottle = fcStatusData.currentThrottle;
 			// 2. Clear the mixing output instantly to handle multi-rate execution lag
 			controlData.altitudeControl = 0.0f;
+			resetAltitudeDOBControl();
 		}
 		handleThrottleChange(dt);
 		fcStatusData.altitudeRef = positionCordinateData.zPosition;
@@ -322,10 +350,12 @@ void manageAltitude(float dt) {
 	}
 
 	// High-rate mixer equation now perfectly protected against stale values
-	controlData.throttleControl = fcStatusData.currentThrottle + controlData.altitudeControl + controlData.tiltCompThDelta + controlData.posBrakeCompThDelta;
+	controlData.throttleControlBase = fcStatusData.currentThrottle + controlData.altitudeControl;
+	controlData.throttleControl = controlData.throttleControlBase + controlData.altitudeDOBControl + controlData.tiltCompThDelta;
 	controlData.throttleControl = constrainToRangeF(controlData.throttleControl, 0, MAX_PERMISSIBLE_THROTTLE_DELTA);
 	fcStatusData.throttleControlPercent = controlData.throttleControl / MAX_PERMISSIBLE_THROTTLE_DELTA;
 	altMgrPreviousCurrentThrottle = fcStatusData.currentThrottle;
+
 	lowPassFilterUpdate(&altMgrThrottleControlLPF, controlData.throttleControl, dt);
 }
 
@@ -333,6 +363,7 @@ void resetAltMgrStates() {
 	fcStatusData.throttlePercent = 0;
 	fcStatusData.currentThrottle = 0;
 	controlData.throttleControl = 0;
+	controlData.throttleControlBase = 0;
 	controlData.tiltCompThDelta = 0;
 	fcStatusData.isFlying = 0;
 
@@ -342,8 +373,10 @@ void resetAltMgrStates() {
 	altControlGains.rateDGain = 1.0f;
 	altControlGains.accPGain = 1.0f;
 	altControlGains.accDGain = 1.0f;
-	fcStatusData.throttleControlPercent = 0;
+	altControlGains.dobGain = 1.0f;
 
+	fcStatusData.throttleControlPercent = 0;
+	fcStatusData.hoverThrottle = 0;
 	altMgrWasThrottleCentered = 0;
 	altMgrPreviousThrottleControl = 0;
 	altMgrPreviousCurrentThrottle = 0;
@@ -422,7 +455,8 @@ void doAltitudeManagement(void) {
 #if SENSOR_ALT_LIDAR_AVAILABLE == 1
 		if (dataAvailableMask & SENSOR_DATA_LIDAR) {
 			updateTerrainAltDataReliability(altMgrTerrainAltUpdateDt);
-			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQual, POSITION_TERRAIN_ALT_DIST_MIN, POSITION_TERRAIN_ALT_DIST_MAX, fcStatusData.isTerrainAltDataReliable && fcStatusData.isTerrainAltModeActive, altMgrTerrainAltUpdateDt);
+			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQual, POSITION_TERRAIN_ALT_DIST_MIN, POSITION_TERRAIN_ALT_DIST_MAX, fcStatusData.isTerrainAltDataReliable && fcStatusData.isTerrainAltModeActive,
+					altMgrTerrainAltUpdateDt);
 			altMgrTerrainAltUpdateDt = 0.0f;
 		}
 #endif

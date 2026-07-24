@@ -91,7 +91,7 @@ void updatePWMValues() {
 __ATTR_ITCM_TEXT
 void motorControlTask() {
 	if (fcStatusData.canFly) {
-		float throttleControl = controlData.throttleControl;
+		float throttleControl = controlData.throttleControl * controlData.batteryDepletionGain;
 		float pitchControl = controlData.pitchControl;
 		float rollControl = controlData.rollControl;
 		float yawControl = controlData.yawControl;

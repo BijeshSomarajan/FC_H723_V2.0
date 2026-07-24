@@ -26,6 +26,15 @@
 #define POS_EKF_P_MIN             1e-9f
 #define POS_EKF_P_MAX             500.0f
 
+/* --- Delay compensation: state history --- */
+#define POS_EKF_HISTORY_LEN        48       // 48 x 10ms = 480 ms of history
+#define POS_EKF_HISTORY_PERIOD     0.01f    // snapshot cadence (100 Hz)
+
+typedef struct {
+	float p[2];      // X, Y position
+	float v[2];      // X, Y velocity
+} POS_EKF_HISTORY_ENTRY;
+
 /* =========================================================================
  * Core State Structure Definition
  * ========================================================================= */
@@ -41,6 +50,12 @@ typedef struct {
 	float innovation[POS_EKF_SPACE_DIM];               // Innovation history cache for telemetry logging
 	uint8_t axisInitialized[POS_EKF_SPACE_DIM];         // Individual health track flags
 
+	POS_EKF_HISTORY_ENTRY historyEntries[POS_EKF_HISTORY_LEN];
+	/* History validity is shared across X/Y: any XY reset invalidates both (conservative; axes always reset together in practice) */
+	uint8_t historyHead;      // index of most recent entry
+	uint8_t historyCount;     // number of valid entries (0 = buffer invalid)
+	float historyDtAcc;     // snapshot cadence accumulator
+
 } POSITION_EKF;
 
 extern POSITION_EKF positionEkf;
@@ -51,6 +66,10 @@ extern POSITION_EKF positionEkf;
 uint8_t positionEKFInit(POSITION_EKF *ekf);
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt);
 void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4]);
-void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias) ;
+void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias);
 void positionEKFInvalidate(POSITION_EKF *ekf, uint8_t axis);
+void positionEKFMeasurementUpdateLagged(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4], float predLagged);
+void positionEKFHistoryRebase(POSITION_EKF *ekf, uint8_t axis, float dp, float dv);
+uint8_t positionEKFGetLaggedPrediction(const POSITION_EKF *ekf, uint8_t axis, const float H[4], float lagSeconds, float *predOut);
+
 #endif /* SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_ */

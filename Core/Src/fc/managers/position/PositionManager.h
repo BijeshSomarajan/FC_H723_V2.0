@@ -71,28 +71,23 @@
 #define POSITION_MGR_Z_EST_OUTPUT_ACC_MAX             200.0f  // m/s² (~20G)
 
 // =============================================================================
-// 5. GNSS EKF MEASUREMENT TRUST (Tuned for Standard GNSS - POST-FIX TUNE)
+// 5. LOITER BRAKING & SETTLING CONFIGURATIONS
 // =============================================================================
-// Define the number of samples to capture (e.g., 50 samples)
-#define POSITION_MGR_HOME_POS_STAB_COUNT   10
-
-// =============================================================================
-// 6. LOITER BRAKING & SETTLING CONFIGURATIONS
-// =============================================================================
-#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD      2.0f    // was 0.15f
+#define POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD      2.0f   // was 0.15f
 #define POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD    0.5f   // was 0.25f
-#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH           0.5f
-#define POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY       4.0f
+#define POSITION_MGR_POS_HOLD_BRAKE_STRENGTH           0.25f  //Was 0.5f
+#define POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY       1.2f
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED   0.15f
 #define POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN       1.0f
-#define POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_GAIN      6.0f
-#define POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_LIMIT     100.0f
-#define POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT         3.0f    // hard cap
+#define POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT         3.0f   // hard cap
+#define POSITION_MGR_POS_HOLD_BRAKE_DECEL              0.25   // 0.30f
 // =============================================================================
-// 7. RETURN TO HOME (RTH) NAVIGATION PROFILE
+// 6. RETURN TO HOME (RTH) NAVIGATION PROFILE
 // =============================================================================
 /* Higher: High-velocity transit back to home base. Lower: Safe, deliberate, conservative RTH cruising speed (saves battery but fights wind poorly). */
-#define POSITION_MGR_RTH_CRUISE_SPEED                  15.0f
+#define POSITION_MGR_RTH_CRUISE_SPEED                  1.0f //Note this will be clamped by the Postion PID settings
+
+#define POSITION_MGR_RTH_BRAKE_DECEL                   1.5f   // m/s²
 
 /* Higher: Starts a gradual, smooth slowing down sequence far away from home. Lower: Screams toward home at full cruise speed until the last second, risking large overshoots. */
 #define POSITION_MGR_RTH_NEAR_HOME_RADIUS              1.5f
@@ -110,7 +105,7 @@
 #define POSITION_MGR_RTH_COMPLETE_PERIOD               4.0f
 
 /* Higher: Allows completion trigger while drone is still sliding or oscillating over home. Lower: Strict hover requirement to complete transit safely. */
-#define POSITION_MGR_RTH_COMPLETE_MAX_GROUND_SPEED    0.4f
+#define POSITION_MGR_RTH_COMPLETE_MAX_GROUND_SPEED     0.4f
 
 typedef enum {
 	POS_HOLD_STATE_IDLE = 0, POS_HOLD_STATE_BRAKING, POS_HOLD_STATE_SETTLING, POS_HOLD_STATE_LOCKED

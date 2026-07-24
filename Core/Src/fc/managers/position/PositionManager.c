@@ -1,29 +1,27 @@
 #include "PositionManager.h"
 
+#include <math.h>
 #include <sys/_stdint.h>
 
 #include "../../control/ControlData.h"
 #include "../../control/position/PositionControl.h"
-#include "../../calibration/Calibration.h"
 #include "../../dsp/LowPassFilter.h"
 #include "../../FCConfig.h"
 #include "../../imu/IMU.h"
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
-#include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/position/GNSS.h"
+#include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/DeltaTimer.h"
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "estimator/PositionEstimator.h"
 #include "estimator/PositionEstimatorHelper.h"
-
 #include "estimator/VenturiBiasEstimator.h"
 #include "helpers/PositionManagerHelper.h"
-#include "../../sensors/rc/RCSensor.h"
-#include "../../control/ControlData.h"
+#include "helpers/PositionManagerHomeAquisitionHelper.h"
 
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
 LOWPASSFILTER positionMgrVelXLPF, positionMgrVelYLPF, positionMgrVelZLPF;
@@ -42,14 +40,9 @@ float positionMgrPosHoldRatePIDGain;
 
 float positionMgrRTHVxCommand, positionMgrRTHVyCommand;
 float positionMgrRTHCompleteDt = 0;
-float sensorReadOFlowDt = 0;
+uint8_t positionMgrRTHWasActive = 0;
 
-// Static variables to persist sampling state across function calls
-uint16_t positionMgrHomeRefSampleCount = 0;
-double positionMgrHomeRefLatSum = 0.0;
-double positionMgrHomeRefLongSum = 0.0;
-double positionMgrHomeRefhMSLSum = 0.0;
-
+float positionMgrBrakeVx, positionMgrBrakeVy, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy;
 void managePositionTask(void);
 
 uint8_t initPositionManager(void) {
@@ -134,7 +127,6 @@ __ATTR_ITCM_TEXT
 void resetPositionCommands() {
 	positionCommandData.pitchCommand = 0.0f;
 	positionCommandData.rollCommand = 0.0f;
-	controlData.posBrakeCompThDelta = 0.0f;
 	positionMgrRTHVxCommand = 0;
 	positionMgrRTHVyCommand = 0;
 	fcStatusData.isRTHComplete = 0;
@@ -152,7 +144,7 @@ void updatePositionRateCommand(float dt) {
 			} else {
 				positionMgrPosHoldRatePIDGain = 1.0f;
 			}
-			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f);
+			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy);
 			float pitchCommand, rollCommand;
 			convertEarthToBodyCordinates(controlData.positionXControl, controlData.positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
 			positionCommandData.pitchCommand = pitchCommand;
@@ -168,25 +160,34 @@ void updatePositionRateCommand(float dt) {
 }
 
 __ATTR_ITCM_TEXT
+void resetBrakingStates() {
+	positionMgrBrakeVx = 0;
+	positionMgrBrakeVy = 0;
+	positionMgrBrakeAccFFx = 0;
+	positionMgrBrakeAccFFy = 0;
+}
+__ATTR_ITCM_TEXT
 void doBraking(float dt) {
 	positionMgrPosHoldElapseDtSum += dt;
-	float brakeStrength = POSITION_MGR_POS_HOLD_BRAKE_STRENGTH;
-	float vxCmd = -positionCordinateData.xVelocity * brakeStrength;
-	float vyCmd = -positionCordinateData.yVelocity * brakeStrength;
-	vxCmd = constrainToRangeF(vxCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
-	vyCmd = constrainToRangeF(vyCmd, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+	float step = POSITION_MGR_POS_HOLD_BRAKE_DECEL * dt; /* new define, 1.0f */
+	positionMgrBrakeVx -= constrainToRangeF(positionMgrBrakeVx, -step, step);
+	positionMgrBrakeVy -= constrainToRangeF(positionMgrBrakeVy, -step, step);
+
+	/* earth-frame decel the ramp is currently commanding, sign opposes motion */
+	float sgnx = (positionMgrBrakeVx > 0.0f) ? 1.0f : ((positionMgrBrakeVx < 0.0f) ? -1.0f : 0.0f);
+	float sgny = (positionMgrBrakeVy > 0.0f) ? 1.0f : ((positionMgrBrakeVy < 0.0f) ? -1.0f : 0.0f);
+	positionMgrBrakeAccFFx = -sgnx * POSITION_MGR_POS_HOLD_BRAKE_DECEL;
+	positionMgrBrakeAccFFy = -sgny * POSITION_MGR_POS_HOLD_BRAKE_DECEL;
+
+	float vxCmd = constrainToRangeF(positionMgrBrakeVx, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
+	float vyCmd = constrainToRangeF(positionMgrBrakeVy, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
 	setExpectedPositionVelocity(dt, vxCmd, vyCmd);
-	// Calculate the magnitude of the counter-velocity command vector
-	float brakingMagnitude = fastSqrtf((vxCmd * vxCmd) + (vyCmd * vyCmd));
-	// Map the magnitude to a proactive throttle boost factor
-	float brakingThrustKick = brakingMagnitude * POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_GAIN;
-	controlData.posBrakeCompThDelta = fminf(brakingThrustKick, POSITION_MGR_POS_HOLD_BRAKE_THROTTLE_LIMIT);
 	// Termination conditions
 	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED);
 	uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
 	if (lowGroundSpeed || timeoutReached) {
 		positionMgrPosHoldElapseDtSum = 0.0f;
-		controlData.posBrakeCompThDelta = 0.0f;
+		resetBrakingStates();
 		resetPositionControl(1);
 		fcStatusData.postionHoldState = POS_HOLD_STATE_SETTLING;
 	}
@@ -208,7 +209,7 @@ void updateRTHVelocityCommand(float dt) {
 		dirY = dy * invDist;
 	}
 	// Base cruise speed
-	float targetSpeed = POSITION_MGR_RTH_CRUISE_SPEED;
+	float targetSpeed = fminf(POSITION_MGR_RTH_CRUISE_SPEED, fastSqrtf(2.0f * POSITION_MGR_RTH_BRAKE_DECEL * distance));
 	// Slow down near home
 	if (distance < POSITION_MGR_RTH_NEAR_HOME_RADIUS) {
 		float scale = distance / POSITION_MGR_RTH_NEAR_HOME_RADIUS;
@@ -280,6 +281,7 @@ __ATTR_ITCM_TEXT
 void updatePositionCordinateCommand(float dt) {
 	if (!rcData.pitchCentered || !rcData.rollCentered) {
 		resetPositionCommands();
+		resetBrakingStates();
 		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		return;
 	}
@@ -287,6 +289,9 @@ void updatePositionCordinateCommand(float dt) {
 		switch (fcStatusData.postionHoldState) {
 		case POS_HOLD_STATE_IDLE:
 			resetPositionCommands();
+			resetBrakingStates();
+			positionMgrBrakeVx = positionCordinateData.xVelocity;
+			positionMgrBrakeVy = positionCordinateData.yVelocity;
 			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
 			break;
 		case POS_HOLD_STATE_BRAKING:
@@ -294,6 +299,7 @@ void updatePositionCordinateCommand(float dt) {
 			break;
 		case POS_HOLD_STATE_SETTLING:
 			positionMgrPosHoldElapseDtSum += dt;
+			resetBrakingStates();
 			setExpectedPositionVelocity(dt, 0.0f, 0.0f);
 			if ((positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD && getGroundSpeed() <= 2.0f * POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED) || positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT) {
 				updatePositionReference();
@@ -303,9 +309,19 @@ void updatePositionCordinateCommand(float dt) {
 			}
 			break;
 		case POS_HOLD_STATE_LOCKED:
+			resetBrakingStates();
 			if (fcStatusData.isNavRTHModeActive) {
+				if (!positionMgrRTHWasActive) {           // rising edge: fresh RTH cycle
+					positionMgrPosHoldElapseDtSum = 0.0f;
+					positionMgrRTHVxCommand = 0.0f;
+					positionMgrRTHVyCommand = 0.0f;
+					positionMgrRTHCompleteDt = 0.0f;
+					fcStatusData.isRTHComplete = 0;
+				}
+				positionMgrRTHWasActive = 1;
 				handleRTHNavigation(dt);
 			} else {
+				positionMgrRTHWasActive = 0;
 				controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
 			}
 			break;
@@ -358,43 +374,29 @@ void managePositionTask(void) {
 	positionCordinateData.positionProcessDt = dt;
 }
 
+__ATTR_ITCM_TEXT
 void loadAndProcessGNSSData() {
 	if (readGNSSData()) {
 		float dt = getDeltaTime(POSITION_MANAGER_GNSS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
 		updateGNSSDataReliability(dt);
 
-		if (fcStatusData.isNavDataReliable && fcStatusData.canFly) {
+		if (fcStatusData.isNavDataReliable) {
 			uint8_t wasHomeJustSet = 0;
 			if (!fcStatusData.isPositionHomeSet) {
-				if (positionMgrHomeRefSampleCount == 0) {
-					positionMgrHomeRefLatSum = 0.0;
-					positionMgrHomeRefLongSum = 0.0;
-				}
-				positionMgrHomeRefLatSum += gnssData.latitude;
-				positionMgrHomeRefLongSum += gnssData.longitude;
-				positionMgrHomeRefhMSLSum += gnssData.heightMSL;
-				positionMgrHomeRefSampleCount++;
-				if (positionMgrHomeRefSampleCount >= POSITION_MGR_HOME_POS_STAB_COUNT) {
-					fcStatusData.positionLatHome = positionMgrHomeRefLatSum / POSITION_MGR_HOME_POS_STAB_COUNT;
-					fcStatusData.positionLongHome = positionMgrHomeRefLongSum / POSITION_MGR_HOME_POS_STAB_COUNT;
-					fcStatusData.positionZHome = positionMgrHomeRefhMSLSum / POSITION_MGR_HOME_POS_STAB_COUNT;
-					fcStatusData.isPositionHomeSet = 1;
-					wasHomeJustSet = 1;
-					positionMgrHomeRefSampleCount = 0;
-				}
+				updateHomePositionAcquisition(dt);
+				wasHomeJustSet = fcStatusData.isPositionHomeSet;
 			}
 
 			if (fcStatusData.isPositionHomeSet) {
 				convertGNSSToXYCordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
 				if (wasHomeJustSet) {
-					//positionEKFInvalidate(&positionEkf, POS_EKF_X_AXIS);
-					//positionEKFInvalidate(&positionEkf, POS_EKF_Y_AXIS);
 					resetPVEstimation(POS_EKF_X_AXIS, 1);
 					resetPVEstimation(POS_EKF_Y_AXIS, 1);
 					fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
 					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
 				}
+
 				// Update Velocity and Position
 				updateXYVelocityGNSS(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
 				updateZVelocityGNSS(gnssData.sAcc, -gnssData.velD, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt); //GNSS is +ve down ( NED )
@@ -402,6 +404,10 @@ void loadAndProcessGNSSData() {
 				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, fcStatusData.isNavDataReliable && fcStatusData.isNavModeActive, dt);
 			}
 
+		} else {
+			if (!fcStatusData.isPositionHomeSet) {
+				resetHomePositionAcquisition();
+			}
 		}
 	}
 }
@@ -433,20 +439,18 @@ void resetPositionManager(void) {
 
 	resetVenturiBiasEstimator();
 	resetPositionControl(1);
+	resetHomePositionAcquisition();
 
 	positionManagerWasInStabMode = 0;
 	positionCommandData.pitchCommand = 0.0f;
 	positionCommandData.rollCommand = 0.0f;
 	fcStatusData.isPositionHomeSet = 0;
-	positionMgrHomeRefSampleCount = 0;
 	positionMgrPosHoldElapseDtSum = 0;
-	positionMgrHomeRefhMSLSum = 0;
 	positionMgrPosHoldRatePIDGain = 1.0f;
 	fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 	positionMgrRTHVxCommand = 0;
 	positionMgrRTHVyCommand = 0;
 	positionMgrRTHCompleteDt = 0;
-	controlData.posBrakeCompThDelta = 0.0f;
-
+	positionMgrRTHWasActive = 0;
 }
 

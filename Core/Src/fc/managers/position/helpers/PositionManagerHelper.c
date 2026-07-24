@@ -121,10 +121,5 @@ float calculateBearing(float xNorth, float yEast) {
 	return bearing;
 }
 
-__ATTR_ITCM_TEXT
-float getGroundSpeed(void) {
-	float vx = positionCordinateData.xVelocity;
-	float vy = positionCordinateData.yVelocity;
-	return fastSqrtf((vx * vx) + (vy * vy));
-}
+
 

@@ -11,9 +11,9 @@
 #define POSITION_GNSS_MIN_HACC                  3.0f    // Meters (Ceiling for acceptable horizontal position scatter)
 #define POSITION_GNSS_MIN_VACC                  6.5f    // Meters (Ceiling for acceptable vertical position scatter)
 #define POSITION_GNSS_MIN_FIX                   2       // MANDATORY: 3 = 3D Fix
-#define POSITION_GNSS_STABILITY_MAX_WINDOW      2.0f    // Seconds (Maximum accumulator depth)
+#define POSITION_GNSS_STABILITY_MAX_WINDOW      4.0f    // Seconds (Maximum accumulator depth)
 #define POSITION_GNSS_STABILITY_INVALID_GAIN    2.0f    // Decay rate multiplier for bad data
-#define POSITION_GNSS_TRUST_THRESHOLD           1.0f    // Cross this boundary to change states
+#define POSITION_GNSS_TRUST_THRESHOLD           2.0f    // Cross this boundary to change states
 
 //Terrain quality gates
 #define POSITION_TERRAIN_ALT_QUAL_MIN 0.02f
@@ -33,6 +33,5 @@ float calculateDistance(double homeLat, double homeLon, double lat, double lon);
 float calculateBearing(float xNorth, float yEast);
 
 uint8_t isNavModeActive();
-float getGroundSpeed(void);
 
 #endif /* SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_ */
