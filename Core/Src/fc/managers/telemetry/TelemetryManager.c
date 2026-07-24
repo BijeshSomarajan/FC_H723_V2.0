@@ -144,7 +144,11 @@ void telemetryUpdateTask() {
 
 uint8_t initTelemetryManager() {
 	schedulerAddTask(telemetryUpdateTask, TELEMETRY_TASK_FREQUENCY, TELEMETRY_TASK_PRIORITY);
-	fcStatusData.isOSDEnabled = 1;
+#if RC_RX_TYPE== RC_RX_TYPE_CRSF
+	fcStatusData.isTelemetryEnabled = 1;
+#else
+	fcStatusData.isTelemetryEnabled = 0;
+#endif
 	logString("[Telemetry Manager] >> Init >> Success\n");
 	return 1;
 }
