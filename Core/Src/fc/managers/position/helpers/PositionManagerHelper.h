@@ -31,6 +31,7 @@ void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, flo
 void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth);
 float calculateDistance(double homeLat, double homeLon, double lat, double lon);
 float calculateBearing(float xNorth, float yEast);
+void alignEarthAccelToNED(float axIn, float ayIn, float azIn, float *axOut, float *ayOut, float *azOut);
 
 uint8_t isNavModeActive();
 

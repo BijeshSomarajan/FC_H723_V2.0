@@ -276,7 +276,7 @@
  * maxes at ~0.0001 - i.e. NEGLIGIBLE against RP_MIN 30. Effectively off in
  * the current baro-skeptical tune; becomes live only if RP_MIN is ever
  * lowered drastically (it was load-bearing in the RP_MIN 0.3 experiment). */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           3600.0f//0.005f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           200.0f//0.005f
 
 /* LPF on dynamic R (per baro sample). 0.2 -> settles in ~5 samples. */
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_ALPHA          0.20f
@@ -288,7 +288,7 @@
  *   print into altitude: the historical dips-and-balloon failure at 0.3).
  * Raise -> smoother, more accel-reliant (needs clean Z accel).
  * History: 0.3 (dips!) -> 30 (validated). */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            1200.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            4000.0f
 /* Ceiling reached under high motionScale - lets rangefinder dominate and
  * shrugs off maneuver-induced pressure noise. */
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            10000.0f
@@ -321,7 +321,7 @@
  * module, nav rate, or baud ever changes, RE-MEASURE. Symptoms of error:
  * too small -> residual backtrack after stick release (settles behind);
  * too large -> creeps FORWARD past the release point. */
-#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.10f
+#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.15f //10Hz GPS update
 
 // PositionEstimatorConfig.h — Group 9
 #define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED    1

@@ -208,11 +208,37 @@ void debugTask() {
 
 	 logString(buf);
 	 */
+	/*
+	 DEBUG_DATA_BUFFER[0] = positionCordinateData.zPosition * 100;
+	 DEBUG_DATA_BUFFER[1] = positionCordinateData.zVelocity * 100;
+	 DEBUG_DATA_BUFFER[2] = positionCordinateData.zPositionRawSL * 100;
+	 DEBUG_DATA_BUFFER[3] = venturiEstimateData.venturiBias * 100;
+	 DEBUG_DATA_BUFFER[4] = testdynamicRPSL;
+	 sendConfigData(DEBUG_DATA_BUFFER,5, CMD_FC_DATA);
+	 */
+	/*
+	sprintf(buf, "[%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f]\r\n",
+	        fcStatusData.isNavModeActive, fcStatusData.postionHoldState, nowMs,
+	        fcStatusData.positionXRef, positionCordinateData.xPosition,
+	        fcStatusData.positionYRef, positionCordinateData.yPosition,
+	        positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw,
+	        positionCordinateData.xVelocity, positionCordinateData.yVelocity,
+	        gnssData.velN, gnssData.velE,
+	        positionXPID.pid, positionYPID.pid,
+	        controlData.positionXControl, controlData.positionYControl);
+	logString(buf);
+	*/
+	 DEBUG_DATA_BUFFER[0] = sensorAttitudeData.axGFiltered* 1000;
+	 DEBUG_DATA_BUFFER[1] = imuData.axBodyLinear  * 1000;
+	 DEBUG_DATA_BUFFER[2] = positionCordinateData.xAcceleration * 100;
 
-	DEBUG_DATA_BUFFER[0] = positionCordinateData.zPosition * 100;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.zVelocity * 100;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPositionRawSL * 100;
-	DEBUG_DATA_BUFFER[3] = venturiEstimateData.venturiBias * 100;
-	DEBUG_DATA_BUFFER[4] = testdynamicRPSL;
-	sendConfigData(DEBUG_DATA_BUFFER,5, CMD_FC_DATA);
+	 DEBUG_DATA_BUFFER[3] = sensorAttitudeData.ayGFiltered* 1000;
+	 DEBUG_DATA_BUFFER[4] = imuData.ayBodyLinear  * 1000;
+	 DEBUG_DATA_BUFFER[5] = positionCordinateData.yAcceleration * 100;
+
+	 DEBUG_DATA_BUFFER[6] = positionCordinateData.xVelocity * 1000;
+	 DEBUG_DATA_BUFFER[7] = positionCordinateData.yVelocity * 1000;
+
+	 sendConfigData(DEBUG_DATA_BUFFER,8, CMD_FC_DATA);
+
 }

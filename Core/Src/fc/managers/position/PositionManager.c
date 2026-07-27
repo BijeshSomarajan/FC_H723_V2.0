@@ -342,8 +342,15 @@ void managePositionTask(void) {
 	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_EST_INPUT_ACC_DEADBAND);
 	float azEarth = applyDeadBandFloat(0, imuData.azEarthLinear, POSITION_MGR_Z_EST_INPUT_ACC_DEADBAND);
 
+	float axEarthNED = 0;
+	float ayEarthNED = 0;
+	float azEarthNED = 0;
+
+	//0. Align the IMU earth acclerations to NED.
+	alignEarthAccelToNED(axEarth, ayEarth, azEarth, &axEarthNED, &ayEarthNED, &azEarthNED);
+
 	// 1. Prediction (Using raw or slightly scaled earth-frame acc)
-	positionEKFPredict(&positionEkf, axEarth, ayEarth, azEarth, dt);
+	positionEKFPredict(&positionEkf, axEarthNED, ayEarthNED, azEarthNED, dt);
 
 	float *x = positionEkf.x;
 	positionCordinateData.xPosition = x[postionEKFXIndex + POS_EKF_STATE_P];
@@ -354,8 +361,9 @@ void managePositionTask(void) {
 
 	positionCordinateData.zPosition = x[postionEKFZIndex + POS_EKF_STATE_P];
 	positionCordinateData.zAccelerationBias = x[postionEKFZIndex + POS_EKF_STATE_B];
+
 	// 2. Filtered Acceleration
-	updatePositionAcceleration(axEarth - positionCordinateData.xAccelerationBias, ayEarth - positionCordinateData.yAccelerationBias, azEarth - positionCordinateData.zAccelerationBias, dt);
+	updatePositionAcceleration(axEarthNED - positionCordinateData.xAccelerationBias, ayEarthNED - positionCordinateData.yAccelerationBias, azEarthNED - positionCordinateData.zAccelerationBias, dt);
 
 	// 3. Filtered Velocity
 	updatePositionVelocity(x[postionEKFXIndex + POS_EKF_STATE_V], x[postionEKFYIndex + POS_EKF_STATE_V], x[postionEKFZIndex + POS_EKF_STATE_V], dt);
