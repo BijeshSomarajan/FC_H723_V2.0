@@ -102,7 +102,7 @@
 #define POSITION_MGR_RTH_SETTLING_PERIOD               0.5f
 
 /* Higher: Drone must stay inside home radius longer to verify a stable hover before triggering landing phase. Lower: Rapid completion trigger. */
-#define POSITION_MGR_RTH_COMPLETE_PERIOD               4.0f
+#define POSITION_MGR_RTH_COMPLETE_PERIOD               1.0f
 
 /* Higher: Allows completion trigger while drone is still sliding or oscillating over home. Lower: Strict hover requirement to complete transit safely. */
 #define POSITION_MGR_RTH_COMPLETE_MAX_GROUND_SPEED     0.4f

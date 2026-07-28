@@ -181,6 +181,11 @@ void processCRSFFrame(uint8_t frameType, const uint8_t *payload) {
 		}
 		break;
 	}
+
+	case 0x7C:{
+		//logString("MSP!!\n");
+	    break;
+	}
 		// Placeholder for adding future frame types (e.g., Link Statistics 0x14)
 	default:
 		break;

@@ -30,6 +30,9 @@ local aAlertCritLinkThreshold = 40
 local aAlertLinkInterval      = 1500  -- 15 seconds repeat interval (Low Link)
 local aAlertCritLinkInterval  = 300   -- 3 seconds repeat interval (Critical Link)
 
+-- VCP USB Params
+local vcpUSBLastSend = 0
+
 
 -- Decoded Flight Mode Audio Mapping Tables
 local aAlertStartModes = {
@@ -224,6 +227,47 @@ local function playAudioAlerts()
     doLinkAlert()
 end
 
+local function sendDataToVCP()
+     local now = getTime();
+	  if (now - vcpUSBLastSend) >= 1000 then    -- 1000 ms
+        vcpUSBLastSend = now
+        serialWrite("hello\n")
+    end
+	 
+end
+
+local function receiveDataFromVCP()
+    local data = serialRead()
+    if data and #data > 0 then
+        playTone(1000, 100, 0, PLAY_NOW)
+       serialWrite("Got\n")
+    end
+end
+
+local function sendMSPToFC()
+    local now = getTime();
+	if (now - vcpUSBLastSend) >= 1000 then    -- 1000 ms
+        vcpUSBLastSend = now
+		local payload = {
+			0xC8,       -- Destination: Flight Controller
+			0xEA,       -- Origin: Radio
+			0x01,       -- Sequence number (can start at 1)
+			0x55        -- Test data
+        }
+		
+		local ok = crossfireTelemetryPush(0x7C, payload)
+
+		if ok then
+			serialWrite("MSP Sent\r\n")
+		else
+			serialWrite("MSP Busy\r\n")
+		end
+       
+    end
+	 
+end
+
+
 -- ==========================================================================
 -- MAIN EXECUTION LOOP
 -- ==========================================================================
@@ -324,6 +368,19 @@ local function run(event)
     --------------------------------------------------------------------------
     playAudioAlerts()
 
+    --------------------------------------------------------------------------
+    -- Send Data to USB VCP
+    --------------------------------------------------------------------------
+   --sendDataToVCP()
+   --receiveDataFromVCP();
+   --sendMSPToFC();
 end
 
-return { run = run }
+local function init()
+    --setSerialBaudrate(115200)
+end
+
+return { 
+ init = init,
+ run = run 
+}
