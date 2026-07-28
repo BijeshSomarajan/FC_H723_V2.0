@@ -41,7 +41,6 @@ void updateLinearMovements(float dt) {
 
 	float axGEarth = imuData.rMatrix[0][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[0][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[0][2] * sensorAttitudeData.azGFiltered;
 	float ayGEarth = imuData.rMatrix[1][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[1][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[1][2] * sensorAttitudeData.azGFiltered;
-
 	float azGEarth = imuData.rMatrix[2][0] * sensorAttitudeData.axGFiltered + imuData.rMatrix[2][1] * sensorAttitudeData.ayGFiltered + imuData.rMatrix[2][2] * sensorAttitudeData.azGFiltered;
 
 	// Remove gravity
@@ -49,7 +48,7 @@ void updateLinearMovements(float dt) {
 
 	imuData.axEarthLinear = axGEarth * GRAVITY_MSS;
 	imuData.ayEarthLinear = ayGEarth * GRAVITY_MSS;
-	imuData.azEarthLinear = (azGEarth * GRAVITY_MSS);
+	imuData.azEarthLinear = azGEarth * GRAVITY_MSS;
 
 	// 2. Body Frame Linear Acceleration (Gravity Compensation)
 	// We project the Earth gravity vector [0, 0, 1] into the Body frame.

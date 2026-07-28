@@ -80,7 +80,7 @@
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED   0.15f
 #define POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN       1.0f
 #define POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT         3.0f   // hard cap
-#define POSITION_MGR_POS_HOLD_BRAKE_DECEL              0.25   // 0.30f
+#define POSITION_MGR_POS_HOLD_BRAKE_DECEL              0.275   // 0.30f
 // =============================================================================
 // 6. RETURN TO HOME (RTH) NAVIGATION PROFILE
 // =============================================================================

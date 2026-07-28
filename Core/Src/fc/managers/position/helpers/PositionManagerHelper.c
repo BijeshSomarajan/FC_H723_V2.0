@@ -121,5 +121,10 @@ float calculateBearing(float xNorth, float yEast) {
 	return bearing;
 }
 
-
+__ATTR_ITCM_TEXT
+void alignEarthAccelToNED(float axIn, float ayIn, float azIn, float *axOut, float *ayOut, float *azOut) {
+	*axOut = axIn;    // North: correct as-is
+	*ayOut = -ayIn;   // East: inverted by attitude convention
+	*azOut = azIn;    // Down: correct as-is
+}
 
