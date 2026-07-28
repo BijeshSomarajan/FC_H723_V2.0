@@ -52,6 +52,7 @@ float altMgrLandingCommand = 0;
 float altMgrSLAltUpdateDt = 0;
 float altMgrTerrainAltUpdateDt = 0;
 uint8_t altMgrWasTerrainModeActive = 0;
+float altMgrAltSpeedGain = ALT_MGR_ALT_SPEED_GAIN_DEFAULT; //Meter Per Sec
 
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
@@ -78,7 +79,11 @@ uint8_t initAltitudeManager(void) {
 		altControlGains.accPGain = 1.0f;
 		altControlGains.accDGain = 1.0f;
 
-		initAltitudeControl();
+		altMgrAltSpeedGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_ALT_SPEED_GAIN_ADDR);
+		if (altMgrAltSpeedGain <= 0.0f || altMgrAltSpeedGain >= 1.0f) {
+			altMgrAltSpeedGain = ALT_MGR_ALT_SPEED_GAIN_DEFAULT;
+		}
+    	initAltitudeControl();
 	} else {
 		logString("[Altitude Manager] Init > Failed!\n");
 	}
@@ -111,6 +116,7 @@ void manageAltControlSettings(float dt) {
 		float deflectionRatio = constrainToRangeF(currentStickDeflection / (float) MAX_PERMISSIBLE_THROTTLE_DELTA, 0.0f, 1.0f);
 		deflectionGain = 1.0f - (deflectionRatio * ALT_MGR_ALT_CONTROL_STICK_ATTENUATION_GAIN);
 		float totalAttenuation = altMgrCurrentThrottleRateGain * deflectionGain;
+
 		altControlGains.masterPGain = ALT_MGR_ALT_CONTROL_SETTING_MASTER_P_GAIN * totalAttenuation;
 		altControlGains.ratePGain = ALT_MGR_ALT_CONTROL_SETTING_RATE_P_GAIN * totalAttenuation;
 		altControlGains.rateIGain = ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN * totalAttenuation;
@@ -143,7 +149,7 @@ void manageAltControlSettings(float dt) {
 __ATTR_ITCM_TEXT
 void handleThrottleChange(float dt) {
 	float currentStick = altMgrLandingPulseActive ? -altMgrLandingCommand : rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX];
-	float gain = currentStick * ALT_MGR_ALT_AGGREGATION_GAIN * dt;
+	float gain = currentStick * altMgrAltSpeedGain * dt;
 
 	// Clean, unobstructed tracking of stick inputs
 	float nextThrottle = fcStatusData.currentThrottle + gain;
@@ -256,16 +262,16 @@ void calculateTiltCompThrottle(float dt) {
 	float target = 0.0f;
 	/* 1. Attitude -> lift scaling: fraction of thrust still pointing up */
 	float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
-	float rollRad  = convertDegToRadF(sensorAttitudeData.roll);
+	float rollRad = convertDegToRadF(sensorAttitudeData.roll);
 	float liftComponent = cosApproxF(pitchRad) * cosApproxF(rollRad);
 	/* 2. Physical boundaries in cosine space */
 	float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MIN_ANGLE));
-	float maxAngleComponent  = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE));
+	float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE));
 	/* 3. Past the deadband -> compute the extra throttle the tilt costs.
 	 *    (1/lift - 1) is a DELTA on top of the existing hover throttle,
 	 *    which is why the -1 is correct: the base is already applied. */
 	if (liftComponent < deadbandComponent) {
-		float clampedLift    = fmaxf(liftComponent, maxAngleComponent);
+		float clampedLift = fmaxf(liftComponent, maxAngleComponent);
 		float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
 		/* GAIN must be 1.0 for full compensation. Anything below 1.0 is
 		 * deliberate under-compensation and will read as steady-state sag. */
@@ -277,15 +283,12 @@ void calculateTiltCompThrottle(float dt) {
 	 *    promptly, relax gently. TAU values are now honest - no cascade
 	 *    de-rating needed, so if you carried the "reduce by 30-40%" note,
 	 *    undo it and set TAU to the real transient window you want. */
-	float activeTau = (target >= altMgrCurrentTiltCompThDelta)
-	                ? ALT_MGR_TILT_COMP_TAU_RISE
-	                : ALT_MGR_TILT_COMP_TAU_FADE;
+	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TAU_RISE : ALT_MGR_TILT_COMP_TAU_FADE;
 	float alpha = dt / (activeTau + dt);
 	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
 	/* 5. Into the mixer */
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
-
 
 __ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
