@@ -13,7 +13,6 @@ void registerCRSFNavWayPointCB(CRSFNavWayPointCallback_t callback) {
 	crsfWayPointCB = callback;
 }
 
-char bufP1[64];
 void manageCRSFNavFrame(const uint8_t *payload) {
 	/*
 	 0xC8,       -- Destination (Flight Controller)

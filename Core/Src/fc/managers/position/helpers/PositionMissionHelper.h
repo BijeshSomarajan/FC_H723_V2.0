@@ -18,6 +18,7 @@
 void handleNavMission(float dt);
 void resetNavMissionStates(void);
 void resetNavRTHStates(void);
+void resetNavMissionModeStates(void);
 void resetNavWPStates(void);
 
 #endif /* SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMISSIONHELPER_H_ */

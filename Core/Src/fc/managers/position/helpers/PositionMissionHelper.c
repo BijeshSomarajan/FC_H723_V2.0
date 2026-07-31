@@ -16,21 +16,27 @@
 float positionMissionVxCommand, positionMissionVyCommand;
 float positionMissionWPCompleteDt = 0;
 uint8_t positionMissionWasRTHModeActive = 0;
+uint8_t positionMissionWasNavMissionModeActive = 0;
 int16_t positionMissionWPIndx = 0;
 uint8_t positionMissionWPComplete = 0;
 int16_t positionMissionWPCount = 0;
 
-uint8_t loadWayPointCordinates(void);
+uint8_t loadWayPoints(void);
 void updateWPCompletionStatus(float dt);
-void updateMissionVelocityCommand(float dt) ;
+void updateMissionVelocityCommand(float dt);
+char missionDebugBuf[128];
 
 void resetNavWPStates() {
 	positionMissionWPComplete = 0;
 	positionMissionWPCompleteDt = 0;
 }
 
-void resetNavRTHStates(){
+void resetNavRTHStates() {
 	positionMissionWasRTHModeActive = 0;
+}
+
+void resetNavMissionModeStates() {
+    positionMissionWasNavMissionModeActive = 0;
 }
 
 void resetNavMissionStates() {
@@ -40,6 +46,7 @@ void resetNavMissionStates() {
 	fcStatusData.isNavMissionComplete = 0;
 
 	resetNavRTHStates();
+	resetNavMissionModeStates();
 
 	positionMissionWPIndx = 0;
 	positionMissionWPCount = 0;
@@ -50,30 +57,29 @@ void resetNavMissionStates() {
 }
 
 __ATTR_ITCM_TEXT
-uint8_t loadWayPointCordinates() {
+uint8_t loadWayPoints() {
 	if (positionMissionWPIndx >= 0 && positionMissionWPIndx < positionMissionWPCount) {
-		logString("WayPoints exist\n");
 		GroundStationSensorWPData *groundStationSensorWPData = getGroundStationSensorWPData(positionMissionWPIndx);
 		if (groundStationSensorWPData != NULL) {
 			float posX, posY;
 			convertGNSSToXYCordinates(groundStationSensorWPData->latitude, groundStationSensorWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
 			fcStatusData.positionXRefMission = posX;
 			fcStatusData.positionYRefMission = posY;
-			logString("Loaded WayPoint\n");
+			sprintf(missionDebugBuf, "Nxt WP>>I:%d, Lt:%.7lf, Ln:%.7lf\n", groundStationSensorWPData->waypointIndex, groundStationSensorWPData->latitude, groundStationSensorWPData->longitude);
+			logString(missionDebugBuf);
 			return 1;
 		}
-	}else{
-		logString("No WayPoints to load\n");
 	}
 	return 0;
 }
 
 void groundStationMissionCallBack(uint8_t action) {
 	if (action == NAV_ACTION_START_MISSION) {
-		logString("Starting Mission\n");
 		resetNavMissionStates();
 		positionMissionWPCount = getGroundStationSensorWPDataCount();
-		loadWayPointCordinates();
+		loadWayPoints();
+		sprintf(missionDebugBuf, "Mission Start: %d WPs\n", positionMissionWPCount);
+		logString(missionDebugBuf);
 	} else if (action == NAV_ACTION_ABORT_MISSION) {
 		resetNavMissionStates();
 	}
@@ -82,8 +88,9 @@ void groundStationMissionCallBack(uint8_t action) {
 __ATTR_ITCM_TEXT
 void handleNavMission(float dt) {
 	if (fcStatusData.isNavRTHModeActive) {
+		positionMissionWasNavMissionModeActive = 0;
 		if (!positionMissionWasRTHModeActive) {
-			logString("Setting Home Position for mission\n");
+			logString("Set Home Position for RTH\n");
 			clearGroundStationSensorWPData();
 			GroundStationSensorWPData groundStationSensorWPData;
 			groundStationSensorWPData.waypointIndex = 0;
@@ -93,27 +100,34 @@ void handleNavMission(float dt) {
 			groundStationMissionCallBack(NAV_ACTION_START_MISSION);
 			positionMissionWasRTHModeActive = 1;
 		}
-	}else{
+	} else {
 		positionMissionWasRTHModeActive = 0;
+		if (fcStatusData.isNavMissionModeActive) {
+			if (!positionMissionWasNavMissionModeActive) {
+				logString("Starting Nav Mission\n");
+				groundStationMissionCallBack(NAV_ACTION_START_MISSION);
+				positionMissionWasNavMissionModeActive = 1;
+			}
+		}
 	}
 
 	updateMissionVelocityCommand(dt);
 	updateWPCompletionStatus(dt);
 	updatePositionReference();
 	if (positionMissionWPComplete) {
-		logString("Waypoint complete");
+		sprintf(missionDebugBuf, "WP Complete: %d\n", positionMissionWPIndx + 1);
+		logString(missionDebugBuf);
 		positionMissionWPIndx++;
-		uint8_t hasMoreWP = loadWayPointCordinates();
+		uint8_t hasMoreWP = loadWayPoints();
 		if (hasMoreWP) {
-			logString("Has more Waypoint\n");
 			resetNavWPStates();
 		} else {
-			logString("No more Waypoints , mission complete\n");
+			sprintf(missionDebugBuf, "Mission Complete: %d WPs\n", positionMissionWPIndx + 1);
+			logString(missionDebugBuf);
 			fcStatusData.isNavMissionComplete = 1;
 		}
 	}
 }
-
 
 __ATTR_ITCM_TEXT
 void updateMissionVelocityCommand(float dt) {
