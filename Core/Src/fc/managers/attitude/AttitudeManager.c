@@ -1,23 +1,22 @@
 #include "AttitudeManager.h"
 
-#include <sys/_stdint.h>
+#include <math.h>
 
+#include "../../calibration/Calibration.h"
 #include "../../control/attitude/AttitudeControl.h"
+#include "../../dsp/LowPassFilter.h"
+#include "../../FCConfig.h"
 #include "../../imu/IMU.h"
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
 #include "../../sensors/attitude/noisefilter/AttitudeNoiseFilter.h"
-#include "../../sensors/attitude/AttitudeSensor.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/DeltaTimer.h"
 #include "../../timers/GPTimer.h"
 #include "../../util/MathUtil.h"
-#include "../../FCConfig.h"
-#include "../../managers/position/common/PositionCommon.h"
-#include "../../managers/position/PositionManager.h"
-#include "../../dsp/LowPassFilter.h"
-#include "../../calibration/Calibration.h"
+#include "../position/common/PositionCommon.h"
+
 extern POSITION_COMMAND_DATA positionCommandData;
 
 uint8_t attitudeManagerWasInStabMode = 0;

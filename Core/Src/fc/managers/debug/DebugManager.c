@@ -1,37 +1,23 @@
 #include "DebugManager.h"
 
+#include <stdio.h>
 #include <sys/_stdint.h>
 
 #include "../../control/ControlData.h"
-#include "../../control/altitude/AltitudeControl.h"
-#include "../../imu/IMU.h"
-#include "../../sensors/altitude/devices/AltitudeDevice.h"
+#include "../../control/Pid.h"
+#include "../../dsp/LowPassFilter.h"
+#include "../../FCConfig.h"
+#include "../../logger/Logger.h"
 #include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
-#include "../../sensors/attitude/noisefilter/AttitudeNoiseFilter.h"
 #include "../../sensors/battery/BatterySensor.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
-#include "../../timers/DeltaTimer.h"
 #include "../../timers/Scheduler.h"
 #include "../config/ConfigHelper.h"
-#include "../../FCConfig.h"
-#include "../../dsp/BiQuadFilter.h"
-#include "../../dsp/FFT.h"
-#include "../../sensors/altitude/devices/tfmini/TFMini.h"
-#include "../../sensors/attitude/noisefilter/AdaptiveNotchFilter.h"
-#include "../../managers/position/common/PositionCommon.h"
-#include "../../managers/position/estimator/VenturiBiasEstimator.h"
-#include "../../managers/position/estimator/PositionEstimator.h"
-#include "../../control/Pid.h"
-#include "../../io/uart/UART.h"
-#include "../../sensors/position/GNSS.h"
-#include "../../util/MathUtil.h"
-#include "../../util/CommonUtil.h"
-#include "../motor/MotorManager.h"
-#include "../../logger/Logger.h"
-#include "../../sensors/rc/RCTelemetry.h"
-#include "../../control/position/PositionControl.h"
+#include "../position/common/PositionCommon.h"
+#include "../position/estimator/PositionEstimator.h"
+#include "../position/estimator/VenturiBiasEstimator.h"
 
 int32_t DEBUG_DATA_BUFFER[16];
 extern LOWPASSFILTER thControlRefLPF;
@@ -230,7 +216,11 @@ void debugTask() {
 	 DEBUG_DATA_BUFFER[7] = positionCordinateData.yVelocity * 1000;
 	 */
 
+	DEBUG_DATA_BUFFER[0] = fcStatusData.isLandingModeActive * 10;
+	DEBUG_DATA_BUFFER[1] = fcStatusData.isNavModeActive * 10;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.isNavRTHModeActive * 10;
+	DEBUG_DATA_BUFFER[3] = fcStatusData.isNavMissionModeActive * 10;
+	DEBUG_DATA_BUFFER[4] =  rcData.RC_DELTA_DATA[RC_MISSION_CHANNEL_INDEX] ;
 
-	sendConfigData(DEBUG_DATA_BUFFER, 3, CMD_FC_DATA);
-
+	sendConfigData(DEBUG_DATA_BUFFER,5, CMD_FC_DATA);
 }

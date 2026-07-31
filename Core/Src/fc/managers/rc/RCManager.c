@@ -95,7 +95,7 @@ void processRCData(float dt) {
 
 	loadRCStickDelta();
 
-	rcData.RC_DELTA_DATA[RC_HOME_SET_CHANNEL_INDEX] = getRCValue(RC_HOME_SET_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = getRCValue(RC_LAND_CHANNEL_INDEX);
 
 	fcStatusData.canStart = canStartModel();
 	fcStatusData.canArm = (fcStatusData.canStart && (!fcStatusData.canFly && !fcStatusData.isStabilized && !fcStatusData.canStabilize) ? canArmModel() : 0);
@@ -111,11 +111,19 @@ void processRCData(float dt) {
 
 	// Set the FC status
 	fcStatusData.isNavRTHModeActive = checkRTHModeActivation();
+	fcStatusData.isNavMissionModeActive = checkMissionModeActivation();
+
 	fcStatusData.isNavModeActive = checkNavModeActivation();
 
 	fcStatusData.isTerrainAltModeActive = checkTerrainAltModeActivation();
-	fcStatusData.isLandingModeActive = checkLandingModeActivation();
-	fcStatusData.needPositionHomeReset = checkHomePositionReset();
+
+	//If throttle is not centered , reset
+	if(checkLandingModeActivation()){
+		fcStatusData.isLandingModeActive = 1;
+	}else if(!rcData.throttleCentered ){
+		fcStatusData.isLandingModeActive = 0;
+	}
+
 }
 
 void determineFCState(float dt) {
@@ -221,6 +229,7 @@ void loadRCStickDelta() {
 	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = getRCValue(RC_YAW_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_YAW_CHANNEL_INDEX];
 	// Aux channels
 	rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] = getRCValue(RC_NAV_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_MISSION_CHANNEL_INDEX] = getRCValue(RC_MISSION_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = getRCValue(RC_LAND_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = getRCValue(RC_ALT_MODE_CHANNEL_INDEX);
 	// Apply dead bands
@@ -298,14 +307,17 @@ uint8_t checkRTHModeActivation() {
 }
 
 /**
+ * Checks if mission mode is active
+ */
+uint8_t checkMissionModeActivation(){
+	return (rcData.RC_DELTA_DATA[RC_MISSION_CHANNEL_INDEX] > MISSION_MODE_ACT_TSH);
+}
+
+/**
  * Checks if Landing Mode is active
  */
 uint8_t checkLandingModeActivation() {
 	return (rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] > LANDING_MODE_ACT_TSH);
-}
-
-uint8_t checkHomePositionReset() {
-	return (rcData.RC_DELTA_DATA[RC_HOME_SET_CHANNEL_INDEX] > HOME_RESET_ACT_TSH);
 }
 
 /**

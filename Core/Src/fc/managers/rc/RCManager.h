@@ -15,11 +15,12 @@
 
 #define POS_HOLD_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 #define RTH_HOLD_MODE_ACT_TSH  RC_CHANNEL_MAX_VALUE * 0.9f
+#define MISSION_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
+
 #define LANDING_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
-#define HEADLESS_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
+
 #define TERRAIN_ALT_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 #define TERRAIN_NAV_MODE_ACT_TSH  RC_CHANNEL_MAX_VALUE * 0.9f
-#define HOME_RESET_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 
 uint8_t initRCManager(void);
 void doRCManagement();
@@ -45,17 +46,14 @@ uint8_t checkRollCentered(void);
 uint8_t checkPitchCentered(void);
 void applyRCStickEffectiveness();
 
-uint8_t canEnableAltHold(void);
 void configureRCStickControl(void);
-uint8_t canEnableGlobalPosHold(void);
-uint8_t canEnableTerrainPosHold(void);
-uint8_t canEnableRTH(void);
+
 uint8_t checkNavModeActivation(void);
 uint8_t checkRTHModeActivation(void);
+uint8_t checkLandingModeActivation();
+
 uint8_t checkTerrainAltModeActivation(void);
 uint8_t checkTerrainNavModeActivation(void);
-uint8_t checkLandingModeActivation();
-uint8_t checkHomePositionReset();
-void checkForFailSafe(float dt);
+uint8_t checkMissionModeActivation(void);
 
 #endif

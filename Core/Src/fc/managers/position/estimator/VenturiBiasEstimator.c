@@ -1,6 +1,8 @@
 #ifndef SRC_FC_MANAGERS_POSITION_ESTIMATOR_VENTURIBIASESTIMATOR_C_
 #define SRC_FC_MANAGERS_POSITION_ESTIMATOR_VENTURIBIASESTIMATOR_C_
 
+#include "../../position/estimator/VenturiBiasEstimator.h"
+
 #include "../../../util/MathUtil.h"
 #include "../../../util/CommonUtil.h"
 #include "../../../sensors/rc/RCSensor.h"
@@ -11,7 +13,6 @@
 #include "../../../calibration/Calibration.h"
 #include "../../../dsp/LowPassFilter.h"
 
-#include "VenturiBiasEstimator.h"
 
 VENTURI_ESTIMATE_DATA venturiEstimateData;
 LOWPASSFILTER venturiBiasLPF;

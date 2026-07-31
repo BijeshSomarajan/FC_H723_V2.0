@@ -33,8 +33,8 @@
 #define RC_START_CHANNEL_INDEX       4 //Channel 5  //SA   //ARM
 #define RC_NAV_CHANNEL_INDEX         5 //Channel 6  //swb  //Hold/RTH
 #define RC_ALT_MODE_CHANNEL_INDEX    6 //Channel 7  //swc  //Terrain/ASL
-#define RC_LAND_CHANNEL_INDEX        7 //Channel 8  //swd  //Land
-#define RC_HOME_SET_CHANNEL_INDEX    8 //Channel 9 //key1 //Home PoS Set
+#define RC_MISSION_CHANNEL_INDEX     7 //Channel 8  //swd  //Mission
+#define RC_LAND_CHANNEL_INDEX        8 //Channel 9 //key1 //Home PoS Set
 
 #endif
 
@@ -58,6 +58,14 @@ struct _RC_DATA {
 	float failSafeCheckDt;
 
 };
+
+typedef struct _RC_WP_DATA RC_WP_DATA;
+struct _RC_WP_DATA {
+	uint16_t waypointIndex;
+	int32_t latitude;      // 1e-7 degrees
+	int32_t longitude;     // 1e-7 degrees
+};
+
 extern RC_DATA rcData;
 
 uint8_t initRCSensor(void);
@@ -67,7 +75,7 @@ uint8_t isRCTXxActive(void);
 uint8_t readRCSensor(void);
 uint16_t getRCFrameRate(void);
 uint16_t getRCValue(uint8_t channel);
-void setRCValue(uint8_t channel,uint16_t value);
+void setRCValue(uint8_t channel, uint16_t value);
 void calibrateRCSensor(void);
 
 

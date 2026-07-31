@@ -2,7 +2,7 @@
 #ifndef SRC_FC_MANAGERS_POSITION_POSITIONMANAGER_H_
 #define SRC_FC_MANAGERS_POSITION_POSITIONMANAGER_H_
 
-#include "common/PositionCommon.h"
+#include "../position/common/PositionCommon.h"
 
 /*
 * ============================================================================
@@ -81,31 +81,7 @@
 #define POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN       1.0f
 #define POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT         3.0f   // hard cap
 #define POSITION_MGR_POS_HOLD_BRAKE_DECEL              0.275   // 0.30f
-// =============================================================================
-// 6. RETURN TO HOME (RTH) NAVIGATION PROFILE
-// =============================================================================
-/* Higher: High-velocity transit back to home base. Lower: Safe, deliberate, conservative RTH cruising speed (saves battery but fights wind poorly). */
-#define POSITION_MGR_RTH_CRUISE_SPEED                  1.0f //Note this will be clamped by the Postion PID settings
 
-#define POSITION_MGR_RTH_BRAKE_DECEL                   1.5f   // m/s²
-
-/* Higher: Starts a gradual, smooth slowing down sequence far away from home. Lower: Screams toward home at full cruise speed until the last second, risking large overshoots. */
-#define POSITION_MGR_RTH_NEAR_HOME_RADIUS              1.5f
-
-/* Higher: Declares success early even if slightly offset. Lower: Drone will circle or hunt endlessly above home if GPS noise prevents entering a tiny radius. */
-#define POSITION_MGR_RTH_HOME_RADIUS                   0.6f
-
-/* Higher: Aggressive velocity changes and abrupt cruise adaptation. Lower: Silky, gentle, linear speed ramps that protect physical battery voltage. */
-#define POSITION_MGR_RTH_MAX_ACCEL                     5.0f
-
-/* Higher: Prolongs position hover stabilization before embarking on the RTH vector path. Lower: Darts home the exact millisecond RTH is commanded. */
-#define POSITION_MGR_RTH_SETTLING_PERIOD               0.5f
-
-/* Higher: Drone must stay inside home radius longer to verify a stable hover before triggering landing phase. Lower: Rapid completion trigger. */
-#define POSITION_MGR_RTH_COMPLETE_PERIOD               1.0f
-
-/* Higher: Allows completion trigger while drone is still sliding or oscillating over home. Lower: Strict hover requirement to complete transit safely. */
-#define POSITION_MGR_RTH_COMPLETE_MAX_GROUND_SPEED     0.4f
 
 typedef enum {
 	POS_HOLD_STATE_IDLE = 0, POS_HOLD_STATE_BRAKING, POS_HOLD_STATE_SETTLING, POS_HOLD_STATE_LOCKED

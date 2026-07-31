@@ -10,7 +10,7 @@ struct _FC_STATUS_DATA {
 	//FC Statues
 	uint8_t hasInitialized, isTxOn, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized, isFlying, isNavDataReliable , isTerrainAltDataReliable;
 	//FC Modes
-	uint8_t isNavModeActive, isNavRTHModeActive, isTerrainAltModeActive;
+	uint8_t isNavModeActive, isNavRTHModeActive,isNavMissionModeActive, isTerrainAltModeActive;
 	//Flag to state if landing landing mode is active
 	uint8_t isLandingModeActive, isFailSafeLandingMode;
 	//Flight debug status enabled
@@ -18,16 +18,17 @@ struct _FC_STATUS_DATA {
 	uint8_t isTelemetryEnabled;
 	//The position references
 	double positionXRef, positionYRef;
+	//The mission position references
+	double positionXRefMission, positionYRefMission;
 	//The home position
 	double positionLatHome, positionLongHome;
 	float positionXHome, positionYHome;
 	float positionZHome;
 
-	double positionLatHomeEffective, positionLongHomeEffective;
-	double positionXHomeEffective, positionYHomeEffective;
+	uint8_t isPositionHomeSet;
+	uint8_t postionHoldState;
 
-	uint8_t isPositionHomeSet, needPositionHomeReset;
-	uint8_t postionHoldState, isRTHComplete;
+	uint8_t isNavMissionComplete;
 
 	//Flight reference values
 	float headingRef, headingHomeRef, headingDelta;

@@ -11,10 +11,10 @@
 #include "../../sensors/rc/RCTelemetry.h"
 #include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
-#include "../../managers/position/PositionManager.h"
-#include "../../managers/position/helpers/PositionManagerHelper.h"
 #include "../../sensors/position/GNSS.h"
 #include "../../sensors/battery/BatterySensor.h"
+#include "../position/helpers/PositionManagerHelper.h"
+#include "../position/PositionManager.h"
 
 /* ============================================================================
  * BRHS Telemetry Mapping
@@ -50,7 +50,7 @@
  * -------------------- Flight Mode Frame ----------------------
  * Flight Mode      -> Flight Mode String
  */
-char FC_STATUS_BUF[8];
+char FC_STATUS_BUF[10];
 TelemetryStep currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
 
 void prepareAndSendFCStatus() {
@@ -69,7 +69,11 @@ void prepareAndSendFCStatus() {
 	// Loiter, Pos Hold, RTH
 	FC_STATUS_BUF[1] = '-';
 	if (fcStatusData.isNavRTHModeActive) {
-		FC_STATUS_BUF[2] = 'R';
+		if (fcStatusData.isNavMissionComplete) {
+			FC_STATUS_BUF[2] = 'C';
+		} else {
+			FC_STATUS_BUF[2] = 'R';
+		}
 	} else if (fcStatusData.isNavModeActive) {
 		FC_STATUS_BUF[2] = 'N'; //Nav Mode
 	} else {
@@ -89,8 +93,19 @@ void prepareAndSendFCStatus() {
 	} else {
 		FC_STATUS_BUF[6] = 'F';
 	}
-	FC_STATUS_BUF[7] = '\0';
-	sendFlightModeTelemetry(FC_STATUS_BUF, 8);
+	//Mission
+	FC_STATUS_BUF[7] = '-';
+	if (fcStatusData.isNavModeActive && fcStatusData.isNavMissionModeActive && !fcStatusData.isNavRTHModeActive) {
+		if (fcStatusData.isNavMissionComplete) {
+			FC_STATUS_BUF[8] = 'C';
+		} else {
+			FC_STATUS_BUF[8] = 'M';
+		}
+	} else {
+		FC_STATUS_BUF[8] = 'N';
+	}
+	FC_STATUS_BUF[9] = '\0';
+	sendFlightModeTelemetry(FC_STATUS_BUF, 10);
 }
 
 void prepareAndSendGNSSData(void) {

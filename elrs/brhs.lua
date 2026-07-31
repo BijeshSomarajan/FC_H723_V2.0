@@ -5,6 +5,7 @@
 local txBat, rxBat, rxBatMax, lq, rssi, alt, altRef, heading, headingRef
 local homeBearing, homeDistance, satField, fm, pitch, roll
 local gnssReliable, nSat
+local latitude , longitude 
 
 -- Persistent state tracking variables for audio alerts
 local aAlertWelcomePlayed = false
@@ -12,6 +13,7 @@ local aAlertLastStart = nil
 local aAlertLastNav = nil
 local aAlertLastAlt = nil
 local aAlertLastLand = nil
+local aAlertLastMission = nil
 local aAlertLastGnss = nil
 local aAlertNextBatAlert = 0
 local aAlertNextLinkAlert = 0  -- Timer tracking state for link quality alerts
@@ -32,7 +34,10 @@ local aAlertCritLinkInterval  = 300   -- 3 seconds repeat interval (Critical Lin
 
 -- VCP USB Params
 local vcpUSBLastSend = 0
-
+local NAV_WP_PAYLOAD_SIZE = 11
+local CRSF_MSP_NAV_COMMAND = 0x7C
+local mspRxBuffer = ""
+local mspSequence = 0
 
 -- Decoded Flight Mode Audio Mapping Tables
 local aAlertStartModes = {
@@ -47,6 +52,7 @@ local aAlertNavModes = {
     ["S"] = "/SOUNDS/en/brhs/nav/stab.wav",
     ["N"] = "/SOUNDS/en/brhs/nav/nav.wav",
     ["R"] = "/SOUNDS/en/brhs/nav/rth.wav",
+	["C"] = "/SOUNDS/en/brhs/nav/rthCom.wav",
 }
 
 local aAlertAltModes = {
@@ -57,6 +63,12 @@ local aAlertAltModes = {
 local aAlertLandModes = {
     ["L"] = "/SOUNDS/en/brhs/land/land.wav",
     ["F"] = "/SOUNDS/en/brhs/land/fly.wav",
+}
+
+local aAlertMissionModes = {
+    ["M"] = "/SOUNDS/en/brhs/mission/miOn.wav",
+    ["N"] = "/SOUNDS/en/brhs/mission/miOff.wav",
+	["C"] = "/SOUNDS/en/brhs/mission/miCom.wav",
 }
 
 -- Constant lookup table for compass directions (allocated once in memory)
@@ -81,17 +93,19 @@ local function doFMAlert()
     local cleanFm = string.gsub(string.upper(tostring(fm)), "%W", "")
 
     -- Only process individual flight mode states if telemetry returns a valid 4-character block
-    if #cleanFm == 4 then
+    if #cleanFm == 5 then
         local currentStart = string.sub(cleanFm, 1, 1)
         local currentNav   = string.sub(cleanFm, 2, 2)
         local currentAlt   = string.sub(cleanFm, 3, 3)
         local currentLand  = string.sub(cleanFm, 4, 4)
+		local currentMission  = string.sub(cleanFm, 5, 5)
 
         -- Initialize tracking states on first valid telemetry contact to prevent startup spam
         if aAlertLastStart == nil then aAlertLastStart = currentStart end
         if aAlertLastNav == nil then aAlertLastNav = currentNav end
         if aAlertLastAlt == nil then aAlertLastAlt = currentAlt end
         if aAlertLastLand == nil then aAlertLastLand = currentLand end
+		if aAlertLastMission == nil then aAlertLastMission = currentMission end
 
         -- [Start State] Sub-alert Check
         if currentStart ~= aAlertLastStart then
@@ -124,6 +138,15 @@ local function doFMAlert()
             end
             aAlertLastLand = currentLand
         end
+		
+		-- [Mission state] Sub-alert Check
+        if currentMission ~= aAlertLastMission then
+            if aAlertMissionModes[currentMission] then
+                playFile(aAlertMissionModes[currentMission])
+            end
+            aAlertLastMission = currentMission
+        end
+		
     end
 end
 
@@ -227,46 +250,191 @@ local function playAudioAlerts()
     doLinkAlert()
 end
 
-local function sendDataToVCP()
+local function sendTelemetryToVCP()
      local now = getTime();
-	  if (now - vcpUSBLastSend) >= 1000 then    -- 1000 ms
+	  if (now - vcpUSBLastSend) >= 100 then    -- 100 ms
         vcpUSBLastSend = now
-        serialWrite("hello\n")
+		local telemetry =
+		tostring(txBat) .. "," ..
+		tostring(rxBat) .. "," ..
+		tostring(rxBatMax) .. "," ..
+		tostring(lq) .. "," ..
+		tostring(rssi) .. "," ..
+		tostring(latitude) .. "," ..
+		tostring(longitude) .. "," ..
+		tostring(alt) .. "," ..
+		tostring(altRef) .. "," ..
+		tostring(heading) .. "," ..
+		tostring(headingRef) .. "," ..
+		tostring(homeBearing) .. "," ..
+		tostring(homeDistance) .. "," ..
+		tostring(satField) .. "," ..
+		tostring(fm) .. "," ..
+		tostring(pitch) .. "," ..
+		tostring(roll)
+        serialWrite(telemetry .. "\n")
     end
-	 
 end
 
-local function receiveDataFromVCP()
+----------------------------------------------------------------------------
+-- Pack uint16_t (Big Endian)
+----------------------------------------------------------------------------
+local function packUint16BE(tbl, pos, value)
+
+    value = math.floor(value) % 0x10000
+
+    tbl[pos]     = math.floor(value / 0x100) % 0x100
+    tbl[pos + 1] = value % 0x100
+end
+
+----------------------------------------------------------------------------
+-- Pack int32_t (Big Endian)
+----------------------------------------------------------------------------
+local function packInt32BE(tbl, pos, value)
+    value = math.floor(value)
+    if value < 0 then
+        value = value + 0x100000000
+    end
+    tbl[pos]     = math.floor(value / 0x1000000) % 0x100
+    tbl[pos + 1] = math.floor(value / 0x10000)   % 0x100
+    tbl[pos + 2] = math.floor(value / 0x100)     % 0x100
+    tbl[pos + 3] = value % 0x100
+end
+
+----------------------------------------------------------------------------
+-- Pack int32_t (Big Endian) , No floats and rounding
+----------------------------------------------------------------------------
+local function packDecStrInt32BE(tbl, pos, str)
+    str = string.match(str, "^%s*(-?%d+)%s*$")
+    if str == nil then
+        tbl[pos], tbl[pos+1], tbl[pos+2], tbl[pos+3] = 0,0,0,0
+        return
+    end
+    local neg = string.sub(str,1,1) == "-"
+    if neg then str = string.sub(str,2) end
+
+    local b0,b1,b2,b3 = 0,0,0,0            -- b3 = MSB, b0 = LSB
+    for i = 1, #str do
+        local d = string.byte(str,i) - 48
+        -- multiply the 4-byte number by 10 and add digit, byte by byte
+        local c = b0*10 + d ; b0 = c % 256 ; c = math.floor(c/256)
+        c = b1*10 + c       ; b1 = c % 256 ; c = math.floor(c/256)
+        c = b2*10 + c       ; b2 = c % 256 ; c = math.floor(c/256)
+        c = b3*10 + c       ; b3 = c % 256          -- top carry discarded (>2^32)
+    end
+
+    if neg then                            -- two's complement: invert + 1
+        b0 = (255-b0) ; b1 = (255-b1) ; b2 = (255-b2) ; b3 = (255-b3)
+        local c = b0 + 1 ; b0 = c % 256 ; c = math.floor(c/256)
+        c = b1 + c ; b1 = c % 256 ; c = math.floor(c/256)
+        c = b2 + c ; b2 = c % 256 ; c = math.floor(c/256)
+        c = b3 + c ; b3 = c % 256
+    end
+
+    tbl[pos]   = b3     -- big-endian: MSB first
+    tbl[pos+1] = b2
+    tbl[pos+2] = b1
+    tbl[pos+3] = b0
+end
+
+----------------------------------------------------------------------------
+-- Build MSP NAV payload from parsed command
+----------------------------------------------------------------------------
+local function buildNavMSPPayload(action, index, latStr, lonStr)
+    local payload = {
+        0xC8,        -- Destination (FC)
+        0xEA,        -- Origin (Radio)
+        mspSequence  -- Sequence
+    }
+    payload[4] = action
+    if action == 2 then
+        packUint16BE(payload, 5, index)
+        packDecStrInt32BE(payload, 7,  latStr)   -- lat
+        packDecStrInt32BE(payload, 11, lonStr)   -- lon
+    end
+	mspSequence = (mspSequence + 1) % 256
+    return payload
+end
+
+
+local function receiveDataFromVCPAndSendToFC()
+    ----------------------------------------------------------------------
+    -- Read all available data (non-blocking)
+    ----------------------------------------------------------------------
     local data = serialRead()
-    if data and #data > 0 then
-        playTone(1000, 100, 0, PLAY_NOW)
-       serialWrite("Got\n")
-    end
-end
 
-local function sendMSPToFC()
-    local now = getTime();
-	if (now - vcpUSBLastSend) >= 1000 then    -- 1000 ms
-        vcpUSBLastSend = now
-		local payload = {
-			0xC8,       -- Destination: Flight Controller
-			0xEA,       -- Origin: Radio
-			0x01,       -- Sequence number (can start at 1)
-			0x55        -- Test data
-        }
+    if data ~= "" then
+        mspRxBuffer = mspRxBuffer .. data
+
+        if #mspRxBuffer > 512 then
+            mspRxBuffer = ""
+            return
+        end
+    end
+    ----------------------------------------------------------------------
+    -- Process every complete command line
+    ----------------------------------------------------------------------
+	local processed = 0
+    while processed < 16 do
+
+        local eol = string.find(mspRxBuffer, "\n", 1, true)
+
+        if eol == nil then
+            break
+        end
+
+        local line = string.sub(mspRxBuffer, 1, eol - 1)
+
+        mspRxBuffer = string.sub(mspRxBuffer, eol + 1)
+        processed = processed + 1
+        --------------------------------------------------------------
+        -- Parse CSV
+        --------------------------------------------------------------
+        local fields = {}
+
+        for value in string.gmatch(line, "([^,]+)") do
+            fields[#fields + 1] = value
+        end
+
+        local action = tonumber(fields[1])
 		
-		local ok = crossfireTelemetryPush(0x7C, payload)
+        if action == 1 then
 
-		if ok then
-			serialWrite("MSP Sent\r\n")
-		else
-			serialWrite("MSP Busy\r\n")
-		end
-       
+            local payload = buildNavMSPPayload(action)
+
+            if crossfireTelemetryPush(CRSF_MSP_NAV_COMMAND, payload) then
+                playTone(2000, 100, 0, PLAY_NOW)
+            else
+                playTone(100, 100, 0, PLAY_NOW)
+            end
+
+        elseif action == 2 then
+
+            if #fields ~= 4 then
+                goto continue
+            end
+
+            local index   = tonumber(fields[2])
+            local latStr  = string.match(fields[3], "^%s*(-?%d+)%s*$")
+            local lonStr  = string.match(fields[4], "^%s*(-?%d+)%s*$")
+
+            -- index must be a small integer; lat/lon must be integer strings
+            if (index == nil) or (latStr == nil) or (lonStr == nil) then
+                goto continue   -- malformed or non-integer coord: skip, don't send (0,0)
+            end
+
+            local payload = buildNavMSPPayload(action, index, latStr, lonStr)
+
+            if crossfireTelemetryPush(CRSF_MSP_NAV_COMMAND, payload) then
+                playTone(2000, 100, 0, PLAY_NOW)
+            else
+                playTone(100, 100, 0, PLAY_NOW)
+            end
+        end
+        
+        ::continue::
     end
-	 
 end
-
 
 -- ==========================================================================
 -- MAIN EXECUTION LOOP
@@ -298,6 +466,14 @@ local function run(event)
 
     pitch        = getValue("Ptch") or getValue("Pitch") or 0
     roll         = getValue("Roll") or getValue("Rol") or 0
+	
+	local gpsCoords = getValue("GPS")
+	latitude = 0
+	longitude = 0
+	if type(gpsCoords) == "table" then
+		latitude = gpsCoords.lat or 0
+		longitude = gpsCoords.lon or 0
+	end
 
     --------------------------------------------------------------------------
     -- Decode Telemetry
@@ -371,13 +547,13 @@ local function run(event)
     --------------------------------------------------------------------------
     -- Send Data to USB VCP
     --------------------------------------------------------------------------
-   --sendDataToVCP()
-   --receiveDataFromVCP();
-   --sendMSPToFC();
+    sendTelemetryToVCP();
+    receiveDataFromVCPAndSendToFC();
+   
 end
 
 local function init()
-    --setSerialBaudrate(115200)
+   setSerialBaudrate(115200)
 end
 
 return { 

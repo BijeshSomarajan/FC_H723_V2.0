@@ -4,10 +4,10 @@
 
 #include "../../calibration/Calibration.h"
 #include "../../memory/Memory.h"
-#include "../../managers/position/PositionManager.h"
 #include "../ControlData.h"
 #include "../Pid.h"
 #include "../../FCConfig.h"
+#include "../../managers/position/PositionManager.h"
 #include "../../status/FCStatus.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
 

@@ -1,5 +1,7 @@
 #include "AltitudeManager.h"
 
+#include <math.h>
+
 #include "../../calibration/Calibration.h"
 #include "../../control/altitude/AltitudeControl.h"
 #include "../../control/ControlData.h"
@@ -8,7 +10,6 @@
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
 #include "../../sensors/altitude/AltitudeSensor.h"
-#include "../../sensors/altitude/devices/AltitudeDevice.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
@@ -16,11 +17,9 @@
 #include "../../timers/GPTimer.h"
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
-#include "../../util/CommonUtil.h"
-#include "../../imu/IMU.h"
-#include "../../managers/position/PositionManager.h"
-#include "../../managers/position/helpers/PositionManagerHelper.h"
-#include "../../managers/position/estimator/PositionEstimatorHelper.h"
+#include "../position/common/PositionCommon.h"
+#include "../position/estimator/PositionEstimatorHelper.h"
+#include "../position/helpers/PositionManagerHelper.h"
 
 // Inner state variables
 float altMgrAltHoldActivationDt = 0;

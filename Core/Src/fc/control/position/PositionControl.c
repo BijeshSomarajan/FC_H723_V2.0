@@ -2,11 +2,10 @@
 
 #include "../../calibration/Calibration.h"
 #include "../../managers/position/common/PositionCommon.h"
-#include "../../dsp/Interpolator.h"
 #include "../../memory/Memory.h"
+#include "../../util/MathUtil.h"
 #include "../ControlData.h"
 #include "../Pid.h"
-#include "../../FCConfig.h"
 
 PID positionXPID, positionYPID, positionXRatePID, positionYRatePID;
 float positionControlXVelDist = 0.0f, positionControlYVelDist = 0.0f;

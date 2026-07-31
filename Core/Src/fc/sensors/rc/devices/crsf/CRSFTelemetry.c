@@ -9,11 +9,11 @@
 #include <stdint.h>
 #include <string.h>
 #include "stm32h7xx.h"
-#include "../../../logger/Logger.h"
-#include "../../../io/uart/UART.h"
-#include "../../../dsp/CircularQueue.h"
-#include "../../../memory/Memory.h"
-#include "../../../util/MathUtil.h"
+#include "../../../../logger/Logger.h"
+#include "../../../../io/uart/UART.h"
+#include "../../../../dsp/CircularQueue.h"
+#include "../../../../memory/Memory.h"
+#include "../../../../util/MathUtil.h"
 #include "CRSF.h"
 
 /* CRSF Protocol Constants */

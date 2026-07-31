@@ -321,7 +321,7 @@
  * module, nav rate, or baud ever changes, RE-MEASURE. Symptoms of error:
  * too small -> residual backtrack after stick release (settles behind);
  * too large -> creeps FORWARD past the release point. */
-#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.15f //10Hz GPS update
+#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.12f //10Hz GPS update
 
 // PositionEstimatorConfig.h — Group 9
 #define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED    1

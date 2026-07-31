@@ -7,7 +7,6 @@
 #include "../managers/indicator/IndicatorManager.h"
 #include "../managers/attitude/AttitudeManager.h"
 #include "../managers/altitude/AltitudeManager.h"
-#include "../managers/position/PositionManager.h"
 #include "../managers/battery/BatteryManager.h"
 #include "../managers/motor/MotorManager.h"
 #include "../managers/debug/DebugManager.h"
@@ -19,6 +18,7 @@
 #include "../timers/Scheduler.h"
 #include "../timers/GPTimer.h"
 #include "../status/FCStatus.h"
+#include "position/PositionManager.h"
 #include "telemetry/TelemetryManager.h"
 
 void dispatchManagers() {
