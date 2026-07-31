@@ -1,8 +1,9 @@
 #include "CRSF.h"
-#include "../../../logger/Logger.h"
-#include "../../../io/uart/UART.h"
-#include "../../../dsp/CircularQueue.h"
-#include "../../../memory/Memory.h"
+#include "CRSFNav.h"
+#include "../../../../logger/Logger.h"
+#include "../../../../io/uart/UART.h"
+#include "../../../../dsp/CircularQueue.h"
+#include "../../../../memory/Memory.h"
 
 // Internal state & channel storage
 static uint16_t crsfChannelValue[16] = { 1500 }; // Default to mid-point stick PWM
@@ -18,7 +19,7 @@ static uint32_t crsfRateTimer = 0;
 // This buffer must reside in DMA accessible memory (D2 Domain) and be 32-byte aligned for H7 Cache
 __ATTR_RAM_D2 uint8_t crsfIOReadBuffer[CRSF_BUFFSIZE];
 uint8_t crsfIOReadSize = CRSF_BUFFSIZE;
-
+uint8_t csrfInitialized = 0;
 // Circular queue configurations
 CircularQueue crsfIOQueue;
 #define CRSF_CIRCULAR_QUEUE_SIZE (CRSF_BUFFSIZE * 2)
@@ -28,6 +29,7 @@ CRSF_CHANNELS channels;
 // Forward declaration of internal parser functions
 uint8_t updateCRSFData(uint8_t *dataBytes, uint16_t length);
 void processCRSFFrame(uint8_t frameType, const uint8_t *payload);
+void manageCRSFNavFrame(const uint8_t *payload);
 
 /**
  * @brief DMA RX ISR Callback - routes raw byte bursts directly into the circular queue
@@ -41,12 +43,17 @@ void _processCRSFData(uint8_t *data, uint16_t len) {
  * @brief Initializes the UART4 peripheral and internal processing queues
  */
 uint8_t initCRSF(void) {
+	if(csrfInitialized){
+		logString("[CRSF] : Already initialized > Success\n");
+		return 1;
+	}
 	// ExpressLRS baseline operates at 420000 baud
 	if (uart4Init(UART_BAUD_RATE_420000)) {
 		logString("[CRSF] : IO:UART > Success\n");
 		if (uart4ReadStart(crsfIOReadBuffer, crsfIOReadSize, _processCRSFData)) {
 			circularQueueInit(&crsfIOQueue, CRSF_CIRCULAR_QUEUE_SIZE);
 			logString("[CRSF] : IO , UART Read start > Success\n");
+			csrfInitialized = 1;
 			return 1;
 		} else {
 			logString("[CRSF] : IO , UART Read start > Failed\n");
@@ -182,8 +189,8 @@ void processCRSFFrame(uint8_t frameType, const uint8_t *payload) {
 		break;
 	}
 
-	case 0x7C:{
-		//logString("MSP!!\n");
+	case CRSF_MSP_NAV_FRAME_TYPE: {
+		manageCRSFNavFrame(payload);
 	    break;
 	}
 		// Placeholder for adding future frame types (e.g., Link Statistics 0x14)

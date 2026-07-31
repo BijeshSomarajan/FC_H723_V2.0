@@ -2,7 +2,8 @@
 #define SRC_FC_SENSORS_ALTITUDE_ESTIMATION_EKFALTITUDEESTIMATOR_H_
 
 #include <stdint.h>
-#include "PositionEstimatorConfig.h"
+
+#include "../../position/estimator/PositionEstimatorConfig.h"
 
 /* =========================================================================
  * Core EKF Dimensions & Layout Indices

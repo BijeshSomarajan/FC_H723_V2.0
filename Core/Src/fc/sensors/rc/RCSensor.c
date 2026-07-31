@@ -4,8 +4,8 @@
 #include "../../timers/DelayTimer.h"
 
 #include "RCSensor.h"
-#include "devices/FSIA.h"
-#include "devices/CRSF.h"
+#include "devices/fsia/FSIA.h"
+#include "devices/crsf/CRSF.h"
 
 #define RC_CALIBRATION_COUNT  100
 

@@ -1,5 +1,6 @@
+#include "../../position/helpers/PositionManagerHelper.h"
+
 #include <sys/_stdint.h>
-#include "../common/PositionCommon.h"
 #include "../../../util/MathUtil.h"
 #include "../../../util/CommonUtil.h"
 #include "../../../status/FCStatus.h"
@@ -7,7 +8,7 @@
 #include "../../../sensors/attitude/AttitudeSensor.h"
 #include "../../../sensors/altitude/AltitudeSensor.h"
 
-#include "PositionManagerHelper.h"
+#include "../../position/common/PositionCommon.h"
 
 float posManagerGNSSStableTime = 0;
 float posManagerTerrainAltStableTime = 0;
@@ -126,5 +127,13 @@ void alignEarthAccelToNED(float axIn, float ayIn, float azIn, float *axOut, floa
 	*axOut = axIn;    // North: correct as-is
 	*ayOut = -ayIn;   // East: inverted by attitude convention
 	*azOut = azIn;    // Down: correct as-is
+}
+
+__ATTR_ITCM_TEXT
+void updatePositionReference() {
+	if (fcStatusData.canFly && fcStatusData.isNavDataReliable && fcStatusData.isPositionHomeSet) {
+		fcStatusData.positionXRef = positionCordinateData.xPosition;
+		fcStatusData.positionYRef = positionCordinateData.yPosition;
+	}
 }
 

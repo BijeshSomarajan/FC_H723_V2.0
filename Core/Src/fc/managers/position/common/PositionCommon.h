@@ -2,7 +2,9 @@
 #define SRC_FC_MANAGERS_POSITION_COMMON_POSITIONCOMMON_H_
 
 #include <sys/_stdint.h>
-
+/**
+ * Position Cordinate Data
+ */
 typedef struct _POSITION_CORDINATE_DATA POSITION_CORDINATE_DATA;
 struct _POSITION_CORDINATE_DATA {
 
@@ -21,7 +23,9 @@ struct _POSITION_CORDINATE_DATA {
 	float positionZTerrainUpdateDt;
 };
 extern POSITION_CORDINATE_DATA positionCordinateData;
-
+/*
+ * Postion Commands to the Attitude Controller
+ */
 typedef struct _POSITION_COMMAND_DATA POSITION_COMMAND_DATA;
 struct _POSITION_COMMAND_DATA {
 	float pitchCommand, rollCommand;

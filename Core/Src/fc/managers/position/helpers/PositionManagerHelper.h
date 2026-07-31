@@ -1,7 +1,7 @@
 #ifndef SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_
 #define SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_
 
-#include "../estimator/PositionEstimator.h"
+#include "../../position/estimator/PositionEstimator.h"
 
 #define POSITION_GNSS_EARTH_RADIUS_METERS 6378137.0
 #define POSITION_GNSS_DEG_TO_RAD 0.017453292519943295
@@ -32,7 +32,7 @@ void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float
 float calculateDistance(double homeLat, double homeLon, double lat, double lon);
 float calculateBearing(float xNorth, float yEast);
 void alignEarthAccelToNED(float axIn, float ayIn, float azIn, float *axOut, float *ayOut, float *azOut);
-
+void updatePositionReference(void);
 uint8_t isNavModeActive();
 
 #endif /* SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_ */

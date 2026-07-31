@@ -1,11 +1,12 @@
-#include "PositionEstimatorHelper.h"
+#include "../../position/estimator/PositionEstimatorHelper.h"
+
 #include <string.h>
 #include "../../../memory/Memory.h"
 #include "../../../util/MathUtil.h"
 #include "../../../imu/IMU.h"
-#include "../common/PositionCommon.h"
-#include "VenturiBiasEstimator.h"
 #include "../../../status/FCStatus.h"
+#include "../../position/common/PositionCommon.h"
+#include "../../position/estimator/VenturiBiasEstimator.h"
 
 const float H_BARO_WITH_BIAS[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
 const float H_BARO[4] = { 1.0f, 0.0f, 0.0f, 0.0f };

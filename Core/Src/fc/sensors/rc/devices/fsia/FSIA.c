@@ -1,9 +1,9 @@
 #include "FSIA.h"
 
-#include "../../../logger/Logger.h"
-#include "../../../io/uart/UART.h"
-#include "../../../dsp/CircularQueue.h"
-#include "../../../memory/Memory.h"
+#include "../../../../logger/Logger.h"
+#include "../../../../io/uart/UART.h"
+#include "../../../../dsp/CircularQueue.h"
+#include "../../../../memory/Memory.h"
 
 
 #define FSIA_BUFFSIZE 32

@@ -1,6 +1,6 @@
 #ifndef SRC_FC_MANAGERS_POSITION_ESTIMATOR_POSITIONESTIMATORHELPER_H_
 #define SRC_FC_MANAGERS_POSITION_ESTIMATOR_POSITIONESTIMATORHELPER_H_
-#include "PositionEstimator.h"
+#include "../../position/estimator/PositionEstimator.h"
 
 #define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
 #define POSITION_MGR_VENTURI_ESTIMATE_ENABLED          1

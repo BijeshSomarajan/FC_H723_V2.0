@@ -10,7 +10,7 @@
 
 /*------ FF Configurations -----*/
 #define POSITION_CONTROL_VEL_FF_ENABLED 1
-#define POSITION_CONTROL_VEL_FF_GAIN    0.2f //0.05f // was 0.0125f
+#define POSITION_CONTROL_VEL_FF_GAIN    0.1f //0.05f // was 0.0125f
 /*------ Disturbance Estimations -----*/
 #define POSITION_CONTROL_DOB_ENABLED     1
 #define POSITION_CONTROL_DOB_ACC_TAU     0.04f

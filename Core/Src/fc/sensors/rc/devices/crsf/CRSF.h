@@ -56,4 +56,6 @@ void resetCRSFState(void);
 uint8_t isCRSFActive(void);
 uint16_t getCRSFFrameRate(void);
 
+
+
 #endif /* SRC_FC_SENSORS_RC_DEVICES_CRSF_H_ */

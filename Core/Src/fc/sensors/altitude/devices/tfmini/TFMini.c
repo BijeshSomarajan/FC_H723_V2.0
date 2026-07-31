@@ -83,7 +83,7 @@ uint8_t deviceLidarInit() {
 	} else {
 		logString("[TFMini] I2C Check Success\n");
 	}
-
+    delayMs(100);
 	status = tfMiniResetDevice();
 	if (!status) {
 		logString("[TFMini] Reset Failed\n");
