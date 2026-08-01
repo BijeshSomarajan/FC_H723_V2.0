@@ -76,7 +76,7 @@
 //Absolute lower bound on noise floor.
 #define FFT_NOISE_MIN_FLOOR        0.3f//0.28f
 // How sharp a peak must be above neighbors to count.
-#define FFT_PEAK_REJECT_RATIO      1.5f
+#define FFT_PEAK_REJECT_RATIO      0.28f //was 1.5f
 //Peak must be XX noise floor to be “real”.
 #define FFT_NOISE_MULTIPLIER      1.5f  // 5.0f
 //Max allowed frequency movement per millisecond.
