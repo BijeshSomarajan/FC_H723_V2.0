@@ -15,7 +15,7 @@
 #define FFT_HALF_N        (FFT_N / 2)
 
 // Number of top dominant frequency bins tracked for noise analysis
-#define FFT_TOP_FREQ_N     2
+#define FFT_TOP_FREQ_N     2 //Do not change this.
 
 // FFT hop size between consecutive windows (50% overlap improves time resolution)
 #define FFT_HOP_SIZE      (FFT_N / 2)   // M: 50% Overlap
