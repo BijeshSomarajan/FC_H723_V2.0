@@ -120,14 +120,14 @@ void updatePWMValues() {
 __ATTR_ITCM_TEXT
 void motorControlTask() {
 	if (fcStatusData.canFly) {
-		float throttleControl = controlData.throttleControl * controlData.batteryDepletionGain;
+		float throttleControl = controlData.throttleControl;
 		float pitchControl = controlData.pitchControl;
 		float rollControl = controlData.rollControl;
 		float yawControl = controlData.yawControl;
-		pwmData.PWM_VALUES[0] = throttleControl - pitchControl - rollControl + yawControl;
-		pwmData.PWM_VALUES[1] = throttleControl - pitchControl + rollControl - yawControl;
-		pwmData.PWM_VALUES[2] = throttleControl + pitchControl - rollControl - yawControl;
-		pwmData.PWM_VALUES[3] = throttleControl + pitchControl + rollControl + yawControl;
+		pwmData.PWM_VALUES[0] = (throttleControl - pitchControl - rollControl + yawControl) * controlData.batteryDepletionGain;
+		pwmData.PWM_VALUES[1] = (throttleControl - pitchControl + rollControl - yawControl) * controlData.batteryDepletionGain;
+		pwmData.PWM_VALUES[2] = (throttleControl + pitchControl - rollControl - yawControl) * controlData.batteryDepletionGain;
+		pwmData.PWM_VALUES[3] = (throttleControl + pitchControl + rollControl + yawControl) * controlData.batteryDepletionGain;
 		updateMotorPWMValues();
 	} else {
 		stopOutputs();

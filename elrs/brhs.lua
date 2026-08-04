@@ -7,6 +7,9 @@ local homeBearing, homeDistance, satField, fm, pitch, roll
 local gnssReliable, nSat
 local latitude , longitude 
 
+-- Battery alert state from FC (0 none / 1 low / 2 critical), carried on Bat%
+local batteryAlertState
+
 -- Persistent state tracking variables for audio alerts
 local aAlertWelcomePlayed = false
 local aAlertLastStart = nil
@@ -20,9 +23,13 @@ local aAlertNextLinkAlert = 0  -- Timer tracking state for link quality alerts
 
 -- ALERT CONFIGURATION SETTINGS
 
--- Battery thresholds, percentages, and timings
-local aAlertLowBatPercent    = 0.88 -- 88% of rxBatMax for Low Battery alert
-local aAlertCritBatPercent   = 0.84 -- 84% of rxBatMax for Critical Battery alert
+-- Battery alerting: the FC decides the tier (chemistry, curve, and latch all
+-- live on the FC) and pushes it on the repurposed Bat% telemetry field.
+-- The radio just plays the matching sound at the right cadence -- no thresholds.
+local BAT_ALERT_NONE = 0
+local BAT_ALERT_LOW  = 1
+local BAT_ALERT_CRIT = 2
+
 local aAlertBatInterval      = 2000 -- 20 seconds repeat interval (Low Battery)
 local aAlertCritBatInterval  = 500  -- 5 seconds repeat interval (Critically low Battery)
 
@@ -150,32 +157,38 @@ local function doFMAlert()
     end
 end
 
--- Dedicated function to manage dual-tier voltage alerts
+-- Dedicated function to manage dual-tier battery alerts.
+-- The tier is decided on the FC and carried on the Bat% field (0/1/2);
+-- this only plays the matching sound at the right repeat cadence.
 local function doBatAlert()
     local currentTime = getTime() -- Internal clock (100 ticks = 1 second)
 
-    -- Only process if telemetry is active and rxBatMax has captured a valid value
-    if rxBat > 1.5 and rxBatMax > 0 then
-        if rxBat < (rxBatMax * aAlertCritBatPercent) then
-            -- Tier 1: Critical Battery Alert every 5 seconds
+    -- Round + band the incoming state so a scaled/rounded telemetry value
+    -- (e.g. 2.0, or a future higher state) still resolves to the right tier.
+    local state = math.floor((batteryAlertState or 0) + 0.5)
+
+    -- rxBat > 1.5 confirms the telemetry link is live before trusting the state.
+    if rxBat > 1.5 then
+        if state >= BAT_ALERT_CRIT then
+            -- Critical: repeat every 5 seconds
             if currentTime > aAlertNextBatAlert then
                 playFile("/SOUNDS/en/brhs/bat/rxBatC.wav")
                 aAlertNextBatAlert = currentTime + aAlertCritBatInterval
             end
-        elseif rxBat < (rxBatMax * aAlertLowBatPercent) then
-            -- Tier 2: Low Battery Alert every 20 seconds
+        elseif state >= BAT_ALERT_LOW then
+            -- Low: repeat every 20 seconds
             if currentTime > aAlertNextBatAlert then
                 playFile("/SOUNDS/en/brhs/bat/rxBatL.wav")
                 aAlertNextBatAlert = currentTime + aAlertBatInterval
             end
         else
-            -- Battery is healthy, keep timer synchronized
+            -- No alert (state 0), keep timer synchronized
             if currentTime > aAlertNextBatAlert then
                 aAlertNextBatAlert = currentTime
             end
         end
     else
-        -- Telemetry completely lost, keep timer synchronized
+        -- Telemetry link down, keep timer synchronized
         if currentTime > aAlertNextBatAlert then
             aAlertNextBatAlert = currentTime
         end
@@ -448,6 +461,7 @@ local function run(event)
     txBat        = getValue("tx-voltage") or getValue("tx-volt") or getValue("tx-v") or 0
     rxBat        = getValue("RxBt") or 0
     rxBatMax     = getValue("Curr") or 0
+    batteryAlertState = getValue("Bat%") or 0
 
     lq           = getValue("RQly") or 0
     rssi         = getValue("1RSS") or 0

@@ -25,9 +25,9 @@
  *
  * ----------------------- Battery Frame -----------------------
  * Voltage          -> Battery Voltage (V)
- * Current          -> Max Voltage (A) //Repurposed
+ * Current          -> Nominal Voltage (A) //Repurposed
  * Capacity         -> Consumed Capacity (mAh)
- * Remaining        -> Battery Percentage (%)
+ * Remaining        -> Battery Alert (%)   //Repurposed
  *
  * ------------------------- GPS Frame -------------------------
  * Latitude         -> GNSS Latitude (deg)
@@ -138,7 +138,7 @@ void telemetryUpdateTask() {
 		break;
 
 	case TELEMETRY_STEP_BATTERY:
-		sendBatteryTelemetry(batteryData.voltage, fcStatusData.maxBatteryVolt, 0, 0);
+		sendBatteryTelemetry(batteryData.voltage, fcStatusData.batteryNomVolt, 0, fcStatusData.batteryAlertState);
 		break;
 	case TELEMETRY_STEP_GNSS:
 		prepareAndSendGNSSData();

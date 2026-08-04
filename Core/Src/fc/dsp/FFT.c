@@ -404,24 +404,19 @@ uint8_t processFFT(FFTContext *ctx, uint16_t processingBudget) {
 				float m = ctx->fftMagnitudes[b];
 				float f = fftBinFrequencies[b];
 
+				/* FIX (bounds): keep only FFT_TOP_FREQ_N (=2) peaks. The original tracked three
+				 * and wrote topMagn[2]/topFreq[2], out of bounds for these arrays, corrupting
+				 * adjacent struct fields. Raise FFT_TOP_FREQ_N to 3 in FFT.h and restore the
+				 * third slot if you need the strongest three peaks. */
 				if (m > ctx->topMagn[0]) {
-					ctx->topMagn[2] = ctx->topMagn[1];
-					ctx->topFreq[2] = ctx->topFreq[1];
-
 					ctx->topMagn[1] = ctx->topMagn[0];
 					ctx->topFreq[1] = ctx->topFreq[0];
 
 					ctx->topMagn[0] = m;
 					ctx->topFreq[0] = f;
 				} else if (m > ctx->topMagn[1]) {
-					ctx->topMagn[2] = ctx->topMagn[1];
-					ctx->topFreq[2] = ctx->topFreq[1];
-
 					ctx->topMagn[1] = m;
 					ctx->topFreq[1] = f;
-				} else if (m > ctx->topMagn[2]) {
-					ctx->topMagn[2] = m;
-					ctx->topFreq[2] = f;
 				}
 			}
 #endif
@@ -446,11 +441,15 @@ __ATTR_ITCM_TEXT uint8_t updateFFT(FFTContext *ctx, float input, float dt) {
 	if (ctx->fftSampleCount < FFT_HOP_SIZE) {
 		return 0;
 	} else {
-		memmove(&ctx->windowBuffer[0], &ctx->windowBuffer[FFT_HOP_SIZE], (FFT_N - FFT_HOP_SIZE) * sizeof(float));
+		/* FIX (overlap): build the FFT frame from [old | new] BEFORE sliding the ring buffer.
+		 * windowBuffer already holds the correct overlapped frame here; sliding first would
+		 * overwrite the older half with a copy of the newest hop ([new | new]) and discard
+		 * half the time record. Copy to fftData first, then slide for the next frame. */
 		for (int k = 0; k < FFT_N; k++) {
 			ctx->fftData[k].real = ctx->windowBuffer[k];
 			ctx->fftData[k].imag = 0.0f;
 		}
+		memmove(&ctx->windowBuffer[0], &ctx->windowBuffer[FFT_HOP_SIZE], (FFT_N - FFT_HOP_SIZE) * sizeof(float));
 		ctx->fftSampleCount = 0;
 		startFFTProcess(ctx);
 	}
