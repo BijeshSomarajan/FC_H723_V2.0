@@ -46,7 +46,9 @@ struct _FC_STATUS_DATA {
 
 	//The config mode
 	uint8_t isConfigMode;
-	float maxBatteryVolt;
+	float batteryNomVolt;
+	uint8_t batteryType; //0-Lipo , 1-lion
+	uint8_t batteryAlertState ; //None=0 , Low=1, Crit=2
 };
 
 extern FC_STATUS_DATA fcStatusData;

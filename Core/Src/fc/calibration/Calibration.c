@@ -193,7 +193,9 @@ void setDefaultCalibration() {
 
 	CALIB_DATA[CALIB_PROP_COG_ACC_X_OFFSET_ADDR] = 0;
 	CALIB_DATA[ CALIB_PROP_COG_ACC_Y_OFFSET_ADDR] = 0;
-	CALIB_DATA[CALIB_PROP_VBAT_ADDR] = 1100;
+
+	CALIB_DATA[CALIB_PROP_BAT_NOM_VOLT_ADDR] = 1110;
+	CALIB_DATA[CALIB_PROP_BAT_TYPE_ADDR] = 0;
 }
 
 /******************************************************************************/

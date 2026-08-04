@@ -38,15 +38,6 @@ void debugString() {
 	logString(buf);
 }
 
-void debugBattery() {
-	DEBUG_DATA_BUFFER[0] = positionCordinateData.zPosition * 100;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.zVelocity * 100;
-	DEBUG_DATA_BUFFER[2] = fcStatusData.altitudeRef * 100;
-	DEBUG_DATA_BUFFER[3] = fcStatusData.headingRef * 10;
-
-	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
-}
-
 void debugGPS() {
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading;
 	DEBUG_DATA_BUFFER[1] = fcStatusData.isNavDataReliable * 1000;
@@ -112,6 +103,14 @@ void debugIMU() {
 	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
 }
 
+void debugBattery() {
+	DEBUG_DATA_BUFFER[0] = fcStatusData.batteryNomVolt * 10;
+	DEBUG_DATA_BUFFER[1] = fcStatusData.batteryType * 10;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.batteryAlertState * 10;
+	DEBUG_DATA_BUFFER[3] = batteryData.voltage * 10;
+	DEBUG_DATA_BUFFER[4] = controlData.batteryDepletionGain * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+}
 
 float nowMs = 0;
 void debugTask() {
@@ -121,5 +120,5 @@ void debugTask() {
 	float dt = 1.0f / DEBUG_TASK_FREQUENCY;
 	(void) dt;
 	//nowMs += dt;
-	debugNoise();
+	debugBattery();
 }

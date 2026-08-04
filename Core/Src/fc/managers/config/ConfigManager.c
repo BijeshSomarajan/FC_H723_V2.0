@@ -35,9 +35,11 @@ uint8_t initConfigManager() {
 				}
 
 			} else {
+				char testBuf[64];
 				//Load the persisted calibrations
 				loadCalibration();
-				fcStatusData.maxBatteryVolt = get1KXScaledCalibrationValue(CALIB_PROP_VBAT_ADDR);
+				fcStatusData.batteryNomVolt = get1KXScaledCalibrationValue(CALIB_PROP_BAT_NOM_VOLT_ADDR);
+				fcStatusData.batteryType = (uint8_t)getCalibrationValue(CALIB_PROP_BAT_TYPE_ADDR);
 				logString("[Config Manager] : Calibration -> Was Initialized , Loaded\n");
 			}
 			status = initConfigHelper();
