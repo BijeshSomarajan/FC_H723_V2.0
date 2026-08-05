@@ -7,6 +7,7 @@
 #include "../managers/indicator/IndicatorManager.h"
 #include "../managers/attitude/AttitudeManager.h"
 #include "../managers/altitude/AltitudeManager.h"
+#include "../managers/blackbox/blackBoxManager.h"
 #include "../managers/battery/BatteryManager.h"
 #include "../managers/motor/MotorManager.h"
 #include "../managers/debug/DebugManager.h"
@@ -138,6 +139,15 @@ uint8_t initManagers() {
 			logString("[FC Manager] >> initManagers >> initBatteryManager > Success\n");
 		} else {
 			logString("[FC Manager] >> initManagers >> initBatteryManager > Failed\n"); // Corrected log message
+		}
+	}
+
+	if (status) {
+		status = initBlackBoxManager();
+		if (status) {
+			logString("[FC Manager] >> initManagers >> initBlackBoxManager > Success\n");
+		} else {
+			logString("[FC Manager] >> initManagers >> initBlackBoxManager > Failed\n"); // Corrected log message
 		}
 	}
 
