@@ -3,6 +3,7 @@
 
 #include "../../../logger/Logger.h"
 #include "../../rc/devices/crsf/CRSF.h"
+#include "../../rc/RCSensor.h"
 #include "../../rc/devices/crsf/CRSFNav.h"
 #include "../GroundStationSensor.h"
 
@@ -32,7 +33,6 @@ void _groundStationSensorCRSFMissionCb(uint8_t missionCommand) {
 	}
 }
 
-char bufP[64];
 void _groundStationSensorCRSFWPCb(uint8_t wpCommand, CRSFNavWaypointPayload_t wp) {
 	switch (wpCommand) {
 	case CRSF_NAV_ACTION_CLEAR_WAYPOINTS: {
@@ -40,7 +40,7 @@ void _groundStationSensorCRSFWPCb(uint8_t wpCommand, CRSFNavWaypointPayload_t wp
 		break;
 	}
 	case CRSF_NAV_ACTION_ADD_WAYPOINT: {
-		if(wp.waypointIndex == 0){
+		if (wp.waypointIndex == 0) {
 			clearGroundStationSensorWPData();
 		}
 		GroundStationSensorWPData groundStationSensorWPData;
@@ -79,6 +79,7 @@ GroundStationSensorWPData* getGroundStationSensorWPData(uint8_t index) {
 }
 
 uint8_t initGroundStationSensor(GroundStationMissionCallback missionCb) {
+#if  RC_RX_TYPE== RC_RX_TYPE_CRSF
 	uint8_t status = initCRSF();
 	if (status) {
 		groundStationMissionCb = missionCb;
@@ -90,6 +91,10 @@ uint8_t initGroundStationSensor(GroundStationMissionCallback missionCb) {
 		logString("[GroundStation Sensor] : CRSF > Failed\n");
 	}
 	return status;
+#else
+	logString("[GroundStation Sensor] : CRSF > Unavilable\n");
+	return 1;
+#endif
 }
 
 void resetGroundStationSensor() {

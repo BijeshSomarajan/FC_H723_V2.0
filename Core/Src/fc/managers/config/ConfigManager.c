@@ -35,7 +35,6 @@ uint8_t initConfigManager() {
 				}
 
 			} else {
-				char testBuf[64];
 				//Load the persisted calibrations
 				loadCalibration();
 				fcStatusData.batteryNomVolt = get1KXScaledCalibrationValue(CALIB_PROP_BAT_NOM_VOLT_ADDR);

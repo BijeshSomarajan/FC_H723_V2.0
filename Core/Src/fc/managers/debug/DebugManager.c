@@ -48,7 +48,7 @@ void debugGPS() {
 }
 
 uint8_t sendX = 0;
-void debugCRSF() {
+void debugRC() {
 	DEBUG_DATA_BUFFER[0] = fcStatusData.canStart;
 	DEBUG_DATA_BUFFER[1] = rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[2] = rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX];
@@ -100,7 +100,9 @@ void debugIMU() {
 	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.rollRate * 10;
 	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.yawRate * 10;
 
-	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[6] = sensorAttitudeData.heading * 10;
+
+	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
 }
 
 void debugBattery() {
@@ -112,6 +114,14 @@ void debugBattery() {
 	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
 
+void debugALt() {
+	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeSLFiltered*100;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 1000;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+}
+
 float nowMs = 0;
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
@@ -120,5 +130,8 @@ void debugTask() {
 	float dt = 1.0f / DEBUG_TASK_FREQUENCY;
 	(void) dt;
 	//nowMs += dt;
-	debugBattery();
+	//debugBattery();
+	//debugRC();
+	//debugIMU();
+	debugALt();
 }

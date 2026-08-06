@@ -39,13 +39,12 @@
 
 #define DEBUG_ENABLED 1
 
-#define DRONE_MASS_KG 0.7f
 #define MAX_PERMISSIBLE_THROTTLE_DELTA 900
 
 //#define FC_BOARD_VERSION  1
 /**
  * Board version 2 > Mag turned 180
  */
-#define FC_BOARD_VERSION  2
+#define FC_BOARD_VERSION  1
 
 #endif /* SRC_FC_MANAGERS_FCCONFIG_H_ */

@@ -10,7 +10,7 @@
 
 #define RC_RX_TYPE_FSIA 1
 #define RC_RX_TYPE_CRSF 2
-#define RC_RX_TYPE RC_RX_TYPE_CRSF
+#define RC_RX_TYPE RC_RX_TYPE_FSIA
 
 #if RC_RX_TYPE== RC_RX_TYPE_FSIA
 
@@ -19,14 +19,14 @@
 #define RC_PITCH_CHANNEL_INDEX       2 // Channel 3
 #define RC_ROLL_CHANNEL_INDEX        3 // Channel 4
                                   // 4 //Channel 5 //Reserved
-#define RC_LAND_CHANNEL_INDEX        5 //Channel 6  //swd  //Land
+#define RC_MISSION_CHANNEL_INDEX     5 //Channel 6  //swd  //Mission
 #define RC_START_CHANNEL_INDEX       6 //Channel 7  //swa  //ARM
 #define RC_NAV_CHANNEL_INDEX         7 //Channel 8  //swb  //Hold/RTH
 #define RC_ALT_MODE_CHANNEL_INDEX    8 //Channel 9  //swc  //Terrain/ASL
-#define RC_HOME_SET_CHANNEL_INDEX    9 //Channel 10 //key1 //Home PoS Set
+#define RC_LAND_CHANNEL_INDEX        9 //Channel 10 //key1 //Land
 
 #else
-#define RC_ROLL_CHANNEL_INDEX        0 // Channel 0 // Rudder
+#define RC_ROLL_CHANNEL_INDEX        0 // Channel 1 // Rudder
 #define RC_PITCH_CHANNEL_INDEX       1 // Channel 2 // Ele
 #define RC_TH_CHANNEL_INDEX          2 // Channel 3 // Throttle
 #define RC_YAW_CHANNEL_INDEX         3 // Channel 4 // Aileron
