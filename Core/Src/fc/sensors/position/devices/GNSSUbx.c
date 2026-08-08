@@ -14,6 +14,10 @@
 #define UBX_READ_BUFFER_SIZE      UBX_RCV_BUFFER_SIZE
 #define UBX_NAV_PVT_LEN           92
 
+#define UBX_DEVICE_TYPE_M8        8
+#define UBX_DEVICE_TYPE_M10       10
+#define UBX_DEVICE_TYPE           UBX_DEVICE_TYPE_M8
+
 // Memory section for D2 Domain (DMA compatible)
 __ATTR_RAM_D2 static uint8_t ubxDataBuffer[UBX_RCV_BUFFER_SIZE];
 uint8_t ubxIOReadSize = UBX_RCV_BUFFER_SIZE;
@@ -51,7 +55,6 @@ typedef struct {
 } UBX_CONTEXT;
 
 static UBX_CONTEXT ubxContext = { .state = IDLE };
-
 #define UBX_BUILD_U32(p) ((uint32_t)(p)[0] | ((uint32_t)(p)[1] << 8) | ((uint32_t)(p)[2] << 16) | ((uint32_t)(p)[3] << 24))
 #define UBX_BUILD_I32(p) ((int32_t)UBX_BUILD_U32(p))
 
@@ -199,9 +202,9 @@ uint8_t updateUBXData(UBX_CONTEXT *p, uint8_t *buffer, uint16_t len) {
 					gnssData.vAcc = p->vAcc * 1e-3f;
 					gnssData.hAcc = p->hAcc * 1e-3f;
 
-					gnssData.velN = p->velN * 1e-3f ;
-					gnssData.velE = p->velE * 1e-3f ;
-					gnssData.velD = p->velD * 1e-3f ;
+					gnssData.velN = p->velN * 1e-3f;
+					gnssData.velE = p->velE * 1e-3f;
+					gnssData.velD = p->velD * 1e-3f;
 
 					gnssData.sAcc = p->sAcc * 1e-3f;
 
@@ -238,22 +241,74 @@ uint8_t readGNSSData(void) {
 	if (available > 0) {
 		uint16_t readLen = (available > UBX_READ_BUFFER_SIZE) ? UBX_READ_BUFFER_SIZE : available;
 		readLen = circularQueueRead(&ubxIOQueue, ubxCircularQueueReadBuffer, readLen);
-		return updateUBXData(&ubxContext, ubxCircularQueueReadBuffer, readLen);
+		updateUBXData(&ubxContext, ubxCircularQueueReadBuffer, readLen);
 	}
 	return 0;
 }
 
+uint8_t configureGNSS(void) {
+	uint8_t status = 0;
+#if	UBX_DEVICE_TYPE ==  UBX_DEVICE_TYPE_M8
+	// CFG-PRT: UART1 -> 8N1, 115200 baud, UBX in/out only (disables NMEA)
+	uint8_t cfgPortAndUbx[] = { 0xB5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xC0, 0x08, 0x00, 0x00, 0x00, 0xC2, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA8, 0x42 };
+
+	// CFG-RATE: 10 Hz (100 ms measRate, 1 cycle, GPS time)
+	uint8_t cfgRate10Hz[] = { 0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0x64, 0x00, 0x01, 0x00, 0x01, 0x00, 0x7A, 0x12 };
+	//uint8_t cfgRate1Hz[] = { 0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xE8, 0x03, 0x01, 0x00, 0x01, 0x00, 0x01, 0x39 };
+
+	// CFG-MSG: enable NAV-PVT on UART1 (rate 1 -> every nav solution -> 10 Hz)
+	uint8_t cfgNavPvt[] = { 0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0x01, 0x07, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x18, 0xE1 };
+
+	// Module cold-boots at 9600 baud by default
+	status = uart7Init(UART_BAUD_RATE_9600);
+
+	if (status == 0) {
+		logString("[UBX] UART Init (9600) Failed\n");
+		return status;
+	} else {
+		logString("[UBX] UART Init (9600) OK\n");
+	}
+
+	delayMs(50);
+
+	uart7WriteDMA(cfgPortAndUbx, sizeof(cfgPortAndUbx));
+	delayMs(10);
+
+	uart7DeInit();
+#endif
+
+	status = uart7Init(UART_BAUD_RATE_115200);
+	if (status == 0) {
+		logString("[UBX] UART Init (115200) Failed\n");
+		return status;
+	} else {
+		logString("[UBX] UART Init (115200) OK\n");
+	}
+
+#if	UBX_DEVICE_TYPE ==  UBX_DEVICE_TYPE_M8
+	uart7WriteDMA(cfgNavPvt, sizeof(cfgNavPvt));
+	delayMs(50);
+
+	uart7WriteDMA(cfgRate10Hz, sizeof(cfgRate10Hz));
+	delayMs(50);
+#endif
+
+	return status;
+}
+
 uint8_t initGNSS(void) {
-	if (uart7Init()) {
-		logString("[UBX] UART Init OK\n");
+	if (configureGNSS()) {
+		logString("[UBX] Init - OK\n");
 		circularQueueInit(&ubxIOQueue, UBX_CIRCULAR_QUEUE_SIZE);
 		// Start DMA RX
 		if (uart7ReadStart(ubxDataBuffer, ubxIOReadSize, _processUBXData)) {
 			delayMs(100);
 			resetGNSS();
-			logString("[UBX] RX Start OK\n");
+			logString("[UBX] RX Start - OK\n");
 			return 1;
 		}
+	} else {
+		logString("[UBX] Init - Failed\n");
 	}
 	return 0;
 }
