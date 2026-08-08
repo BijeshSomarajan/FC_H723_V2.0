@@ -131,7 +131,7 @@ void debugTask() {
 	(void) dt;
 	//nowMs += dt;
 	//debugBattery();
-	//debugRC();
+	debugRC();
 	//debugIMU();
-	debugALt();
+	//debugALt();
 }

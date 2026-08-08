@@ -7,8 +7,6 @@
 #include <string.h>
 #include "UART.h"
 
-#define UART7_BAUD_RATE   115200
-
 __ATTR_RAM_D2 UART_RxCallback_t uart7RxCallback = NULL;
 __ATTR_RAM_D2 uint8_t *uart7RxBuffer = NULL;
 
@@ -70,7 +68,7 @@ void DMA1_Stream4_IRQHandler(void) {
 void uart7DMAConfigTX() {
 	// Ensure stream is disabled before config
 	LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_5);
-	while ( LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_5) ) {
+	while (LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_5)) {
 	}
 	// Clear all flags
 	LL_DMA_ClearFlag_TC5(DMA1);
@@ -101,7 +99,7 @@ void uart7DMAConfigTX() {
 
 void uart7DMAConfigRX() {
 	LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_4);
-	while ( LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_4) ) {
+	while (LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_4)) {
 	}
 
 	LL_DMA_ClearFlag_TC4(DMA1);
@@ -143,7 +141,7 @@ void uart7DMAConfig(void) {
 /**
  * @brief Initializes the UART7 peripheral.
  */
-void uart7Config() {
+void uart7Config(uint32_t baudRate) {
 	LL_USART_InitTypeDef UART_InitStruct = { 0 };
 	LL_GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 	LL_RCC_SetUSARTClockSource(LL_RCC_USART234578_CLKSOURCE_PCLK1);
@@ -163,7 +161,7 @@ void uart7Config() {
 	LL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
 	UART_InitStruct.PrescalerValue = LL_USART_PRESCALER_DIV1;
-	UART_InitStruct.BaudRate = 115200;
+	UART_InitStruct.BaudRate = baudRate;
 	UART_InitStruct.DataWidth = LL_USART_DATAWIDTH_8B;
 	UART_InitStruct.StopBits = LL_USART_STOPBITS_1;
 	UART_InitStruct.Parity = LL_USART_PARITY_NONE;
@@ -178,14 +176,19 @@ void uart7Config() {
 	LL_USART_ConfigAsyncMode(UART7);
 }
 
-uint8_t uart7Init() {
+void uart7DeInit() {
+	//LL_USART_Disable(UART7);
+	uart7Initialized = 0;
+}
+
+uint8_t uart7Init(uint32_t baudRate) {
 	if (!uart7Initialized) {
-		uart7Config();
+		uart7Config(baudRate);
 		uart7DMAConfig();
 		//Enable UART7
 		LL_USART_Enable(UART7);
 		/* Wait for UART7 initialization */
-		while ( (!(LL_USART_IsActiveFlag_TEACK(UART7))) || (!(LL_USART_IsActiveFlag_REACK(UART7))) ) {
+		while ((!(LL_USART_IsActiveFlag_TEACK(UART7))) || (!(LL_USART_IsActiveFlag_REACK(UART7)))) {
 		}
 		uart7Initialized = 1;
 	}
@@ -197,7 +200,7 @@ void uart7WriteDMA(uint8_t *data, uint16_t len) {
 	SCB_CleanDCache_by_Addr((uint32_t*) data, len);
 	// Disable DMA before updating
 	LL_DMA_DisableStream(DMA1, LL_DMA_STREAM_5);
-	while ( LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_5) ) {
+	while (LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_5)) {
 	}
 	// Configure memory and peripheral addresses
 	LL_DMA_ConfigAddresses(DMA1, LL_DMA_STREAM_5, (uint32_t) data, LL_USART_DMA_GetRegAddr(UART7, LL_USART_DMA_REG_DATA_TRANSMIT), LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
@@ -209,13 +212,13 @@ void uart7WriteDMA(uint8_t *data, uint16_t len) {
 void uart7Write(uint8_t *data, uint16_t len) {
 	for (uint16_t i = 0; i < len; i++) {
 		// Wait until TXE (Transmit Data Register Empty) is set
-		while ( !LL_USART_IsActiveFlag_TXE(UART7) ) {
+		while (!LL_USART_IsActiveFlag_TXE(UART7)) {
 		}
 		// Send one byte
 		LL_USART_TransmitData8(UART7, data[i]);
 	}
 	// Wait until TC (Transmission Complete) is set
-	while ( !LL_USART_IsActiveFlag_TC(UART7) ) {
+	while (!LL_USART_IsActiveFlag_TC(UART7)) {
 	}
 }
 
@@ -226,7 +229,7 @@ uint8_t uart7ReadStart(uint8_t *data, uint16_t len, UART_RxCallback_t callback) 
 		uart7RxBuffer = data;
 		uart7RxBufferLength = len;
 		uart7RxBufferLengthHalf = uart7RxBufferLength / 2;
-		while ( LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_4) ) {
+		while (LL_DMA_IsEnabledStream(DMA1, LL_DMA_STREAM_4)) {
 		}
 
 		LL_DMA_ConfigAddresses( DMA1, LL_DMA_STREAM_4, LL_USART_DMA_GetRegAddr(UART7, LL_USART_DMA_REG_DATA_RECEIVE), (uint32_t) data, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
