@@ -37,7 +37,7 @@
 #define FC_STABLILIZATION_PERIOD 8.0f
 #define FC_ARM_PERIOD 1.0f
 
-#define DEBUG_ENABLED 1
+#define DEBUG_ENABLED 0
 
 #define MAX_PERMISSIBLE_THROTTLE_DELTA 900
 
@@ -45,6 +45,6 @@
 /**
  * Board version 2 > Mag turned 180
  */
-#define FC_BOARD_VERSION  1
+#define FC_BOARD_VERSION  2
 
 #endif /* SRC_FC_MANAGERS_FCCONFIG_H_ */

@@ -1,9 +1,10 @@
 #include "PositionMissionHelper.h"
 
 #include <math.h>
-#include <stddef.h>
+#include <stdio.h>
 #include <sys/_stdint.h>
 
+#include "../../../calibration/Calibration.h"
 #include "../../../control/position/PositionControl.h"
 #include "../../../logger/Logger.h"
 #include "../../../memory/Memory.h"
@@ -20,11 +21,18 @@ uint8_t positionMissionWasNavMissionModeActive = 0;
 int16_t positionMissionWPIndx = 0;
 uint8_t positionMissionWPComplete = 0;
 int16_t positionMissionWPCount = 0;
+float positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_DEFAULT;
 
 uint8_t loadWayPoints(void);
 void updateWPCompletionStatus(float dt);
 void updateMissionVelocityCommand(float dt);
-char missionDebugBuf[128];
+
+void initPositionMissionHelper(){
+	positionCruiseSpeed = get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR);
+	if(positionCruiseSpeed < 0 || positionCruiseSpeed > positionCruiseSpeed){
+		 positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_DEFAULT;
+	}
+}
 
 void resetNavWPStates() {
 	positionMissionWPComplete = 0;
@@ -65,8 +73,6 @@ uint8_t loadWayPoints() {
 			convertGNSSToXYCordinates(groundStationSensorWPData->latitude, groundStationSensorWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
 			fcStatusData.positionXRefMission = posX;
 			fcStatusData.positionYRefMission = posY;
-			sprintf(missionDebugBuf, "Nxt WP>>I:%d, Lt:%.7lf, Ln:%.7lf\n", groundStationSensorWPData->waypointIndex, groundStationSensorWPData->latitude, groundStationSensorWPData->longitude);
-			logString(missionDebugBuf);
 			return 1;
 		}
 	}
@@ -78,8 +84,6 @@ void groundStationMissionCallBack(uint8_t action) {
 		resetNavMissionStates();
 		positionMissionWPCount = getGroundStationSensorWPDataCount();
 		loadWayPoints();
-		sprintf(missionDebugBuf, "Mission Start: %d WPs\n", positionMissionWPCount);
-		logString(missionDebugBuf);
 	} else if (action == NAV_ACTION_ABORT_MISSION) {
 		resetNavMissionStates();
 	}
@@ -115,15 +119,11 @@ void handleNavMission(float dt) {
 	updateWPCompletionStatus(dt);
 	updatePositionReference();
 	if (positionMissionWPComplete) {
-		sprintf(missionDebugBuf, "WP Complete: %d\n", positionMissionWPIndx + 1);
-		logString(missionDebugBuf);
 		positionMissionWPIndx++;
 		uint8_t hasMoreWP = loadWayPoints();
 		if (hasMoreWP) {
 			resetNavWPStates();
 		} else {
-			sprintf(missionDebugBuf, "Mission Complete: %d WPs\n", positionMissionWPIndx + 1);
-			logString(missionDebugBuf);
 			fcStatusData.isNavMissionComplete = 1;
 		}
 	}
@@ -145,7 +145,7 @@ void updateMissionVelocityCommand(float dt) {
 		dirY = dy * invDist;
 	}
 // Base cruise speed
-	float targetSpeed = fminf(POSITION_MISSION_CRUISE_SPEED, fastSqrtf(2.0f * POSITION_MISSION_BRAKE_DECEL * distance));
+	float targetSpeed = fminf(positionCruiseSpeed, fastSqrtf(2.0f * POSITION_MISSION_BRAKE_DECEL * distance));
 // Slow down near home
 	if (distance < POSITION_MISSION_WP_NEAR_RADIUS) {
 		float scale = distance / POSITION_MISSION_WP_NEAR_RADIUS;

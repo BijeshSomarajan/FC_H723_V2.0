@@ -24,7 +24,6 @@
 // Inner state variables
 float altMgrAltHoldActivationDt = 0;
 float altStabilizationDt = 0;
-float altMgrMaxHeight = 0;
 uint8_t altMgrWasInStabMode = 0;
 
 ALTITUDE_CONTROL_GAINS altControlGains;
@@ -55,7 +54,6 @@ float altMgrAltSpeedGain = ALT_MGR_ALT_SPEED_GAIN_DEFAULT; //Meter Per Sec
 
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
-
 uint8_t initAltitudeManager(void) {
 	logString("[Altitude Manager] Init > Start\n");
 	uint8_t status = initAltitudeSensors();
@@ -66,10 +64,7 @@ uint8_t initAltitudeManager(void) {
 		logString("[Altitude Manager] All tasks   > Started\n");
 
 		fcStatusData.liftOffThrottlePercent = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR) / (float) MAX_PERMISSIBLE_THROTTLE_DELTA;
-
-		altMgrMaxHeight = (float) get100XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_MAX_HEIGHT_ADDR);
-
-		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
+    	lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
 
 		altControlGains.masterPGain = 1.0f;
 		altControlGains.ratePGain = 1.0f;
@@ -78,11 +73,12 @@ uint8_t initAltitudeManager(void) {
 		altControlGains.accPGain = 1.0f;
 		altControlGains.accDGain = 1.0f;
 
-		altMgrAltSpeedGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_ALT_SPEED_GAIN_ADDR);
+		altMgrAltSpeedGain = get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_SPEED_ADDR);
 		if (altMgrAltSpeedGain <= 0.0f || altMgrAltSpeedGain >= 1.0f) {
 			altMgrAltSpeedGain = ALT_MGR_ALT_SPEED_GAIN_DEFAULT;
 		}
-    	initAltitudeControl();
+
+	   	initAltitudeControl();
 	} else {
 		logString("[Altitude Manager] Init > Failed!\n");
 	}
@@ -212,7 +208,6 @@ __ATTR_ITCM_TEXT
 void updateAltitudeReferences() {
 	fcStatusData.altitudeRef = positionCordinateData.zPosition;
 	fcStatusData.altitudeSLHome = fcStatusData.altitudeRef;
-	fcStatusData.altitudeSLMax = fcStatusData.altitudeSLHome + altMgrMaxHeight;
 }
 
 __ATTR_ITCM_TEXT

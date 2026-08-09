@@ -75,6 +75,8 @@ uint8_t initPositionManager(void) {
 		logString("[Position Manager] All tasks   > Started\n");
 
 		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY, POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
+
+		initPositionMissionHelper();
 	} else {
 		logString("[Position Manager] EKF Init > Failed\n");
 	}
