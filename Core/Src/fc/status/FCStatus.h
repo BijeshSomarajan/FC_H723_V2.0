@@ -34,7 +34,6 @@ struct _FC_STATUS_DATA {
 	float headingRef, headingHomeRef, headingDelta;
 	float altitudeSLHome;
 	float altitudeRef;
-	float altitudeSLMax;
 
 	//Throttle reference values
 	float currentThrottle;
