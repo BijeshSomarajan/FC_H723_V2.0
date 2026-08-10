@@ -241,7 +241,7 @@ uint8_t readGNSSData(void) {
 	if (available > 0) {
 		uint16_t readLen = (available > UBX_READ_BUFFER_SIZE) ? UBX_READ_BUFFER_SIZE : available;
 		readLen = circularQueueRead(&ubxIOQueue, ubxCircularQueueReadBuffer, readLen);
-		updateUBXData(&ubxContext, ubxCircularQueueReadBuffer, readLen);
+		return updateUBXData(&ubxContext, ubxCircularQueueReadBuffer, readLen);
 	}
 	return 0;
 }

@@ -44,9 +44,9 @@ void updateTerrainAltDataReliability(float dt) {
 __ATTR_ITCM_TEXT
 void updateGNSSDataReliability(float dt) {
 	// 1. Basic threshold check (Strictly requires 3D fix or higher)
-	uint8_t valid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.vAcc <= POSITION_GNSS_MIN_VACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
+	uint8_t gnssValid = (gnssData.fixType >= POSITION_GNSS_MIN_FIX) && (gnssData.hAcc <= POSITION_GNSS_MIN_HACC) && (gnssData.vAcc <= POSITION_GNSS_MIN_VACC) && (gnssData.satCount >= POSITION_GNSS_MIN_NSAT);
 
-	if (valid) {
+	if (gnssValid) {
 		// Accumulate trust linearly (1.0s of clean data = 1.0s added to accumulator)
 		posManagerGNSSStableTime += dt;
 	} else {

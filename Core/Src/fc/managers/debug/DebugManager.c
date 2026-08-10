@@ -11,7 +11,9 @@
 #include "../../logger/Logger.h"
 #include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
+#include "../../sensors/attitude/devices/AttitudeDevice.h"
 #include "../../sensors/battery/BatterySensor.h"
+#include "../../sensors/position/GNSS.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/Scheduler.h"
@@ -121,9 +123,14 @@ void debugALt() {
 	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.azGFilteredImu * 1000;
 	DEBUG_DATA_BUFFER[3] = imuData.azEarthLinear * 1000;
 	DEBUG_DATA_BUFFER[4] = imuData.azBodyLinear * 1000;
-	DEBUG_DATA_BUFFER[5] = positionCordinateData.zAcceleration* 1000;
-	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity* 1000;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.zAcceleration * 1000;
+	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity * 1000;
 	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+}
+
+void debugGnssData() {
+	sprintf(buf, "Fix:%d,hAcc:%.2f,vAcc:%.2f,SN:%d,Rel:%d,Hme:%d\n",gnssData.fixType, gnssData.hAcc, gnssData.vAcc, gnssData.satCount, fcStatusData.isNavDataReliable,fcStatusData.isPositionHomeSet);
+	logString(buf);
 }
 
 float nowMs = 0;
@@ -137,5 +144,6 @@ void debugTask() {
 	//debugBattery();
 	//debugRC();
 	//debugIMU();
-	debugALt();
+	//debugALt();
+	debugGnssData();
 }
