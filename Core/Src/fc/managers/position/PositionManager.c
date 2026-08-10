@@ -198,9 +198,9 @@ void updatePositionCordinateCommand(float dt) {
 		return;
 	}
 
-	if((!fcStatusData.isNavRTHModeActive && !fcStatusData.isNavMissionModeActive)){
+	if ((!fcStatusData.isNavRTHModeActive && !fcStatusData.isNavMissionModeActive)) {
 		resetNavMissionStates();
-	}else if(!fcStatusData.isNavRTHModeActive){
+	} else if (!fcStatusData.isNavRTHModeActive) {
 		resetNavRTHStates();
 	}
 
@@ -246,51 +246,53 @@ void updatePositionCordinateCommand(float dt) {
 
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
-	float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
-	dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
+	if (!fcStatusData.hasCrashed) {
+		float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
+		dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
 
-	float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_EST_INPUT_ACC_DEADBAND);
-	float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_EST_INPUT_ACC_DEADBAND);
-	float azEarth = applyDeadBandFloat(0, imuData.azEarthLinear, POSITION_MGR_Z_EST_INPUT_ACC_DEADBAND);
+		float axEarth = applyDeadBandFloat(0, imuData.axEarthLinear, POSITION_MGR_X_EST_INPUT_ACC_DEADBAND);
+		float ayEarth = applyDeadBandFloat(0, imuData.ayEarthLinear, POSITION_MGR_Y_EST_INPUT_ACC_DEADBAND);
+		float azEarth = applyDeadBandFloat(0, imuData.azEarthLinear, POSITION_MGR_Z_EST_INPUT_ACC_DEADBAND);
 
-	float axEarthNED = 0;
-	float ayEarthNED = 0;
-	float azEarthNED = 0;
+		float axEarthNED = 0;
+		float ayEarthNED = 0;
+		float azEarthNED = 0;
 
-	//0. Align the IMU earth acclerations to NED.
-	alignEarthAccelToNED(axEarth, ayEarth, azEarth, &axEarthNED, &ayEarthNED, &azEarthNED);
+		//0. Align the IMU earth acclerations to NED.
+		alignEarthAccelToNED(axEarth, ayEarth, azEarth, &axEarthNED, &ayEarthNED, &azEarthNED);
 
-	// 1. Prediction (Using raw or slightly scaled earth-frame acc)
-	positionEKFPredict(&positionEkf, axEarthNED, ayEarthNED, azEarthNED, dt);
+		// 1. Prediction (Using raw or slightly scaled earth-frame acc)
+		positionEKFPredict(&positionEkf, axEarthNED, ayEarthNED, azEarthNED, dt);
 
-	float *x = positionEkf.x;
-	positionCordinateData.xPosition = x[postionEKFXIndex + POS_EKF_STATE_P];
-	positionCordinateData.xAccelerationBias = x[postionEKFXIndex + POS_EKF_STATE_B];
+		float *x = positionEkf.x;
+		positionCordinateData.xPosition = x[postionEKFXIndex + POS_EKF_STATE_P];
+		positionCordinateData.xAccelerationBias = x[postionEKFXIndex + POS_EKF_STATE_B];
 
-	positionCordinateData.yPosition = x[postionEKFYIndex + POS_EKF_STATE_P];
-	positionCordinateData.yAccelerationBias = x[postionEKFYIndex + POS_EKF_STATE_B];
+		positionCordinateData.yPosition = x[postionEKFYIndex + POS_EKF_STATE_P];
+		positionCordinateData.yAccelerationBias = x[postionEKFYIndex + POS_EKF_STATE_B];
 
-	positionCordinateData.zPosition = x[postionEKFZIndex + POS_EKF_STATE_P];
-	positionCordinateData.zAccelerationBias = x[postionEKFZIndex + POS_EKF_STATE_B];
+		positionCordinateData.zPosition = x[postionEKFZIndex + POS_EKF_STATE_P];
+		positionCordinateData.zAccelerationBias = x[postionEKFZIndex + POS_EKF_STATE_B];
 
-	// 2. Filtered Acceleration
-	updatePositionAcceleration(axEarthNED - positionCordinateData.xAccelerationBias, ayEarthNED - positionCordinateData.yAccelerationBias, azEarthNED - positionCordinateData.zAccelerationBias, dt);
+		// 2. Filtered Acceleration
+		updatePositionAcceleration(axEarthNED - positionCordinateData.xAccelerationBias, ayEarthNED - positionCordinateData.yAccelerationBias, azEarthNED - positionCordinateData.zAccelerationBias, dt);
 
-	// 3. Filtered Velocity
-	updatePositionVelocity(x[postionEKFXIndex + POS_EKF_STATE_V], x[postionEKFYIndex + POS_EKF_STATE_V], x[postionEKFZIndex + POS_EKF_STATE_V], dt);
+		// 3. Filtered Velocity
+		updatePositionVelocity(x[postionEKFXIndex + POS_EKF_STATE_V], x[postionEKFYIndex + POS_EKF_STATE_V], x[postionEKFZIndex + POS_EKF_STATE_V], dt);
 
-	postionMgrRateDtSum += dt;
-	while (postionMgrRateDtSum >= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD) {
-		updatePositionRateCommand(POSITION_MANAGEMENT_RATE_CONTROL_PERIOD);
-		postionMgrRateDtSum -= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD;
+		postionMgrRateDtSum += dt;
+		while (postionMgrRateDtSum >= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD) {
+			updatePositionRateCommand(POSITION_MANAGEMENT_RATE_CONTROL_PERIOD);
+			postionMgrRateDtSum -= POSITION_MANAGEMENT_RATE_CONTROL_PERIOD;
+		}
+		postionMgrPositionDtSum += dt;
+		while (postionMgrPositionDtSum >= POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD) {
+			updatePositionCordinateCommand( POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD);
+			postionMgrPositionDtSum -= POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD;
+		}
+
+		positionCordinateData.positionProcessDt = dt;
 	}
-	postionMgrPositionDtSum += dt;
-	while (postionMgrPositionDtSum >= POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD) {
-		updatePositionCordinateCommand( POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD);
-		postionMgrPositionDtSum -= POSITION_MANAGEMENT_POSITION_CONTROL_PERIOD;
-	}
-
-	positionCordinateData.positionProcessDt = dt;
 }
 
 __ATTR_ITCM_TEXT
@@ -352,9 +354,15 @@ void resetPositionManager(void) {
 	lowPassFilterReset(&positionMgrVelYLPF);
 	lowPassFilterReset(&positionMgrVelZLPF);
 
-	positionEKFInvalidate(&positionEkf, POS_EKF_X_AXIS);
-	positionEKFInvalidate(&positionEkf, POS_EKF_Y_AXIS);
-	positionEKFInvalidate(&positionEkf, POS_EKF_Z_AXIS);
+	/*
+	 positionEKFInvalidate(&positionEkf, POS_EKF_X_AXIS);
+	 positionEKFInvalidate(&positionEkf, POS_EKF_Y_AXIS);
+	 positionEKFInvalidate(&positionEkf, POS_EKF_Z_AXIS);
+	 */
+
+	positionEKFReset(&positionEkf, POS_EKF_X_AXIS, 0);
+	positionEKFReset(&positionEkf, POS_EKF_Y_AXIS, 0);
+	positionEKFReset(&positionEkf, POS_EKF_Z_AXIS, 0);
 
 	resetVenturiBiasEstimator();
 	resetPositionControl(1);
@@ -369,6 +377,5 @@ void resetPositionManager(void) {
 	fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 
 	resetNavMissionStates();
-
 }
 

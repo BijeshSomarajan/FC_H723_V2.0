@@ -64,7 +64,7 @@ uint8_t initAltitudeManager(void) {
 		logString("[Altitude Manager] All tasks   > Started\n");
 
 		fcStatusData.liftOffThrottlePercent = (float) getCalibrationValue(CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR) / (float) MAX_PERMISSIBLE_THROTTLE_DELTA;
-    	lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
+		lowPassFilterInit(&altMgrThrottleControlLPF, ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY);
 
 		altControlGains.masterPGain = 1.0f;
 		altControlGains.ratePGain = 1.0f;
@@ -78,7 +78,7 @@ uint8_t initAltitudeManager(void) {
 			altMgrAltSpeedGain = ALT_MGR_ALT_SPEED_GAIN_DEFAULT;
 		}
 
-	   	initAltitudeControl();
+		initAltitudeControl();
 	} else {
 		logString("[Altitude Manager] Init > Failed!\n");
 	}
@@ -164,6 +164,11 @@ void handleThrottleChange(float dt) {
 	if (!fcStatusData.isFlying && fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
 		fcStatusData.isFlying = 1;
 		altMgrLowThDtAccumulation = 0;
+		//Final Reset
+		fcStatusData.altitudeRef = positionCordinateData.zPosition;
+		controlData.tiltCompThDelta = 0;
+		altMgrCurrentTiltCompThDelta = 0.0f;
+		resetAltitudeControl(1.0f);
 	} else if (fcStatusData.isFlying && fminf(fcStatusData.throttleControlPercent, fcStatusData.throttlePercent) < (fcStatusData.liftOffThrottlePercent * 0.25f)) {
 		if (altMgrLowThDtAccumulation >= ALT_MGR_THROTTLE_THRESHOLD_PERIOD) {
 			fcStatusData.isFlying = 0;
@@ -341,6 +346,7 @@ void manageAltitude(float dt) {
 		updateAltitudeReferences();
 		resetAltitudeControl(1);
 		controlData.tiltCompThDelta = 0;
+		altMgrCurrentTiltCompThDelta = 0.0f;
 		altMgrAccDtAccumulation = 0;
 		altMgrVelDtAccumulation = 0;
 		altMgrAltDtAccumulation = 0;
@@ -362,6 +368,7 @@ void resetAltMgrStates() {
 	controlData.throttleControl = 0;
 	controlData.throttleControlBase = 0;
 	controlData.tiltCompThDelta = 0;
+	altMgrCurrentTiltCompThDelta = 0.0f;
 	fcStatusData.isFlying = 0;
 
 	altControlGains.masterPGain = 1.0f;
@@ -374,6 +381,7 @@ void resetAltMgrStates() {
 
 	fcStatusData.throttleControlPercent = 0;
 	fcStatusData.hoverThrottle = 0;
+
 	altMgrWasThrottleCentered = 0;
 	altMgrPreviousThrottleControl = 0;
 	altMgrPreviousCurrentThrottle = 0;
@@ -391,6 +399,8 @@ void resetAltMgrStates() {
 	sensorAltitudeData.altitudeSLZOffset = 0;
 	altMgrWasTerrainModeActive = 0;
 
+
+
 	lowPassFilterReset(&altMgrThrottleControlLPF);
 }
 
@@ -399,10 +409,10 @@ void manageAltitudeTask(void) {
 	float dt = getDeltaTime(ALT_MANAGER_TIMER_CHANNEL);
 	dt = constrainToRangeF(dt, ALTITUDE_MANAGEMENT_TASK_PERIOD * 0.001f, ALTITUDE_MANAGEMENT_TASK_PERIOD * 4.0f);
 	sensorAltitudeData.altProcessDt = dt;
-	if (fcStatusData.canFly) {
-		manageAltitude(dt);
-	} else if (fcStatusData.hasCrashed) {
+	if (fcStatusData.hasCrashed) {
 		resetAltitudeManager();
+	} else if (fcStatusData.canFly) {
+		manageAltitude(dt);
 	} else {
 		resetAltitudeControl(1);
 		updateAltitudeReferences();

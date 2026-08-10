@@ -101,7 +101,7 @@ extern SENSOR_ATTITUDE_DATA sensorAttitudeData;
 //Lever ARM compensation
 // Lever ARM compensation configured for an IMU behind the CoG
 #define SENSOR_ACC_LEVER_ARM_COMPENSATION_X_ENABLED 0 //Roll
-#define SENSOR_ACC_LEVER_ARM_COMPENSATION_Y_ENABLED 1 // Pitch
+#define SENSOR_ACC_LEVER_ARM_COMPENSATION_Y_ENABLED 0 // Pitch
 
 #define SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G  0.25f
 #define SENSOR_ACC_LEVER_ARM_X_OFFSET           -0.02f // Negative value: _ve behind CoG , +ve ahead of GoG
