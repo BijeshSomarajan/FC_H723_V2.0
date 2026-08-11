@@ -78,6 +78,11 @@ uint8_t deviceAGInit() {
 	return 1;
 }
 
+void ism330EnableBDU() {
+    deviceAttitudeData.bufferAccTx[0] = 0b01000100; // BDU=1, IF_INC=1, SW_RESET=0
+    spi2WriteRegister(ISM330DHCX_CTRL3_C, deviceAttitudeData.bufferAccTx, 1, ISM330_AG_DEVICE);
+}
+
 void ism330Reset() {
 	/*
 	 CTRL3_C (12h)
@@ -86,6 +91,8 @@ void ism330Reset() {
 	 */
 	deviceAttitudeData.bufferAccTx[0] = 0b00000101;
 	spi2WriteRegister(ISM330DHCX_CTRL3_C, deviceAttitudeData.bufferAccTx, 1, ISM330_AG_DEVICE);
+	delayMs(20);
+	ism330EnableBDU();
 }
 
 void ism330ConfigureAcc() {
