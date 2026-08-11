@@ -5,6 +5,8 @@
 
 #include "../../control/ControlData.h"
 #include "../../control/Pid.h"
+#include "../../dsp/BiQuadFilter.h"
+#include "../../dsp/FFT.h"
 #include "../../dsp/LowPassFilter.h"
 #include "../../FCConfig.h"
 #include "../../imu/IMU.h"
@@ -93,18 +95,19 @@ void debugNoise() {
 }
 
 void debugIMU() {
-
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.pitch * 10;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.roll * 10;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.heading * 10;
-
-	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.pitchRate * 10;
-	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.rollRate * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.pitchRate * 10;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.roll * 10;
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.rollRate * 10;
+	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.heading * 10;
 	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.yawRate * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
+}
 
-	DEBUG_DATA_BUFFER[6] = sensorAttitudeData.heading * 10;
-
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+void debugIMUStr() {
+	sprintf(buf, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", sensorAttitudeData.pitch, sensorAttitudeData.pitchRate, controlData.pitchControl, sensorAttitudeData.roll, sensorAttitudeData.rollRate, controlData.rollControl, sensorAttitudeData.heading, sensorAttitudeData.yawRate,
+			controlData.yawControl);
+	logString(buf);
 }
 
 void debugBattery() {
@@ -129,8 +132,31 @@ void debugALt() {
 }
 
 void debugGnssData() {
-	sprintf(buf, "Fix:%d,hAcc:%.2f,vAcc:%.2f,SN:%d,Rel:%d,Hme:%d\n",gnssData.fixType, gnssData.hAcc, gnssData.vAcc, gnssData.satCount, fcStatusData.isNavDataReliable,fcStatusData.isPositionHomeSet);
+	sprintf(buf, "Fix:%d,hAcc:%.2f,vAcc:%.2f,SN:%d,Rel:%d,Hme:%d\n", gnssData.fixType, gnssData.hAcc, gnssData.vAcc, gnssData.satCount, fcStatusData.isNavDataReliable, fcStatusData.isPositionHomeSet);
 	logString(buf);
+}
+
+extern FFTContext fftContextGyroX;
+extern FFTContext fftContextGyroY;
+extern BIQUADFILTER noiseFilterFftNtfGyroX[2];
+extern BIQUADFILTER noiseFilterFftNtfGyroY[2];
+
+void debufFFT(){
+	sprintf(buf,"[%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f]\r\n",
+	       fftContextGyroX.topFreqBin[0],
+	       noiseFilterFftNtfGyroX[0].center_freq,
+	       fftContextGyroX.topFreqBin[1],
+	       noiseFilterFftNtfGyroX[1].center_freq,
+	       sensorAttitudeData.gxDS,
+	       sensorAttitudeData.gxDSFiltered,
+	       fftContextGyroY.topFreqBin[0],
+	       noiseFilterFftNtfGyroY[0].center_freq,
+	       fftContextGyroY.topFreqBin[1],
+	       noiseFilterFftNtfGyroY[1].center_freq,
+	       sensorAttitudeData.gyDS,
+	       sensorAttitudeData.gyDSFiltered);
+	logString(buf);
+
 }
 
 float nowMs = 0;
@@ -140,10 +166,13 @@ void debugTask() {
 	}
 	float dt = 1.0f / DEBUG_TASK_FREQUENCY;
 	(void) dt;
-	//nowMs += dt;
-	//debugBattery();
-	//debugRC();
-	//debugIMU();
-	//debugALt();
-	debugGnssData();
+//nowMs += dt;
+//debugBattery();
+//debugRC();
+//debugIMU();
+//debugALt();
+//debugGnssData();
+//	debugIMUStr();
+	debufFFT();
+//	debugNoise();
 }

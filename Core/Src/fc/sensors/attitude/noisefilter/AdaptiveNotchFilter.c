@@ -33,7 +33,7 @@ void processAdaptiveNotchFilter(BIQUADFILTER *filter, AdaptiveNotchFilterState *
     gainRatio = constrainToRangeF(gainRatio, 0.0f, 1.0f); // Ensure ratio stays bounded [0, 1]
 
 	float targetGain = ADAPTIVE_NOTCH_GAIN_MIN + (gainRatio * (ADAPTIVE_NOTCH_GAIN_MAX - ADAPTIVE_NOTCH_GAIN_MIN));
-	targetGain = constrainToRangeF(targetGain, ADAPTIVE_NOTCH_GAIN_ABSOLUTE_MIN, ADAPTIVE_NOTCH_GAIN_ABSOLURE_MAX);
+	targetGain = constrainToRangeF(targetGain, ADAPTIVE_NOTCH_GAIN_ABSOLUTE_MIN, ADAPTIVE_NOTCH_GAIN_ABSOLUTE_MAX);
 
 	// 4. Apply EMA Smoothing
 	state->smoothedQ += ADAPTIVE_NOTCH_ALPHA_Q * (targetQ - state->smoothedQ);
