@@ -16,7 +16,7 @@
 
 #define UBX_DEVICE_TYPE_M8        8
 #define UBX_DEVICE_TYPE_M10       10
-#define UBX_DEVICE_TYPE           UBX_DEVICE_TYPE_M10
+#define UBX_DEVICE_TYPE           UBX_DEVICE_TYPE_M8
 
 // Memory section for D2 Domain (DMA compatible)
 __ATTR_RAM_D2 static uint8_t ubxDataBuffer[UBX_RCV_BUFFER_SIZE];

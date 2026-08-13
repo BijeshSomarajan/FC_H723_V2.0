@@ -3,7 +3,7 @@
 
 #include <sys/_stdint.h>
 
-#define ATT_CONTROL_D_RATE_LPF_FREQ 60.0f //0 to disable
+#define ATT_CONTROL_D_RATE_LPF_FREQ 90.0f //0 to disable
 #define ATT_CONTROL_USE_CTRL_RATES 1  //Use filtered/non-filtered ratesensor data
 
 #define ATT_CONTROL_RATE_PID_PITCH_ROLL_I_LIMIT_RATIO 1.0f
