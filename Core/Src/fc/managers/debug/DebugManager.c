@@ -84,14 +84,16 @@ void debugPID() {
 }
 
 void debugNoise() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.currentThrottle;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDS * 10;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.gxDSFiltered * 10;
-	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gyDS * 10;
-	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.gyDSFiltered * 10;
-	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.gzDS * 10;
-	DEBUG_DATA_BUFFER[6] = sensorAttitudeData.gzDSFiltered * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.gxDS * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.gxDSFiltered * 10;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.gyDS * 10;
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.gyDSFiltered * 10;
+	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.gzDS * 10;
+	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.gzDSFiltered * 10;
+	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[7] = fcStatusData.currentThrottle;
+	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
 }
 
 void debugIMU() {
@@ -173,6 +175,6 @@ void debugTask() {
 //debugALt();
 //debugGnssData();
 //	debugIMUStr();
-	debufFFT();
-//	debugNoise();
+//	debufFFT();
+	debugNoise();
 }
