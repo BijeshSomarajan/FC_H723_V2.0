@@ -1,3 +1,6 @@
+#include <sys/_stdint.h>
+
+#include "../FCConfig.h"
 #include "IMU.h"
 
 #if IMU_FILTER_SELECTED == IMU_FILTER_MANHONY
@@ -56,7 +59,12 @@
 #define MAHONY_FILTER_ACC_GATE_INV_W_HI      (1.0f / (MAHONY_FILTER_ACC_GATE_MAX  - MAHONY_FILTER_ACC_GATE_FULL_HI))
 
 // Lower values means more inclined to Gyroscope and less influence of accelerometer
-#define MAHONY_FILTER_KP  1.0f * 0.6f   //0.4 – 0.8 for 3.2Khz
+/*
+#define MAHONY_FILTER_KP  1.0f * 1.0f   //0.6 //0.4 – 0.8    for 3.2Khz
+#define MAHONY_FILTER_KI  1.0f * 0.005f //0.03 //0.02 – 0.05 for 3.2Khz ( Ki ≲ Kp²/4 )
+*/
+
+#define MAHONY_FILTER_KP  1.0f * 0.6f   //0.4 – 0.8   for 3.2Khz
 #define MAHONY_FILTER_KI  1.0f * 0.03f  //0.02 – 0.05 for 3.2Khz ( Ki ≲ Kp²/4 )
 
 #define MAHONY_FILTER_STABILIZE_KP  MAHONY_FILTER_KP * 10.0f
