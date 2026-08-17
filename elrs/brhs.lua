@@ -2,7 +2,7 @@
 -- FILE-SCOPED VARIABLES & CONFIGURATION (Shared across all functions)
 -- ==========================================================================
 -- Telemetry & Decoded data variables
-local txBat, rxBat, rxBatMax, lq, rssi, alt, altRef, heading, headingRef
+local txBat, rxBat, rxBatMax, lq, rssi, alt, altRef, heading, headingRef, throttleControl
 local homeBearing, homeDistance, satField, fm, pitch, roll
 local gnssReliable, nSat
 local latitude , longitude 
@@ -462,6 +462,7 @@ local function run(event)
     rxBat        = getValue("RxBt") or 0
     rxBatMax     = getValue("Curr") or 0
     batteryAlertState = getValue("Bat%") or 0
+    throttleControl  = getValue("Capa") or 0
 
     lq           = getValue("RQly") or 0
     rssi         = getValue("1RSS") or 0
@@ -541,8 +542,8 @@ local function run(event)
     --------------------------------------------------------------------------
     -- Row 5 (Y: 42)
     --------------------------------------------------------------------------
-    lcd.drawText(2, 42, "PR:", 0)
-    lcd.drawText(18, 42, string.format("%.1f,%.1f", pitch, roll), SMLSIZE)
+    lcd.drawText(2, 42, "TH:", 0)
+    lcd.drawText(18, 42, string.format("%d",throttleControl), BOLD)
 
     lcd.drawText(66, 42, "GN:", 0)
     lcd.drawText(82, 42, gnssReliable and "Y" or "N", BOLD)
