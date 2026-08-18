@@ -161,6 +161,24 @@ void debufFFT(){
 
 }
 
+void debugPos() {
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.xVelocity * 1000;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.yVelocity *1000;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.heading;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+}
+
+void debugAltControl() {
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[2] =  sensorAltitudeData.altitudeSL * 100;
+	DEBUG_DATA_BUFFER[3] = controlData.altitudeControl;
+	DEBUG_DATA_BUFFER[4] = fcStatusData.currentThrottle;
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+}
+
+
 float nowMs = 0;
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
@@ -171,10 +189,12 @@ void debugTask() {
 //nowMs += dt;
 //debugBattery();
 //debugRC();
-//debugIMU();
-//debugALt();
-//debugGnssData();
+//  debugIMU();
+//  debugALt();
+//  debugGnssData();
 //	debugIMUStr();
 //	debufFFT();
-	debugNoise();
+//	debugNoise();
+//	debugPos();
+	debugAltControl();
 }

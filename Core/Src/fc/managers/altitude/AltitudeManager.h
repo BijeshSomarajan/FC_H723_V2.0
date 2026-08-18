@@ -64,8 +64,8 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_CONTROL_SETTING_MASTER_P_GAIN  0.0f  // Light feel
 #define ALT_MGR_ALT_CONTROL_SETTING_MP_TAU         0.01f // Fast lock
 
-#define ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN    0.5f
-#define ALT_MGR_ALT_CONTROL_SETTING_RI_TAU         0.5f  // Smooth handover
+#define ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN    0.1f
+#define ALT_MGR_ALT_CONTROL_SETTING_RI_TAU         0.25f  // Smooth handover
 
 #define ALT_MGR_ALT_CONTROL_SETTING_RATE_P_GAIN    0.1f
 #define ALT_MGR_ALT_CONTROL_SETTING_RP_TAU         0.01f
