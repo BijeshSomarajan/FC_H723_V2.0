@@ -1,24 +1,32 @@
 #ifndef SRC_FC_MANAGERS_POSITION_ESTIMATOR_VENTURIBIASESTIMATOR_C_
 #define SRC_FC_MANAGERS_POSITION_ESTIMATOR_VENTURIBIASESTIMATOR_C_
 
-#include "../../position/estimator/VenturiBiasEstimator.h"
+#include "VenturiBiasEstimator.h"
 
-#include "../../../util/MathUtil.h"
-#include "../../../util/CommonUtil.h"
-#include "../../../sensors/rc/RCSensor.h"
-#include "../../../status/FCStatus.h"
-#include "../../../memory/Memory.h"
-#include "../../../FCConfig.h"
-#include "../../../sensors/attitude/AttitudeSensor.h"
+#include <math.h>
+#include <stdio.h>
+
 #include "../../../calibration/Calibration.h"
 #include "../../../dsp/LowPassFilter.h"
-
+#include "../../../logger/Logger.h"
+#include "../../../memory/Memory.h"
+#include "../../../sensors/attitude/AttitudeSensor.h"
+#include "../../../status/FCStatus.h"
+#include "../../../util/MathUtil.h"
 
 VENTURI_ESTIMATE_DATA venturiEstimateData;
 LOWPASSFILTER venturiBiasLPF;
+float venturiBiasGain = VENTURI_EST_BIAS_GAIN_DEFAULT;
 
 uint8_t initVenturiBiasEstimator(void) {
 	lowPassFilterInit(&venturiBiasLPF, VENTURI_EST_BIAS_LPF_FREQ);
+	venturiBiasGain = get1KXScaledCalibrationValue(CALIB_PROP_VENTURI_ALT_GAIN_ADDR);
+	if (venturiBiasGain <= 0.0f) {
+		venturiBiasGain = VENTURI_EST_BIAS_GAIN_DEFAULT;
+	}
+	char debugBuf[64];
+	sprintf(debugBuf, "[Venturi Estimator] Gain=%.3f, Initialized\n", venturiBiasGain);
+	logString(debugBuf);
 	resetVenturiBiasEstimator();
 	return 1;
 }
@@ -98,16 +106,15 @@ float getVenturiBiasEstimate(float dt) {
 	float vR = venturiEstimateData.lateralSpeedRoll;
 	float speedSq = (vP * vP) + (vR * vR);
 
-	venturiEstimateData.lateralSpeedMag = fastSqrtf(speedSq);   /* logging only */
+	venturiEstimateData.lateralSpeedMag = fastSqrtf(speedSq); /* logging only */
 
-	float bias = speedSq * VENTURI_EST_BIAS_GAIN;
+	float bias = speedSq * venturiBiasGain;
 	bias = constrainToRangeF(bias, 0.0f, VENTURI_EST_BIAS_VALUE_MAX);
 
 	/* 5. Output LPF (pneumatic settling) */
 	venturiEstimateData.venturiBias = lowPassFilterUpdate(&venturiBiasLPF, bias, dt);
 	return venturiEstimateData.venturiBias;
 }
-
 
 void resetVenturiBiasEstimator(void) {
 	venturiEstimateData.venturiBias = 0.0f;

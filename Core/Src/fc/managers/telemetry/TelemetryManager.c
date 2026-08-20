@@ -81,7 +81,7 @@ void prepareAndSendFCStatus() {
 	}
 	// Terrain/Baro
 	FC_STATUS_BUF[3] = '-';
-	if (fcStatusData.isTerrainAltModeActive) {
+	if (fcStatusData.isTerrainAltModeActive && fcStatusData.isTerrainSensorExist ) {
 		FC_STATUS_BUF[4] = 'T';
 	} else {
 		FC_STATUS_BUF[4] = 'B';

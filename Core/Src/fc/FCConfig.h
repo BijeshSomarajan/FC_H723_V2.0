@@ -41,10 +41,4 @@
 
 #define MAX_PERMISSIBLE_THROTTLE_DELTA 900
 
-//#define FC_BOARD_VERSION  1
-/**
- * Board version 2 > Mag turned 180
- */
-#define FC_BOARD_VERSION  2
-
 #endif /* SRC_FC_MANAGERS_FCCONFIG_H_ */

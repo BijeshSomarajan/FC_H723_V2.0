@@ -139,14 +139,14 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * or after touching ACCEL_GAIN/DRAG_GAIN.
  * PENDING: direction split (GAIN_FWD/GAIN_BWD) - the artifact is measured
  * asymmetric with flight direction; backward-leg calibration not yet flown. */
-#define VENTURI_EST_BIAS_GAIN                    0.036f //0.03f//was 0.07f
+#define VENTURI_EST_BIAS_GAIN_DEFAULT     0.036f //0.03f//was 0.07f
 
 /* Output clamp, m. Safety ceiling on how much altitude the model may claim
  * the baro is lying by. With GAIN 0.025 this engages at model speed
  * ~4.5 m/s. Raise toward 1.0 only with outdoor high-speed calibration data
  * showing the real artifact exceeds 0.5 m - never to "fix" a dip (that is
  * always the gain or the decay, not the clamp). */
-#define VENTURI_EST_BIAS_VALUE_MAX              0.75f
+#define VENTURI_EST_BIAS_VALUE_MAX              1.0f
 
 /* Output LPF, Hz (tau ~0.45 s). Matches the pneumatic settling of the real
  * pressure field so the bias doesn't step. Part of the measured ~0.8 s total

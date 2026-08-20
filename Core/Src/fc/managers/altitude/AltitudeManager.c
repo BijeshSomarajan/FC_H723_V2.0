@@ -399,8 +399,6 @@ void resetAltMgrStates() {
 	sensorAltitudeData.altitudeSLZOffset = 0;
 	altMgrWasTerrainModeActive = 0;
 
-
-
 	lowPassFilterReset(&altMgrThrottleControlLPF);
 }
 
@@ -441,32 +439,34 @@ void doAltitudeManagement(void) {
 	altMgrSLAltUpdateDt += dt;
 	altMgrSLAltUpdateDt = constrainToRangeF(altMgrSLAltUpdateDt, 0.0001f, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
 
-#if SENSOR_ALT_LIDAR_AVAILABLE == 1
-	altMgrTerrainAltUpdateDt += dt;
-	altMgrTerrainAltUpdateDt = constrainToRangeF(altMgrTerrainAltUpdateDt, 0.0001f, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
+	if (fcStatusData.isTerrainSensorExist == 1) {
+		altMgrTerrainAltUpdateDt += dt;
+		altMgrTerrainAltUpdateDt = constrainToRangeF(altMgrTerrainAltUpdateDt, 0.0001f, ALTITUDE_SENSOR_READ_PERIOD * 10.0f);
 
-	if (!altMgrWasTerrainModeActive && fcStatusData.isTerrainAltModeActive && fcStatusData.isTerrainAltDataReliable) {
-		sensorAltitudeData.altitudeTerrainZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeTerrainFiltered;
-	} else if (altMgrWasTerrainModeActive && !fcStatusData.isTerrainAltModeActive) {
-		sensorAltitudeData.altitudeSLZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeSLFiltered;
+		if (!altMgrWasTerrainModeActive && fcStatusData.isTerrainAltModeActive && fcStatusData.isTerrainAltDataReliable) {
+			sensorAltitudeData.altitudeTerrainZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeTerrainFiltered;
+		} else if (altMgrWasTerrainModeActive && !fcStatusData.isTerrainAltModeActive) {
+			sensorAltitudeData.altitudeSLZOffset = positionCordinateData.zPosition - sensorAltitudeData.altitudeSLFiltered;
+		}
+		altMgrWasTerrainModeActive = fcStatusData.isTerrainAltModeActive;
 	}
 
-	altMgrWasTerrainModeActive = fcStatusData.isTerrainAltModeActive;
-#endif
-
 	if (dataAvailableMask != SENSOR_DATA_NONE) {
+
 		if (dataAvailableMask & SENSOR_DATA_BARO) {
 			updateZPositionSL(sensorAltitudeData.altitudeSLZOffset, sensorAltitudeData.altitudeSLScaled, altMgrSLAltUpdateDt);
 			altMgrSLAltUpdateDt = 0.0f;
 		}
-#if SENSOR_ALT_LIDAR_AVAILABLE == 1
-		if (dataAvailableMask & SENSOR_DATA_LIDAR) {
-			updateTerrainAltDataReliability(altMgrTerrainAltUpdateDt);
-			updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQual, POSITION_TERRAIN_ALT_DIST_MIN, POSITION_TERRAIN_ALT_DIST_MAX, fcStatusData.isTerrainAltDataReliable && fcStatusData.isTerrainAltModeActive,
-					altMgrTerrainAltUpdateDt);
-			altMgrTerrainAltUpdateDt = 0.0f;
+
+		if (fcStatusData.isTerrainSensorExist == 1) {
+			if (dataAvailableMask & SENSOR_DATA_LIDAR) {
+				updateTerrainAltDataReliability(altMgrTerrainAltUpdateDt);
+				updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQual, POSITION_TERRAIN_ALT_DIST_MIN, POSITION_TERRAIN_ALT_DIST_MAX, fcStatusData.isTerrainAltDataReliable && fcStatusData.isTerrainAltModeActive,
+						altMgrTerrainAltUpdateDt);
+				altMgrTerrainAltUpdateDt = 0.0f;
+			}
 		}
-#endif
+
 	}
 
 }

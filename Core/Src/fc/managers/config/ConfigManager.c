@@ -37,9 +37,14 @@ uint8_t initConfigManager() {
 			} else {
 				//Load the persisted calibrations
 				loadCalibration();
-				fcStatusData.batteryNomVolt = get1KXScaledCalibrationValue(CALIB_PROP_BAT_NOM_VOLT_ADDR);
-				fcStatusData.batteryType = (uint8_t)getCalibrationValue(CALIB_PROP_BAT_TYPE_ADDR);
 				logString("[Config Manager] : Calibration -> Was Initialized , Loaded\n");
+				char printBuf[256];
+				fcStatusData.batteryNomVolt = get1KXScaledCalibrationValue(CALIB_PROP_BAT_NOM_VOLT_ADDR);
+				fcStatusData.batteryType = (uint8_t) getCalibrationValue(CALIB_PROP_BAT_TYPE_ADDR);
+
+				fcStatusData.modelVersion = (uint8_t) getCalibrationValue(CALIB_PROP_MODEL_VERSION_ADDR);
+				sprintf(printBuf, "[Config Manager] : Mdl=%d, Bat Volt=%.2f, Bat Type=%d\n", fcStatusData.modelVersion, fcStatusData.batteryNomVolt, fcStatusData.batteryType);
+				logString(printBuf);
 			}
 			status = initConfigHelper();
 			if (status) {
@@ -112,10 +117,10 @@ void manageConfigDataPacket() {
 	} else if (dataPacket.cmd == CMD_CALIBRATE_RC) {
 		calibrateRCSensor();
 		sendConfigData(FC_CONFIG_DATA_BUFFER, 0, CMD_ACK_CALIBRATE_RC);
-	}else if (dataPacket.cmd == CMD_RC_DATA) {
-		setRCData(dataPacket.data,dataPacket.length);
+	} else if (dataPacket.cmd == CMD_RC_DATA) {
+		setRCData(dataPacket.data, dataPacket.length);
 		//sendConfigData(FC_CONFIG_DATA_BUFFER, 0, CMD_ACK_RC_DATA);
-		if(wasDebugEnabled){
+		if (wasDebugEnabled) {
 			fcStatusData.isDebugEnabled = 1;
 		}
 	}
