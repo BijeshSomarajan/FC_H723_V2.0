@@ -146,7 +146,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * ~4.5 m/s. Raise toward 1.0 only with outdoor high-speed calibration data
  * showing the real artifact exceeds 0.5 m - never to "fix" a dip (that is
  * always the gain or the decay, not the clamp). */
-#define VENTURI_EST_BIAS_VALUE_MAX              1.0f
+#define VENTURI_EST_BIAS_VALUE_MAX              0.60f
 
 /* Output LPF, Hz (tau ~0.45 s). Matches the pneumatic settling of the real
  * pressure field so the bias doesn't step. Part of the measured ~0.8 s total
