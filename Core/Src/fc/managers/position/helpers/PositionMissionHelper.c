@@ -27,10 +27,10 @@ uint8_t loadWayPoints(void);
 void updateWPCompletionStatus(float dt);
 void updateMissionVelocityCommand(float dt);
 
-void initPositionMissionHelper(){
+void initPositionMissionHelper() {
 	positionCruiseSpeed = get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR);
-	if(positionCruiseSpeed < 0 || positionCruiseSpeed > positionCruiseSpeed){
-		 positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_DEFAULT;
+	if (positionCruiseSpeed < 0 || positionCruiseSpeed > POSITION_MISSION_CRUISE_SPEED_MAX) {
+		positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_DEFAULT;
 	}
 }
 
@@ -44,7 +44,7 @@ void resetNavRTHStates() {
 }
 
 void resetNavMissionModeStates() {
-    positionMissionWasNavMissionModeActive = 0;
+	positionMissionWasNavMissionModeActive = 0;
 }
 
 void resetNavMissionStates() {
@@ -131,6 +131,60 @@ void handleNavMission(float dt) {
 
 __ATTR_ITCM_TEXT
 void updateMissionVelocityCommand(float dt) {
+	// Position error to waypoint
+	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
+	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
+	// Distance to waypoint
+	float distance = fastSqrtf(dx * dx + dy * dy);
+	// Desired velocity
+	float desiredVx = 0.0f;
+	float desiredVy = 0.0f;
+	/*
+	 * Navigation phase
+	 *
+	 * Outside the capture radius, generate a velocity vector
+	 * pointing toward the waypoint.
+	 */
+	if (distance > POSITION_MISSION_WP_CAPTURE_RADIUS) {
+		float invDist = 1.0f / distance;
+		float dirX = dx * invDist;
+		float dirY = dy * invDist;
+		float remainingDistance = distance - POSITION_MISSION_WP_CAPTURE_RADIUS;
+		float brakingSpeed = fastSqrtf(2.0f * POSITION_MISSION_BRAKE_DECEL * remainingDistance);
+		float targetSpeed = fminf(positionCruiseSpeed, brakingSpeed);
+		desiredVx = dirX * targetSpeed;
+		desiredVy = dirY * targetSpeed;
+	}
+	/*
+	 * Capture phase
+	 *
+	 * Inside the capture radius desired velocity remains zero.
+	 * The position controller should then capture and hold the
+	 * waypoint against disturbances such as wind.
+	 */
+	//------------------------------------------------------------------
+	// Acceleration limiting
+	//------------------------------------------------------------------
+	float dvx = desiredVx - positionMissionVxCommand;
+	float dvy = desiredVy - positionMissionVyCommand;
+	float deltaMag = fastSqrtf(dvx * dvx + dvy * dvy);
+	float maxDelta = POSITION_MISSION_MAX_ACCEL * dt;
+	if (deltaMag > maxDelta && deltaMag > 0.0001f) {
+		float scale = maxDelta / deltaMag;
+		dvx *= scale;
+		dvy *= scale;
+	}
+	// Smoothed mission velocity command
+	positionMissionVxCommand += dvx;
+	positionMissionVyCommand += dvy;
+	//------------------------------------------------------------------
+	// Feed into position / velocity controller
+	//------------------------------------------------------------------
+	setExpectedPositionVelocity(dt, positionMissionVxCommand, positionMissionVyCommand);
+}
+
+__ATTR_ITCM_TEXT
+void updateMissionVelocityCommandOld(float dt) {
 // Position error to home
 	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
 	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
