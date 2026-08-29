@@ -537,7 +537,7 @@ local function run(event)
     lcd.drawText(18, 32, string.format("%.1f°%s", homeBearing, getCompassDirection(homeBearing)), BOLD)
 
     lcd.drawText(66, 32, "DT:", 0)
-    lcd.drawText(82, 32, string.format("%.1fm", homeDistance), BOLD)
+    lcd.drawText(82, 32, string.format("%.1fm", homeDistance / 10), BOLD)
 
     --------------------------------------------------------------------------
     -- Row 5 (Y: 42)

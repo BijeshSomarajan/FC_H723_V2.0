@@ -66,8 +66,8 @@
  * carried by the velocity+bias states; this only sets how fast raw position
  * uncertainty grows on top of them. Rarely needs touching.
  * Range: 1e-6 .. 1e-4. Too high: position wanders between fixes. */
-#define POS_EKF_X_Q_POS                     0.0003f // was 0.00001f
-#define POS_EKF_Y_Q_POS                     0.0003f // was 0.00001f
+#define POS_EKF_X_Q_POS                    0.000003f// 0.0003f // was 0.00001f
+#define POS_EKF_Y_Q_POS                    0.000003f// 0.0003f // was 0.00001f
 
 /* Velocity random walk, (m/s)^2 per step -> 1.0 (m/s)^2/s effective.
  * THE main Q knob for XY feel. Sets how quickly the filter admits "my
@@ -116,7 +116,7 @@
  * BARO_RP_MIN, and vice versa.  (Validated config: dips/balloon-free.) */
 
 /* 0.01 per step -> 10 m^2/s. Huge on purpose - see philosophy above. */
-#define POS_EKF_Z_Q_POS                        0.01f
+#define POS_EKF_Z_Q_POS                       0.01f
 
 /* 0.02 per step -> 20 (m/s)^2/s. Huge on purpose. Climb-rate follows
  * baro-derivative + accel. If climb feels spongey: raise; if altitude is

@@ -116,26 +116,47 @@ void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axis, float ax, f
 	const float base_q11 = ekf->Q[i + POS_EKF_STATE_V][i + POS_EKF_STATE_V];
 	const float base_q22 = ekf->Q[i + POS_EKF_STATE_B][i + POS_EKF_STATE_B];
 	const float base_q33 = ekf->Q[i + POS_EKF_STATE_BP][i + POS_EKF_STATE_BP];
-
-	float accXY = fastSqrtf(ax * ax + ay * ay);
-	float accZ = fabsf(az);
-
-	float imuStressXY = constrainToRangeF(accXY / POS_EKF_ACC_THRESH_XY, 0.0f, 1.0f);
-	float imuStressZ = constrainToRangeF(accZ / POS_EKF_ACC_THRESH_Z, 0.0f, 1.0f);
-	float imuStress = (imuStressXY > imuStressZ) ? imuStressXY : imuStressZ;
-	float stress2 = imuStress * imuStress;
-
-	float q00 = base_q00 * (1.0f + stress2 * POS_EKF_Q_POS_STRESS_GAIN);
-	float q11 = base_q11 * (1.0f + stress2 * POS_EKF_Q_VEL_STRESS_GAIN);
-	float q22 = base_q22 * (1.0f + imuStress * POS_EKF_Q_BIAS_STRESS_GAIN);
-	// Position bias process noise remains static
-	float q33 = base_q33;
-
+	/*
+	 * Calculate dynamic stress.
+	 * XY EKF:  Use horizontal acceleration only.
+	 * Z EKF:   Use vertical acceleration only.
+	 * This prevents vertical acceleration from inflating
+	 * horizontal process noise.
+	 */
+	float imuStress;
+	if (axis == POS_EKF_Z_AXIS) {
+		const float accZ = fabsf(az);
+		imuStress = constrainToRangeF(accZ / POS_EKF_ACC_THRESH_Z, 0.0f, 1.0f);
+	} else {
+		const float accXY = fastSqrtf(ax * ax + ay * ay);
+		imuStress = constrainToRangeF(accXY / POS_EKF_ACC_THRESH_XY, 0.0f, 1.0f);
+	}
+	/*
+	 * Non-linear stress response.
+	 * Position and velocity Q use stress^2,
+	 * so small accelerations have very little effect
+	 * while aggressive manoeuvres produce stronger inflation.
+	 */
+	const float stress2 = imuStress * imuStress;
+	/*
+	 * Dynamic process noise.
+	 */
+	const float q00 = base_q00 * (1.0f + stress2 * POS_EKF_Q_POS_STRESS_GAIN);
+	const float q11 = base_q11 * (1.0f + stress2 * POS_EKF_Q_VEL_STRESS_GAIN);
+	const float q22 = base_q22 * (1.0f + imuStress * POS_EKF_Q_BIAS_STRESS_GAIN);
+	/*
+	 * Position-bias process noise remains static.
+	 */
+	const float q33 = base_q33;
+	/*
+	 * Return dynamic Q values.
+	 */
 	*out_q00 = q00;
 	*out_q11 = q11;
 	*out_q22 = q22;
 	*out_q33 = q33;
 }
+
 
 __ATTR_ITCM_TEXT
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt) {
