@@ -247,7 +247,7 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
 	float venturiBias = getVenturiBiasEstimate(dt);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos + venturiBias, dynamicRPSL, H_BARO_WITH_BIAS);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos - venturiBias, dynamicRPSL, H_BARO_WITH_BIAS);
 #else
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
 #endif

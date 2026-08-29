@@ -66,8 +66,8 @@
  * carried by the velocity+bias states; this only sets how fast raw position
  * uncertainty grows on top of them. Rarely needs touching.
  * Range: 1e-6 .. 1e-4. Too high: position wanders between fixes. */
-#define POS_EKF_X_Q_POS                     0.0003f // was 0.00001f
-#define POS_EKF_Y_Q_POS                     0.0003f // was 0.00001f
+#define POS_EKF_X_Q_POS                    0.000003f// 0.0003f // was 0.00001f
+#define POS_EKF_Y_Q_POS                    0.000003f// 0.0003f // was 0.00001f
 
 /* Velocity random walk, (m/s)^2 per step -> 1.0 (m/s)^2/s effective.
  * THE main Q knob for XY feel. Sets how quickly the filter admits "my
@@ -116,7 +116,7 @@
  * BARO_RP_MIN, and vice versa.  (Validated config: dips/balloon-free.) */
 
 /* 0.01 per step -> 10 m^2/s. Huge on purpose - see philosophy above. */
-#define POS_EKF_Z_Q_POS                        0.01f
+#define POS_EKF_Z_Q_POS                       0.01f
 
 /* 0.02 per step -> 20 (m/s)^2/s. Huge on purpose. Climb-rate follows
  * baro-derivative + accel. If climb feels spongey: raise; if altitude is
@@ -246,8 +246,8 @@
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE        1.0f
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN          0.1f // was 0.05f
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND      0.0001f
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           500.0f //Z vel is very twicthy
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            5000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           3000.0f //Z vel is very twicthy
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            30000.0f
 
 /* Used when no valid nav fix: fully detached. */
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MUTED          10000.0f
@@ -260,7 +260,7 @@
  * worse of distance-fraction and (1 - quality). MUTED when invalid. */
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE        0.01f
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX         10.0f
-#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED       10000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED       80000.0f
 
 /* Venturi bias pseudo-measurement (models dynamic-pressure baro suction
  * when translating). Trusted when smooth (R 0.1), discounted 20x when

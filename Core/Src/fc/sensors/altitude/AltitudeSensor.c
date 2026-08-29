@@ -29,14 +29,14 @@ uint8_t initAltitudeSensors(void) {
 		return 0;
 	}
 
-#if SENSOR_ALT_LIDAR_AVAILABLE == 1
 	status = deviceLidarInit();
+	fcStatusData.isTerrainSensorExist = status;
 	if (status) {
-		logString("[Altitude Sensor] TF Mini Init > Success\n");
+		logString("[Altitude Sensor] TF Mini >> Exist & Init Success\n");
 	} else {
-		logString("[Altitude Sensor] TF Mini Init > Failed\n");
+		logString("[Altitude Sensor] TF Mini >> Does not Exist or Init Failed!\n");
+		status = 1;
 	}
-#endif
 
 	return status;
 }
@@ -65,14 +65,16 @@ uint8_t loadAltitudeSensorsData(void) {
 		filterSeaLevelAlt(SENSOR_BARO_READ_PERIOD);
 		sensorAltitudeData.altitudeSL = deviceAltitudeData.altitudeSL;
 	}
-#if SENSOR_ALT_LIDAR_AVAILABLE == 1
-	if (deviceLidarLoadData()) {
-		flags |= SENSOR_DATA_LIDAR;
-		sensorAltitudeData.altitudeTerrain = deviceAltitudeData.altitudeTerrain;
-		filterTerrainLevelAlt(SENSOR_LIDAR_READ_PERIOD) ;
-		sensorAltitudeData.altitudeTerrainQual = deviceAltitudeData.altitudeTerrainQlty;
+
+	if (fcStatusData.isTerrainSensorExist == 1) {
+		if (deviceLidarLoadData()) {
+			flags |= SENSOR_DATA_LIDAR;
+			sensorAltitudeData.altitudeTerrain = deviceAltitudeData.altitudeTerrain;
+			filterTerrainLevelAlt(SENSOR_LIDAR_READ_PERIOD);
+			sensorAltitudeData.altitudeTerrainQual = deviceAltitudeData.altitudeTerrainQlty;
+		}
 	}
-#endif
+
 	return flags;
 }
 
@@ -86,14 +88,14 @@ uint8_t readAltitudeSensors(float dt) {
 		status = deviceBaroRead();
 	}
 
-#if SENSOR_ALT_LIDAR_AVAILABLE == 1
-	sensorLidarReadDt += dt;
-	if (sensorLidarReadDt >= SENSOR_LIDAR_READ_PERIOD) {
-		sensorAltitudeData.altitudeTerrainUpdateDt = sensorLidarReadDt;
-		sensorLidarReadDt = 0;
-		status |= deviceLidarRead();
+	if (fcStatusData.isTerrainSensorExist == 1) {
+		sensorLidarReadDt += dt;
+		if (sensorLidarReadDt >= SENSOR_LIDAR_READ_PERIOD) {
+			sensorAltitudeData.altitudeTerrainUpdateDt = sensorLidarReadDt;
+			sensorLidarReadDt = 0;
+			status |= deviceLidarRead();
+		}
 	}
-#endif
 
 	return status;
 }

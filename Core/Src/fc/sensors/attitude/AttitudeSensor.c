@@ -1,14 +1,14 @@
 #include "AttitudeSensor.h"
 
+#include <math.h>
+#include <sys/_stdint.h>
+
 #include "../../calibration/Calibration.h"
-#include "../../dsp/BiQuadFilter.h"
 #include "../../dsp/LowPassFilter.h"
-#include "../../imu/IMU.h"
-#include "../../timers/DelayTimer.h"
-#include "../../timers/DeltaTimer.h"
-#include "../../timers/GPTimer.h"
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
+#include "../../status/FCStatus.h"
+#include "../../timers/DelayTimer.h"
 #include "../../util/MathUtil.h"
 
 extern DEVICE_ATTITUDE_DATA deviceAttitudeData;
@@ -27,9 +27,6 @@ float sensorAccZMaxG;
 float sensorGyroXMaxDS;
 float sensorGyroYMaxDS;
 float sensorGyroZMaxDS;
-
-float imuCoGXOffset = 0;
-float imuCoGYOffset = 0;
 
 // --- Start & Init ---
 void startAttitudeMgmtTimers(void);
@@ -88,10 +85,6 @@ uint8_t initAttitudeSensors() {
 		sensorGyroXMaxDS = getMaxValidDS() * SENSOR_GYRO_FLYABLE_VALUE_GAIN;
 		sensorGyroYMaxDS = getMaxValidDS() * SENSOR_GYRO_FLYABLE_VALUE_GAIN;
 		sensorGyroZMaxDS = getMaxValidDS() * SENSOR_GYRO_FLYABLE_VALUE_GAIN;
-
-       //CoG Offsets
-		imuCoGXOffset = get1KXScaledCalibrationValue(CALIB_PROP_COG_ACC_X_OFFSET_ADDR);
-		imuCoGYOffset = get1KXScaledCalibrationValue(CALIB_PROP_COG_ACC_Y_OFFSET_ADDR);
 
 		logString("[Attitude Sensor] > Calibration Filters > Initialized\n");
 	}
@@ -232,26 +225,8 @@ void updateAccSensorData(float dt) {
 	deviceAccApplyOrientationForImu();
 
 // Limit the values
-#if SENSOR_ACC_LEVER_ARM_COMPENSATION_X_ENABLED == 1
-	if (imuCoGXOffset != 0) {
-		sensorAttitudeData.axG = constrainToRangeF(deviceAccApplyLeverArmCompensationX(), -sensorAccXMaxG, sensorAccXMaxG);
-	} else {
-		sensorAttitudeData.axG = constrainToRangeF(deviceAttitudeData.axG, -sensorAccXMaxG, sensorAccXMaxG);
-	}
-#else
 	sensorAttitudeData.axG = constrainToRangeF(deviceAttitudeData.axG, -sensorAccXMaxG, sensorAccXMaxG);
-#endif
-
-#if SENSOR_ACC_LEVER_ARM_COMPENSATION_Y_ENABLED == 1
-	if (imuCoGYOffset != 0) {
-		sensorAttitudeData.ayG = constrainToRangeF(deviceAccApplyLeverArmCompensationY(), -sensorAccYMaxG, sensorAccYMaxG);
-	} else {
-		sensorAttitudeData.ayG = constrainToRangeF(deviceAttitudeData.ayG, -sensorAccYMaxG, sensorAccYMaxG);
-	}
-#else
 	sensorAttitudeData.ayG = constrainToRangeF(deviceAttitudeData.ayG, -sensorAccYMaxG, sensorAccYMaxG);
-#endif
-
 	sensorAttitudeData.azG = constrainToRangeF(deviceAttitudeData.azG, -sensorAccZMaxG, sensorAccZMaxG);
 }
 
@@ -297,11 +272,11 @@ void updateMagSensorData(float dt) {
 	deviceMagApplyDataScaling();
 	deviceMagApplyOffsetCorrection();
 
-#if FC_BOARD_VERSION == 1
-	deviceMagApplyOrientationForImu(0);
-#else
-	deviceMagApplyOrientationForImu(180);
-#endif
+	if (fcStatusData.modelVersion == 1) {
+		deviceMagApplyOrientationForImu(0);
+	} else {
+		deviceMagApplyOrientationForImu(180);
+	}
 
 	sensorAttitudeData.mx = deviceAttitudeData.mx;
 	sensorAttitudeData.my = deviceAttitudeData.my;

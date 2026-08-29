@@ -48,6 +48,11 @@ struct _FC_STATUS_DATA {
 	float batteryNomVolt;
 	uint8_t batteryType; //0-Lipo , 1-lion
 	uint8_t batteryAlertState ; //None=0 , Low=1, Crit=2
+
+	//Sensor Statuses.
+	uint8_t isTerrainSensorExist;
+	uint8_t isGNSSSensorAvailable;
+	uint8_t modelVersion;
 };
 
 extern FC_STATUS_DATA fcStatusData;

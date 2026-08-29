@@ -171,10 +171,10 @@ void debugTask() {
 //nowMs += dt;
 //debugBattery();
 //debugRC();
-//debugIMU();
+debugIMU();
 //debugALt();
 //debugGnssData();
 //	debugIMUStr();
 //	debufFFT();
-	debugNoise();
+//	debugNoise();
 }

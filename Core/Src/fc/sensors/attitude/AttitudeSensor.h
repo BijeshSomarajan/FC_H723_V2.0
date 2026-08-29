@@ -98,15 +98,9 @@ extern SENSOR_ATTITUDE_DATA sensorAttitudeData;
 #define SENSOR_MAG_CALIB_SAMPLE_DELAY           10
 #define SENSOR_MAG_CALIB_USE_SIMPLE_ALGO        1
 
-//Lever ARM compensation
-// Lever ARM compensation configured for an IMU behind the CoG
-#define SENSOR_ACC_LEVER_ARM_COMPENSATION_X_ENABLED 0 //Roll
-#define SENSOR_ACC_LEVER_ARM_COMPENSATION_Y_ENABLED 0 // Pitch
-
 #define SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G  0.25f
 #define SENSOR_ACC_LEVER_ARM_X_OFFSET           -0.02f // Negative value: _ve behind CoG , +ve ahead of GoG
 #define SENSOR_ACC_LEVER_ARM_Y_OFFSET           -1.2f // Negative value: _ve behind CoG , +ve ahead of GoG
-
 
 
 /* -----------------------------------------------------------

@@ -18,6 +18,7 @@ float positionMissionVxCommand, positionMissionVyCommand;
 float positionMissionWPCompleteDt = 0;
 uint8_t positionMissionWasRTHModeActive = 0;
 uint8_t positionMissionWasNavMissionModeActive = 0;
+uint8_t positionMissionWPCaptureLatched = 0;
 int16_t positionMissionWPIndx = 0;
 uint8_t positionMissionWPComplete = 0;
 int16_t positionMissionWPCount = 0;
@@ -27,16 +28,17 @@ uint8_t loadWayPoints(void);
 void updateWPCompletionStatus(float dt);
 void updateMissionVelocityCommand(float dt);
 
-void initPositionMissionHelper(){
+void initPositionMissionHelper() {
 	positionCruiseSpeed = get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR);
-	if(positionCruiseSpeed < 0 || positionCruiseSpeed > positionCruiseSpeed){
-		 positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_DEFAULT;
+	if (positionCruiseSpeed < 0 || positionCruiseSpeed > POSITION_MISSION_CRUISE_SPEED_MAX) {
+		positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_DEFAULT;
 	}
 }
 
 void resetNavWPStates() {
 	positionMissionWPComplete = 0;
 	positionMissionWPCompleteDt = 0;
+	positionMissionWPCaptureLatched = 0;
 }
 
 void resetNavRTHStates() {
@@ -44,7 +46,7 @@ void resetNavRTHStates() {
 }
 
 void resetNavMissionModeStates() {
-    positionMissionWasNavMissionModeActive = 0;
+	positionMissionWasNavMissionModeActive = 0;
 }
 
 void resetNavMissionStates() {
@@ -94,7 +96,6 @@ void handleNavMission(float dt) {
 	if (fcStatusData.isNavRTHModeActive) {
 		positionMissionWasNavMissionModeActive = 0;
 		if (!positionMissionWasRTHModeActive) {
-			logString("Set Home Position for RTH\n");
 			clearGroundStationSensorWPData();
 			GroundStationSensorWPData groundStationSensorWPData;
 			groundStationSensorWPData.waypointIndex = 0;
@@ -108,22 +109,19 @@ void handleNavMission(float dt) {
 		positionMissionWasRTHModeActive = 0;
 		if (fcStatusData.isNavMissionModeActive) {
 			if (!positionMissionWasNavMissionModeActive) {
-				logString("Starting Nav Mission\n");
 				groundStationMissionCallBack(NAV_ACTION_START_MISSION);
 				positionMissionWasNavMissionModeActive = 1;
 			}
 		}
 	}
-
 	updateMissionVelocityCommand(dt);
 	updateWPCompletionStatus(dt);
 	updatePositionReference();
 	if (positionMissionWPComplete) {
 		positionMissionWPIndx++;
+		resetNavWPStates();
 		uint8_t hasMoreWP = loadWayPoints();
-		if (hasMoreWP) {
-			resetNavWPStates();
-		} else {
+		if (!hasMoreWP) {
 			fcStatusData.isNavMissionComplete = 1;
 		}
 	}
@@ -131,33 +129,47 @@ void handleNavMission(float dt) {
 
 __ATTR_ITCM_TEXT
 void updateMissionVelocityCommand(float dt) {
-// Position error to home
+	// Position error to waypoint
 	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
 	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
-// Distance to home
+	// Distance to waypoint
 	float distance = fastSqrtf(dx * dx + dy * dy);
-// Normalize direction vector
-	float dirX = 0.0f;
-	float dirY = 0.0f;
-	if (distance > 0.01f) {
+	//------------------------------------------------------------------
+	// Capture latch
+	//------------------------------------------------------------------
+	if (!positionMissionWPCaptureLatched && distance <= POSITION_MISSION_WP_CAPTURE_RADIUS) {
+		positionMissionWPCaptureLatched = 1;
+	}
+	//------------------------------------------------------------------
+	// Desired velocity
+	//------------------------------------------------------------------
+	float desiredVx = 0.0f;
+	float desiredVy = 0.0f;
+	/*
+	 * Navigation phase
+	 *
+	 * Once capture is latched, we stay in capture mode even if
+	 * wind subsequently pushes the vehicle outside the capture radius.
+	 */
+	if (!positionMissionWPCaptureLatched && distance > POSITION_MISSION_WP_CAPTURE_RADIUS) {
 		float invDist = 1.0f / distance;
-		dirX = dx * invDist;
-		dirY = dy * invDist;
+		float dirX = dx * invDist;
+		float dirY = dy * invDist;
+		float remainingDistance = distance - POSITION_MISSION_WP_CAPTURE_RADIUS;
+		float brakingSpeed = fastSqrtf(2.0f * POSITION_MISSION_BRAKE_DECEL * remainingDistance);
+		float targetSpeed = fminf(positionCruiseSpeed, brakingSpeed);
+		desiredVx = dirX * targetSpeed;
+		desiredVy = dirY * targetSpeed;
 	}
-// Base cruise speed
-	float targetSpeed = fminf(positionCruiseSpeed, fastSqrtf(2.0f * POSITION_MISSION_BRAKE_DECEL * distance));
-// Slow down near home
-	if (distance < POSITION_MISSION_WP_NEAR_RADIUS) {
-		float scale = distance / POSITION_MISSION_WP_NEAR_RADIUS;
-		scale = constrainToRangeF(scale, 0.0f, 1.0f);
-		targetSpeed *= scale;
-	}
-// Desired velocity command
-	float desiredVx = dirX * targetSpeed;
-	float desiredVy = dirY * targetSpeed;
-//------------------------------------------------------------------
-// Acceleration limiting (vector magnitude based)
-//------------------------------------------------------------------
+
+	/*
+	 * Capture phase:  desiredVx = 0 , desiredVy = 0
+	 * The position controller is now responsible for holding
+	 * the waypoint against wind/disturbances.
+	 */
+	//------------------------------------------------------------------
+	// Acceleration limiting
+	//------------------------------------------------------------------
 	float dvx = desiredVx - positionMissionVxCommand;
 	float dvy = desiredVy - positionMissionVyCommand;
 	float deltaMag = fastSqrtf(dvx * dvx + dvy * dvy);
@@ -167,12 +179,12 @@ void updateMissionVelocityCommand(float dt) {
 		dvx *= scale;
 		dvy *= scale;
 	}
-// Smoothed velocity target
+	// Smoothed mission velocity command
 	positionMissionVxCommand += dvx;
 	positionMissionVyCommand += dvy;
-//------------------------------------------------------------------
-// Feed velocity target into velocity controller
-//------------------------------------------------------------------
+	//------------------------------------------------------------------
+	// Feed into position / velocity controller
+	//------------------------------------------------------------------
 	setExpectedPositionVelocity(dt, positionMissionVxCommand, positionMissionVyCommand);
 }
 
