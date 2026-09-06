@@ -123,14 +123,11 @@ void debugBattery() {
 
 extern IMU_DATA imuData;
 void debugALt() {
-	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.azG * 1000;
-	DEBUG_DATA_BUFFER[1] = deviceAttitudeData.azG * 1000;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.azGFilteredImu * 1000;
-	DEBUG_DATA_BUFFER[3] = imuData.azEarthLinear * 1000;
-	DEBUG_DATA_BUFFER[4] = imuData.azBodyLinear * 1000;
-	DEBUG_DATA_BUFFER[5] = positionCordinateData.zAcceleration * 1000;
-	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity * 1000;
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altitudeSLScaled * 100;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 1000;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
 void debugGnssData() {
@@ -171,8 +168,8 @@ void debugTask() {
 //nowMs += dt;
 //debugBattery();
 //debugRC();
-debugIMU();
-//debugALt();
+//debugIMU();
+debugALt();
 //debugGnssData();
 //	debugIMUStr();
 //	debufFFT();
