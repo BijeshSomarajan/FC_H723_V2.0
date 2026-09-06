@@ -66,8 +66,8 @@
  * carried by the velocity+bias states; this only sets how fast raw position
  * uncertainty grows on top of them. Rarely needs touching.
  * Range: 1e-6 .. 1e-4. Too high: position wanders between fixes. */
-#define POS_EKF_X_Q_POS                    0.000003f// 0.0003f // was 0.00001f
-#define POS_EKF_Y_Q_POS                    0.000003f// 0.0003f // was 0.00001f
+#define POS_EKF_X_Q_POS                    0.00001f //0.000003f //0.00001f
+#define POS_EKF_Y_Q_POS                    0.00001f //0.000003f //0.00001f
 
 /* Velocity random walk, (m/s)^2 per step -> 1.0 (m/s)^2/s effective.
  * THE main Q knob for XY feel. Sets how quickly the filter admits "my
@@ -321,7 +321,7 @@
  * module, nav rate, or baud ever changes, RE-MEASURE. Symptoms of error:
  * too small -> residual backtrack after stick release (settles behind);
  * too large -> creeps FORWARD past the release point. */
-#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.12f //10Hz GPS update
+#define POS_ESTIMATOR_GNSS_LATENCY_S                 0.05f
 
 // PositionEstimatorConfig.h — Group 9
 #define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED    1

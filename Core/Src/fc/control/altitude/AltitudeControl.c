@@ -178,12 +178,12 @@ static void updateAltitudeDOB(float thrustGain, float dt, ALTITUDE_CONTROL_GAINS
 
 __ATTR_ITCM_TEXT
 void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
-	float thrustGain = fcStatusData.hoverThrottle / GRAVITY_MSS; /* K */
 	/* ---- 1. Acceleration correction loop --------------------------------- */
 	pidUpdateWithGains(&altAccPID, positionCordinateData.zAcceleration, altRatePID.pid, dt, altControlGains.accPGain, 0.0f, altControlGains.accDGain);
 	float output = altAccPID.pid;
 	/* ---- 2. Disturbance observer ----------------------------------------- */
 #if ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED == 1
+	float thrustGain = fcStatusData.hoverThrottle / GRAVITY_MSS; /* K */
 	updateAltitudeDOB(thrustGain, dt, altControlGains);
 #endif
 	/* ---- 3. Output limit -------------------------------------------------- */
