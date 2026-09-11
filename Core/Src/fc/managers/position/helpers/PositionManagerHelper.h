@@ -33,6 +33,9 @@ float calculateDistance(double homeLat, double homeLon, double lat, double lon);
 float calculateBearing(float xNorth, float yEast);
 void alignEarthAccelToNED(float axIn, float ayIn, float azIn, float *axOut, float *ayOut, float *azOut);
 void updatePositionReference(void);
+
 uint8_t isNavModeActive();
+uint8_t isNavRTHModeActive();
+uint8_t isNavMissionModeActive();
 
 #endif /* SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_ */

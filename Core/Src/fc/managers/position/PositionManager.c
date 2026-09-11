@@ -198,9 +198,9 @@ void updatePositionCordinateCommand(float dt) {
 		return;
 	}
 
-	if ((!fcStatusData.isNavRTHModeActive && !fcStatusData.isNavMissionModeActive)) {
-		resetNavMissionStates();
-	} else if (!fcStatusData.isNavRTHModeActive) {
+	if (!isNavRTHModeActive() && !isNavMissionModeActive()) {
+		resetNavMissionStates(); //Clears RTH states also.
+	} else if (!isNavRTHModeActive()) {
 		resetNavRTHStates();
 	}
 
@@ -229,7 +229,7 @@ void updatePositionCordinateCommand(float dt) {
 			break;
 		case POS_HOLD_STATE_LOCKED:
 			resetBrakingStates();
-			if ((fcStatusData.isNavRTHModeActive || fcStatusData.isNavMissionModeActive) && !fcStatusData.isNavMissionComplete) {
+			if ((isNavRTHModeActive() || isNavMissionModeActive()) && !fcStatusData.isNavMissionComplete) {
 				handleNavMission(dt);
 			} else {
 				controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
@@ -338,9 +338,12 @@ void doPositionManagement() {
 	if (fcStatusData.hasCrashed) {
 		resetPositionManager();
 	} else if (fcStatusData.canStabilize && !positionManagerWasInStabMode) {
+		resetPositionManager();
 		positionManagerWasInStabMode = 1;
 	} else if (positionManagerWasInStabMode && fcStatusData.isStabilized) {
 		positionManagerWasInStabMode = 0;
+	} else if (rcData.RC_DELTA_DATA[RC_VARIO_CHANNEL_INDEX] > 1500 || (!fcStatusData.isRCHealthy && fcStatusData.isFlying && fcStatusData.isPositionHomeSet && fcStatusData.isNavModeActive)) {
+		fcStatusData.isFailSafeModeActive = 1;
 	}
 	loadAndProcessGNSSData();
 }
@@ -353,12 +356,6 @@ void resetPositionManager(void) {
 	lowPassFilterReset(&positionMgrVelXLPF);
 	lowPassFilterReset(&positionMgrVelYLPF);
 	lowPassFilterReset(&positionMgrVelZLPF);
-
-	/*
-	 positionEKFInvalidate(&positionEkf, POS_EKF_X_AXIS);
-	 positionEKFInvalidate(&positionEkf, POS_EKF_Y_AXIS);
-	 positionEKFInvalidate(&positionEkf, POS_EKF_Z_AXIS);
-	 */
 
 	positionEKFReset(&positionEkf, POS_EKF_X_AXIS, 0);
 	positionEKFReset(&positionEkf, POS_EKF_Y_AXIS, 0);

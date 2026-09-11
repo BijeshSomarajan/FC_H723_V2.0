@@ -105,31 +105,6 @@ void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 #define ALT_CONTROL_ACC_PID_D_LIMIT_RATIO 1.0f
 
 /* --------------------------------------------------------------------------
- * Hover-throttle learner
- * --------------------------------------------------------------------------
- * Liftoff throttle is measured in ground effect and does not track battery
- * sag, so it is used only as the SEED. In flight the true hover throttle is
- * learned from the actual mixed throttle whenever the vehicle is essentially
- * not climbing and not heavily tilted.
- *
- * IMPORTANT: the learner reads controlData.throttleControl, which INCLUDES
- * tiltCompThDelta and posBrakeCompThDelta. The lift-factor gate below is what
- * keeps tilt compensation out of the learned hover value - it is NOT
- * redundant with the velocity gate. Do not remove it.
- */
-// [1] learn in flight | [0] stay on the liftoff seed forever
-#define ALT_CONTROL_HOVER_LEARN_ENABLED        1
-// Learner time constant, s. Long: this is a slow trim, not a tracker.
-#define ALT_CONTROL_HOVER_LEARN_TAU            8.0f
-// Only learn when |zVelocity| is below this (m/s) - i.e. actually hovering.
-#define ALT_CONTROL_HOVER_LEARN_VEL_MAX        0.25f
-// Only learn when tilt lift factor cos(pitch)*cos(roll) is above this
-// (~cos(12deg)); tilted flight needs extra throttle that is NOT hover thrust.
-#define ALT_CONTROL_HOVER_LEARN_LIFT_MIN       0.978f
-// Sanity band around the liftoff seed - the learner may never wander outside.
-#define ALT_CONTROL_HOVER_LEARN_MIN_RATIO      0.60f
-#define ALT_CONTROL_HOVER_LEARN_MAX_RATIO      1.60f
-/* --------------------------------------------------------------------------
  * Disturbance observer (REAL: compares measured accel against the accel the
  * previous THROTTLE OUTPUT should have produced, through the inverse plant
  * model - NOT against the setpoint, which would merely re-add the acc PID's

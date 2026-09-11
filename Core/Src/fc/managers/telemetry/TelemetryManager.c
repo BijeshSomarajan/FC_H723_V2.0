@@ -68,7 +68,12 @@ void prepareAndSendFCStatus() {
 	}
 	// Loiter, Pos Hold, RTH
 	FC_STATUS_BUF[1] = '-';
-	if (fcStatusData.isNavRTHModeActive) {
+	if (fcStatusData.isFailSafeModeActive) {
+		FC_STATUS_BUF[2] = 'F';
+		if (fcStatusData.isNavMissionComplete) {
+			FC_STATUS_BUF[2] = 'C';
+		}
+	} else if (fcStatusData.isNavRTHModeActive) {
 		if (fcStatusData.isNavMissionComplete) {
 			FC_STATUS_BUF[2] = 'C';
 		} else {
@@ -81,7 +86,7 @@ void prepareAndSendFCStatus() {
 	}
 	// Terrain/Baro
 	FC_STATUS_BUF[3] = '-';
-	if (fcStatusData.isTerrainAltModeActive && fcStatusData.isTerrainSensorExist ) {
+	if (fcStatusData.isTerrainAltModeActive && fcStatusData.isTerrainSensorExist) {
 		FC_STATUS_BUF[4] = 'T';
 	} else {
 		FC_STATUS_BUF[4] = 'B';
@@ -137,7 +142,7 @@ void telemetryUpdateTask() {
 		sendAttitudeTelemetry(sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAttitudeData.heading);
 		break;
 	case TELEMETRY_STEP_BATTERY:
-		sendBatteryTelemetry(batteryData.voltage, fcStatusData.batteryNomVolt, (uint32_t)fcStatusData.currentThrottle, fcStatusData.batteryAlertState);
+		sendBatteryTelemetry(batteryData.voltage, fcStatusData.batteryNomVolt, (uint32_t) fcStatusData.currentThrottle, fcStatusData.batteryAlertState);
 		break;
 	case TELEMETRY_STEP_GNSS:
 		prepareAndSendGNSSData();
