@@ -192,7 +192,7 @@
  * correct accumulated acceleration error. Its effect must be considered
  * together with BARO_RP_MIN and the dynamic baro R scaling.
  */
-#define POS_EKF_Z_Q_VEL                    0.02f //0.001f
+#define POS_EKF_Z_Q_VEL                    0.02f
 
 /* Z accel-bias random walk, (m/s^2)^2 per 1 ms predict step.
  *

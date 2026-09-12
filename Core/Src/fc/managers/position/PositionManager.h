@@ -48,7 +48,7 @@
 
 #define POSITION_MGR_X_EST_OUTPUT_ACC_DEADBAND        0.0f    // m/s²
 #define POSITION_MGR_Y_EST_OUTPUT_ACC_DEADBAND        0.0f    // m/s²
-#define POSITION_MGR_Z_EST_OUTPUT_ACC_DEADBAND        0.020f    // m/s²
+#define POSITION_MGR_Z_EST_OUTPUT_ACC_DEADBAND        0.02f    // m/s²
 
 #define POSITION_MGR_X_EST_OUTPUT_VEL_DEADBAND        0.0f    // m/s
 #define POSITION_MGR_Y_EST_OUTPUT_VEL_DEADBAND        0.0f    // m/s
@@ -89,6 +89,6 @@ typedef enum {
 
 uint8_t initPositionManager(void);
 void doPositionManagement(void);
-void resetPositionManager(void);
+void resetPositionManager(uint8_t hard);
 
 #endif /* SRC_FC_MANAGERS_POSITION_POSITIONMANAGER_H_ */

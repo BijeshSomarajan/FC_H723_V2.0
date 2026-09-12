@@ -71,8 +71,8 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Lower: catches slow-cruise tilt, but a miscalibrated level trim then
  *   integrates forever. 0.5 assumes a well-trimmed horizon (which this
  *   airframe has, post-Mahony fixes). */
-#define VENTURI_EST_PITCH_ANGLE_MIN             1.5f
-#define VENTURI_EST_ROLL_ANGLE_MIN              1.5f
+#define VENTURI_EST_PITCH_ANGLE_MIN             2.5f
+#define VENTURI_EST_ROLL_ANGLE_MIN              2.5f
 
 /* Pitch clamp, deg. Caps the model's accel input during aggressive maneuvers
  * so a stunt doesn't slingshot the speed state. Matches the attitude
@@ -146,7 +146,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * ~4.5 m/s. Raise toward 1.0 only with outdoor high-speed calibration data
  * showing the real artifact exceeds 0.5 m - never to "fix" a dip (that is
  * always the gain or the decay, not the clamp). */
-#define VENTURI_EST_BIAS_VALUE_MAX              0.60f
+#define VENTURI_EST_BIAS_VALUE_MAX              0.5f
 
 /* Output LPF, Hz (tau ~0.45 s). Matches the pneumatic settling of the real
  * pressure field so the bias doesn't step. Part of the measured ~0.8 s total

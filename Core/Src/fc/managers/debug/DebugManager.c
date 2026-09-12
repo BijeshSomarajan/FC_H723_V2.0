@@ -65,12 +65,12 @@ void debugRC() {
 	DEBUG_DATA_BUFFER[8] = fcStatusData.isTerrainAltModeActive;
 	DEBUG_DATA_BUFFER[9] = fcStatusData.isNavModeActive;
 	DEBUG_DATA_BUFFER[10] = fcStatusData.isNavRTHModeActive;
-	DEBUG_DATA_BUFFER[11] = fcStatusData.isFailSafeModeActive ;
+	DEBUG_DATA_BUFFER[11] = fcStatusData.isFailSafeModeActive;
 	DEBUG_DATA_BUFFER[12] = fcStatusData.isRCHealthy;
 	sendConfigData(DEBUG_DATA_BUFFER, 13, CMD_FC_DATA);
 }
 
-void debugModel(){
+void debugModel() {
 	DEBUG_DATA_BUFFER[0] = positionCordinateData.xVelocity * 100;
 	DEBUG_DATA_BUFFER[1] = positionCordinateData.yVelocity * 100;
 	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.heading * 10;
@@ -162,20 +162,17 @@ extern PID altPID;
 extern PID altRatePID;
 extern PID altAccPID;
 void debugAltStr() {
-	sprintf(buf, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAltitudeData.altitudeSLFiltered, sensorAltitudeData.altitudeTerrain, positionCordinateData.zPosition, positionCordinateData.zVelocity,
-			venturiEstimateData.venturiBias, controlData.tiltCompThDelta, altPID.pid, altRatePID.pid, controlData.throttleControl);
+	sprintf(buf, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAltitudeData.altitudeSLFiltered * 100, sensorAltitudeData.altitudeTerrain * 100, venturiEstimateData.venturiBias * 100,
+			positionCordinateData.zPosition * 100, positionCordinateData.zVelocity * 100, positionCordinateData.zAcceleration * 100, altPID.pid * 100, altRatePID.pid * 100, altAccPID.pid, controlData.tiltCompThDelta , controlData.altitudeDOBControl, controlData.throttleControl);
 	logString(buf);
 }
 
 void debugAltGraph() {
-	DEBUG_DATA_BUFFER[0] = positionCordinateData.zVelocity * 100;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 100;
-	DEBUG_DATA_BUFFER[2] = controlData.tiltCompThDelta;
-	DEBUG_DATA_BUFFER[3] = altPID.pid ;
-	DEBUG_DATA_BUFFER[4] = altRatePID.pid ;
-	DEBUG_DATA_BUFFER[5] = controlData.throttleControl;
-	DEBUG_DATA_BUFFER[6] = fcStatusData.hoverThrottle;
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeSLFiltered * 1000;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 1000;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 100;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
 float nowMs = 0;
@@ -190,9 +187,9 @@ void debugTask() {
 //debugRC();
 //debugModel();
 //debugIMU();
-debugALt();
-//debugAltStr();
-//	debugAltGraph();
+//debugALt();
+	debugAltStr();
+//debugAltGraph();
 //debugGnssData();
 //	debugIMUStr();
 //	debufFFT();

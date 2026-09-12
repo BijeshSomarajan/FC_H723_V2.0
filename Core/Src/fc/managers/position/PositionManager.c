@@ -336,19 +336,19 @@ void loadAndProcessGNSSData() {
 __ATTR_ITCM_TEXT
 void doPositionManagement() {
 	if (fcStatusData.hasCrashed) {
-		resetPositionManager();
+		resetPositionManager(0);
 	} else if (fcStatusData.canStabilize && !positionManagerWasInStabMode) {
-		resetPositionManager();
+		resetPositionManager(0);
 		positionManagerWasInStabMode = 1;
 	} else if (positionManagerWasInStabMode && fcStatusData.isStabilized) {
 		positionManagerWasInStabMode = 0;
-	} else if (rcData.RC_DELTA_DATA[RC_VARIO_CHANNEL_INDEX] > 1500 || (!fcStatusData.isRCHealthy && fcStatusData.isFlying && fcStatusData.isPositionHomeSet && fcStatusData.isNavModeActive)) {
+	} else if (!fcStatusData.isRCHealthy && fcStatusData.isFlying && fcStatusData.isPositionHomeSet && fcStatusData.isNavModeActive) {
 		fcStatusData.isFailSafeModeActive = 1;
 	}
 	loadAndProcessGNSSData();
 }
 
-void resetPositionManager(void) {
+void resetPositionManager(uint8_t hard) {
 	lowPassFilterReset(&positionMgrAccXLPF);
 	lowPassFilterReset(&positionMgrAccYLPF);
 	lowPassFilterReset(&positionMgrAccZLPF);
@@ -368,11 +368,18 @@ void resetPositionManager(void) {
 	positionManagerWasInStabMode = 0;
 	positionCommandData.pitchCommand = 0.0f;
 	positionCommandData.rollCommand = 0.0f;
-	fcStatusData.isPositionHomeSet = 0;
+
 	positionMgrPosHoldElapseDtSum = 0;
 	positionMgrPosHoldRatePIDGain = 1.0f;
 	fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 
 	resetNavMissionStates();
+
+	fcStatusData.isFailSafeModeActive = 0;
+
+	if(hard){
+		fcStatusData.isPositionHomeSet = 0;
+	}
+
 }
 
