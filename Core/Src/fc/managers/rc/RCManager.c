@@ -13,6 +13,7 @@
 RC_DATA rcData;
 
 float rcActiveCheckDt = 0;
+float rcHealthCheckDt = 0;
 float rcStablilizationDt = 0;
 
 float rcStickPitchGain = 0;
@@ -65,16 +66,32 @@ void rcCheckActive(float dt) {
 		fcStatusData.isTxOn = 1;
 		rcActiveCheckDt = 0;
 	}
+	//Just time keeping
 	rcData.failSafeCheckDt = dt;
+}
+
+void rcCheckHealth(float dt) {
+	if (fcStatusData.isTxOn) {
+		rcHealthCheckDt += dt;
+	} else {
+		fcStatusData.isRCHealthy = 0;
+		rcHealthCheckDt = 0;
+	}
+	if (fcStatusData.isTxOn && rcHealthCheckDt >= RC_HEALTH_CHECK_THRESHOLD_PERIOD) {
+		fcStatusData.isRCHealthy = 0;
+	}
 }
 
 void rcTask() {
 	float dt = getDeltaTime(RC_TASK_TIMER_CHANNEL);
 	rcCheckActive(dt);
+	rcCheckHealth(dt);
 }
 
 void doRCManagement() {
 	if (readRCSensor()) {
+		rcHealthCheckDt = 0.0f;
+		fcStatusData.isRCHealthy = 1;
 		rcData.updateDt = getDeltaTime(RC_READ_TIMER_CHANNEL);
 		processRCData(rcData.updateDt);
 		determineFCState(rcData.updateDt);
@@ -94,8 +111,6 @@ void setRCData(int32_t *data, int32_t length) {
 void processRCData(float dt) {
 
 	loadRCStickDelta();
-
-	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = getRCValue(RC_LAND_CHANNEL_INDEX);
 
 	fcStatusData.canStart = canStartModel();
 	fcStatusData.canArm = (fcStatusData.canStart && (!fcStatusData.canFly && !fcStatusData.isStabilized && !fcStatusData.canStabilize) ? canArmModel() : 0);
@@ -117,10 +132,11 @@ void processRCData(float dt) {
 
 	fcStatusData.isTerrainAltModeActive = checkTerrainAltModeActivation();
 
+
 	//If throttle is not centered , reset
-	if(checkLandingModeActivation()){
+	if (checkLandingModeActivation()) {
 		fcStatusData.isLandingModeActive = 1;
-	}else if(!rcData.throttleCentered ){
+	} else if (!rcData.throttleCentered) {
 		fcStatusData.isLandingModeActive = 0;
 	}
 
@@ -237,6 +253,9 @@ void loadRCStickDelta() {
 	rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX]);
 	rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX]);
 	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX]);
+
+	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = getRCValue(RC_LAND_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_VARIO_CHANNEL_INDEX] = getRCValue(RC_VARIO_CHANNEL_INDEX);
 }
 
 /*************************************************************************/
@@ -291,7 +310,6 @@ uint8_t checkTerrainNavModeActivation() {
 	return (rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] > TERRAIN_NAV_MODE_ACT_TSH);
 }
 
-
 /**
  * Checks if Position Hold mode is active
  */
@@ -309,7 +327,7 @@ uint8_t checkRTHModeActivation() {
 /**
  * Checks if mission mode is active
  */
-uint8_t checkMissionModeActivation(){
+uint8_t checkMissionModeActivation() {
 	return (rcData.RC_DELTA_DATA[RC_MISSION_CHANNEL_INDEX] > MISSION_MODE_ACT_TSH);
 }
 

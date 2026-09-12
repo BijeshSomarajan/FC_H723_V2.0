@@ -8,11 +8,11 @@
 typedef struct _FC_STATUS_DATA FC_STATUS_DATA;
 struct _FC_STATUS_DATA {
 	//FC Statues
-	uint8_t hasInitialized, isTxOn, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized, isFlying, isNavDataReliable , isTerrainAltDataReliable;
+	uint8_t hasInitialized, isTxOn, isRCHealthy, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized, isFlying, isNavDataReliable, isTerrainAltDataReliable;
 	//FC Modes
-	uint8_t isNavModeActive, isNavRTHModeActive,isNavMissionModeActive, isTerrainAltModeActive;
+	uint8_t isNavModeActive, isNavRTHModeActive, isFailSafeModeActive, isNavMissionModeActive, isTerrainAltModeActive;
 	//Flag to state if landing landing mode is active
-	uint8_t isLandingModeActive, isFailSafeLandingMode;
+	uint8_t isLandingModeActive;
 	//Flight debug status enabled
 	uint8_t isDebugEnabled;
 	uint8_t isTelemetryEnabled;
@@ -47,7 +47,7 @@ struct _FC_STATUS_DATA {
 	uint8_t isConfigMode;
 	float batteryNomVolt;
 	uint8_t batteryType; //0-Lipo , 1-lion
-	uint8_t batteryAlertState ; //None=0 , Low=1, Crit=2
+	uint8_t batteryAlertState; //None=0 , Low=1, Crit=2
 
 	//Sensor Statuses.
 	uint8_t isTerrainSensorExist;

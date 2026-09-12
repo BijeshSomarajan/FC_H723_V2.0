@@ -71,8 +71,8 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Lower: catches slow-cruise tilt, but a miscalibrated level trim then
  *   integrates forever. 0.5 assumes a well-trimmed horizon (which this
  *   airframe has, post-Mahony fixes). */
-#define VENTURI_EST_PITCH_ANGLE_MIN             0.5f
-#define VENTURI_EST_ROLL_ANGLE_MIN              0.5f
+#define VENTURI_EST_PITCH_ANGLE_MIN             2.5f
+#define VENTURI_EST_ROLL_ANGLE_MIN              2.5f
 
 /* Pitch clamp, deg. Caps the model's accel input during aggressive maneuvers
  * so a stunt doesn't slingshot the speed state. Matches the attitude
@@ -124,7 +124,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  *   does -> momentary under-compensation blip).
  * Lower: bias lingers after stops -> the estimate reads low -> post-stop
  *   climb. Tune only from a log showing the bias/artifact decay mismatch. */
-#define VENTURI_EST_DAMPING_GAIN               2.5f
+#define VENTURI_EST_DAMPING_GAIN               0.5f//2.5f
 
 /* ---------------- Speed -> bias translation ---------------- */
 
@@ -146,7 +146,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * ~4.5 m/s. Raise toward 1.0 only with outdoor high-speed calibration data
  * showing the real artifact exceeds 0.5 m - never to "fix" a dip (that is
  * always the gain or the decay, not the clamp). */
-#define VENTURI_EST_BIAS_VALUE_MAX              0.60f
+#define VENTURI_EST_BIAS_VALUE_MAX              0.5f
 
 /* Output LPF, Hz (tau ~0.45 s). Matches the pneumatic settling of the real
  * pressure field so the bias doesn't step. Part of the measured ~0.8 s total
@@ -154,7 +154,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Raise toward 0.7-1.0 Hz if logs show bias arriving late vs the artifact;
  * lower if the bias output is jittery. Note the EKF's BP fusion adds its own
  * ~0.5 s - tune this from end-to-end logs (artifact vs BP), not in isolation. */
-#define VENTURI_EST_BIAS_LPF_FREQ               2.0f
+#define VENTURI_EST_BIAS_LPF_FREQ               5.0f
 
 /* Minimum |lateralSpeed| immediately BEFORE a zero-cross for the brake dwell
  * to arm, m/s. Below this the crossing is decaying residue from a previous

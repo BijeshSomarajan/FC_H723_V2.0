@@ -19,7 +19,7 @@ float positionMissionVxCommand, positionMissionVyCommand;
 float positionMissionWPCompleteDt = 0;
 
 uint8_t positionMissionWasRTHModeActive = 0;
-uint8_t positionMissionWasNavMissionModeActive = 0;
+uint8_t positionMissionWasMissionModeActive = 0;
 
 int16_t positionMissionWPIndx = 0;
 
@@ -51,7 +51,7 @@ void resetNavRTHStates() {
 }
 
 void resetNavMissionModeStates() {
-	positionMissionWasNavMissionModeActive = 0;
+	positionMissionWasMissionModeActive = 0;
 }
 
 void resetNavMissionStates() {
@@ -107,37 +107,27 @@ void groundStationMissionCallBack(uint8_t action) {
 
 __ATTR_ITCM_TEXT
 void handleNavMission(float dt) {
-	if (fcStatusData.isNavRTHModeActive) {
-		positionMissionWasNavMissionModeActive = 0;
-
+	if (isNavRTHModeActive()) {
+		positionMissionWasMissionModeActive = 0;
 		if (!positionMissionWasRTHModeActive) {
 			clearGroundStationSensorWPData();
-
 			GroundStationSensorWPData groundStationSensorWPData;
-
 			groundStationSensorWPData.waypointIndex = 0;
-
 			groundStationSensorWPData.latitude = fcStatusData.positionLatHome;
-
 			groundStationSensorWPData.longitude = fcStatusData.positionLongHome;
-
 			setGroundStationSensorWPData(groundStationSensorWPData);
-
 			groundStationMissionCallBack(NAV_ACTION_START_MISSION);
-
 			positionMissionWasRTHModeActive = 1;
 		}
 	} else {
 		positionMissionWasRTHModeActive = 0;
-
-		if (fcStatusData.isNavMissionModeActive) {
-			if (!positionMissionWasNavMissionModeActive) {
+		if (isNavMissionModeActive()) {
+			if (!positionMissionWasMissionModeActive) {
 				groundStationMissionCallBack(NAV_ACTION_START_MISSION);
-				positionMissionWasNavMissionModeActive = 1;
+				positionMissionWasMissionModeActive = 1;
 			}
 		}
 	}
-
 	updateMissionVelocityCommand(dt);
 	updateWPCompletionStatus(dt);
 	updatePositionReference();
@@ -149,59 +139,18 @@ void handleNavMission(float dt) {
 		if (!hasMoreWP) {
 			fcStatusData.isNavMissionComplete = 1;
 			updatePositionReferenceToWPRef(); // The last mission WP reference is taken as the new anchor
+			if (fcStatusData.isFailSafeModeActive){
+				//Trigger Landing
+				fcStatusData.isLandingModeActive = 1;
+				fcStatusData.isFailSafeModeActive = 0;
+			}
 		}
 	}
 }
 
-__ATTR_ITCM_TEXT
-void updateMissionVelocityCommandV0(float dt) {
-// Position error to home
-	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
-	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
-// Distance to home
-	float distance = fastSqrtf(dx * dx + dy * dy);
-// Normalize direction vector
-	float dirX = 0.0f;
-	float dirY = 0.0f;
-	if (distance > 0.01f) {
-		float invDist = 1.0f / distance;
-		dirX = dx * invDist;
-		dirY = dy * invDist;
-	}
-// Base cruise speed
-	float targetSpeed = fminf(positionCruiseSpeed, fastSqrtf(2.0f * POSITION_MISSION_BRAKE_DECEL * distance));
-// Slow down near home
-	if (distance < POSITION_MISSION_WP_NEAR_RADIUS) {
-		float scale = distance / POSITION_MISSION_WP_NEAR_RADIUS;
-		scale = constrainToRangeF(scale, 0.0f, 1.0f);
-		targetSpeed *= scale;
-	}
-// Desired velocity command
-	float desiredVx = dirX * targetSpeed;
-	float desiredVy = dirY * targetSpeed;
-//------------------------------------------------------------------
-// Acceleration limiting (vector magnitude based)
-//------------------------------------------------------------------
-	float dvx = desiredVx - positionMissionVxCommand;
-	float dvy = desiredVy - positionMissionVyCommand;
-	float deltaMag = fastSqrtf(dvx * dvx + dvy * dvy);
-	float maxDelta = POSITION_MISSION_MAX_ACCEL * dt;
-	if (deltaMag > maxDelta && deltaMag > 0.0001f) {
-		float scale = maxDelta / deltaMag;
-		dvx *= scale;
-		dvy *= scale;
-	}
-// Smoothed velocity target
-	positionMissionVxCommand += dvx;
-	positionMissionVyCommand += dvy;
-//------------------------------------------------------------------
-// Feed velocity target into velocity controller
-//------------------------------------------------------------------
-	setExpectedPositionVelocity(dt, positionMissionVxCommand, positionMissionVyCommand);
-}
 
 __ATTR_ITCM_TEXT
-void updateMissionVelocityCommandV1(float dt) {
+void updateMissionVelocityCommand(float dt) {
 	// ---------------------------------------------------------------
 	// Position error to waypoint
 	// ---------------------------------------------------------------
@@ -253,111 +202,6 @@ void updateMissionVelocityCommandV1(float dt) {
 	// Feed into position / velocity controller
 	// ---------------------------------------------------------------
 	setExpectedPositionVelocity(dt, positionMissionVxCommand, positionMissionVyCommand);
-}
-
-__ATTR_ITCM_TEXT
-void updateMissionVelocityCommandV2(float dt) {
-	// ---------------------------------------------------------------
-	// Position error to waypoint
-	// ---------------------------------------------------------------
-	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
-	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
-	// ---------------------------------------------------------------
-	// Distance to waypoint
-	// ---------------------------------------------------------------
-	float distance = fastSqrtf(dx * dx + dy * dy);
-	// ---------------------------------------------------------------
-	// Desired velocity
-	// ---------------------------------------------------------------
-	float desiredVx = 0.0f;
-	float desiredVy = 0.0f;
-	// ---------------------------------------------------------------
-	// Navigation phase
-	//
-	// No capture latch.
-	//
-	// Outside capture radius:
-	//     Navigate toward waypoint with physics-based slowdown.
-	//
-	// Inside capture radius:
-	//     desired velocity remains zero.
-	//
-	// If wind pushes the aircraft back outside the capture radius,
-	// navigation automatically resumes.
-	// ---------------------------------------------------------------
-	if (distance > POSITION_MISSION_WP_CAPTURE_RADIUS) {
-		// -----------------------------------------------------------
-		// Direction to waypoint
-		// -----------------------------------------------------------
-		float invDist = 1.0f / distance;
-		float dirX = dx * invDist;
-		float dirY = dy * invDist;
-		// -----------------------------------------------------------
-		// Calculate theoretical braking distance from cruise speed
-		//
-		// d = V² / (2a)
-		// -----------------------------------------------------------
-		float brakeDistance = (positionCruiseSpeed * positionCruiseSpeed) / (2.0f * POSITION_MISSION_BRAKE_DECEL);
-		// -----------------------------------------------------------
-		// Distance available before capture
-		// -----------------------------------------------------------
-		float remainingDistance = distance - POSITION_MISSION_WP_CAPTURE_RADIUS;
-		// -----------------------------------------------------------
-		// Calculate speed scale
-		//
-		// At brakeDistance:
-		//     scale = 1
-		//
-		// At capture radius:
-		//     scale = 0
-		// -----------------------------------------------------------
-		float speedScale = 1.0f;
-		if (brakeDistance > 0.001f) {
-			speedScale = remainingDistance / brakeDistance;
-			speedScale = constrainToRangeF(speedScale, 0.0f, 1.0f);
-		}
-		// -----------------------------------------------------------
-		// Target speed
-		// -----------------------------------------------------------
-		float targetSpeed = positionCruiseSpeed * speedScale;
-		// -----------------------------------------------------------
-		// Desired velocity toward waypoint
-		// -----------------------------------------------------------
-		desiredVx = dirX * targetSpeed;
-		desiredVy = dirY * targetSpeed;
-	}
-	// ---------------------------------------------------------------
-	// Acceleration limiting
-	// ---------------------------------------------------------------
-	float dvx = desiredVx - positionMissionVxCommand;
-	float dvy = desiredVy - positionMissionVyCommand;
-	float deltaMag = fastSqrtf(dvx * dvx + dvy * dvy);
-	float maxDelta = POSITION_MISSION_MAX_ACCEL * dt;
-	if (deltaMag > maxDelta && deltaMag > 0.0001f) {
-		float scale = maxDelta / deltaMag;
-		dvx *= scale;
-		dvy *= scale;
-	}
-	// ---------------------------------------------------------------
-	// Smoothed mission velocity command
-	// ---------------------------------------------------------------
-	positionMissionVxCommand += dvx;
-	positionMissionVyCommand += dvy;
-	// ---------------------------------------------------------------
-	// Feed into position / velocity controller
-	// ---------------------------------------------------------------
-	setExpectedPositionVelocity(dt, positionMissionVxCommand, positionMissionVyCommand);
-}
-
-__ATTR_ITCM_TEXT
-void updateMissionVelocityCommand(float dt) {
-#if POSITION_MISSION_WP_PROFILE == 0
-	updateMissionVelocityCommandV0(dt);
-#elif POSITION_MISSION_WP_PROFILE == 1
-	updateMissionVelocityCommandV1(dt);
-#else
-	updateMissionVelocityCommandV2(dt);
-#endif
 }
 
 __ATTR_ITCM_TEXT

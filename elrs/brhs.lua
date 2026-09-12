@@ -60,6 +60,7 @@ local aAlertNavModes = {
     ["N"] = "/SOUNDS/en/brhs/nav/nav.wav",
     ["R"] = "/SOUNDS/en/brhs/nav/rth.wav",
 	["C"] = "/SOUNDS/en/brhs/nav/rthCom.wav",
+	["F"] = "/SOUNDS/en/brhs/nav/failSafe.wav",
 }
 
 local aAlertAltModes = {

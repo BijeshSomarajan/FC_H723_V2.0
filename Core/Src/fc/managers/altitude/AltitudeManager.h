@@ -33,14 +33,58 @@ void resetAltitudeManager(void);
 #define ALT_MGR_MAX_ALT_DELTA 2.5f //Mts
 #define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 20.0f//5.0f
 
-// Tilt compensation constants
-#define ALT_MGR_TILT_COMP_ENABLED      1
-#define ALT_MGR_TILT_COMP_MIN_ANGLE    1.0f
-#define ALT_MGR_TILT_COMP_MAX_ANGLE    30.0f
-#define ALT_MGR_TILT_COMP_TAU_RISE     0.08f   // was 0.001f
-#define ALT_MGR_TILT_COMP_TAU_FADE     0.12f   // was 0.5f
-#define ALT_MGR_TILT_COMP_MAX_LIMIT    80.0f
-#define ALT_MGR_TILT_COMP_GAIN         1.0f
+/* --------------------------------------------------------------------------
+ * Hover-throttle learner
+ * --------------------------------------------------------------------------
+ * Liftoff throttle is measured in ground effect and does not track battery
+ * sag, so it is used only as the SEED. In flight the true hover throttle is
+ * learned from the actual mixed throttle whenever the vehicle is essentially
+ * not climbing and not heavily tilted.
+ *
+ * IMPORTANT: the learner reads controlData.throttleControl, which INCLUDES
+ * tiltCompThDelta and posBrakeCompThDelta. The lift-factor gate below is what
+ * keeps tilt compensation out of the learned hover value - it is NOT
+ * redundant with the velocity gate. Do not remove it.
+ */
+// [1] learn in flight | [0] stay on the liftoff seed forever
+#define ALT_CONTROL_HOVER_LEARN_ENABLED        1
+// Learner time constant, s. Long: this is a slow trim, not a tracker.
+#define ALT_CONTROL_HOVER_LEARN_TAU            8.0f
+// Only learn when |zVelocity| is below this (m/s) - i.e. actually hovering.
+#define ALT_CONTROL_HOVER_LEARN_VEL_MAX        0.25f
+// Only learn when tilt lift factor cos(pitch)*cos(roll) is above this
+// (~cos(12deg)); tilted flight needs extra throttle that is NOT hover thrust.
+#define ALT_CONTROL_HOVER_LEARN_LIFT_MIN       0.978f
+// Sanity band around the liftoff seed - the learner may never wander outside.
+#define ALT_CONTROL_HOVER_LEARN_MIN_RATIO      0.60f
+#define ALT_CONTROL_HOVER_LEARN_MAX_RATIO      1.60f
+
+// =============================================================================
+// Tilt compensation
+// =============================================================================
+// Compensates for the additional thrust required when the aircraft is tilted.
+//
+// The compensation is based on hoverThrottle rather than the instantaneous
+// altitude-controller throttle output. This keeps tilt compensation decoupled
+// from the altitude control loop and avoids feeding controller output back into
+// the compensation itself.
+//
+// Compensation is enabled only above MIN_ANGLE and smoothly fades out when
+// returning toward level flight. MAX_ANGLE limits the angle used for the
+// compensation calculation. MAX_LIMIT provides an additional safety cap.
+//
+// Typical cruise tilt is around 5 degrees, so a 3-degree activation threshold
+// provides a small deadband for normal attitude corrections while still
+// allowing compensation during forward cruise.
+// =============================================================================
+
+#define ALT_MGR_TILT_COMP_ENABLED          1       // Enable tilt-based throttle compensation
+#define ALT_MGR_TILT_COMP_MIN_ANGLE        2.5f    // Start compensation above this tilt angle (degrees)
+#define ALT_MGR_TILT_COMP_MAX_ANGLE        30.0f   // Maximum tilt angle considered for compensation (degrees)
+#define ALT_MGR_TILT_COMP_TAU_RISE         0.01f    // Rise time constant; allows compensation to build quickly
+#define ALT_MGR_TILT_COMP_TAU_FADE         0.1f    // Fade time constant; removes compensation gradually
+#define ALT_MGR_TILT_COMP_MAX_LIMIT        80.0f   // Maximum allowed tilt compensation throttle contribution
+#define ALT_MGR_TILT_COMP_GAIN             1.0f    // Overall compensation gain; 1.0 = full calculated compensation
 
 // --- Alt Control Settings ---
 // This threshold defines the stick deflection beyond which the altitude control will start to attenuate. Adjust based on testing.

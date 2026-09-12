@@ -77,6 +77,15 @@ uint8_t isNavModeActive() {
 }
 
 __ATTR_ITCM_TEXT
+uint8_t isNavRTHModeActive() {
+	return (fcStatusData.isNavRTHModeActive || fcStatusData.isFailSafeModeActive);
+}
+
+uint8_t isNavMissionModeActive(){
+	return fcStatusData.isNavMissionModeActive;
+}
+
+__ATTR_ITCM_TEXT
 void convertGNSSToXYCordinates(double latDeg, double lonDeg, double latRefDeg, double lonRefDeg, float *x, float *y) {
 // Convert to radians
 	double latRad = convertDegToRad(latDeg);

@@ -136,6 +136,7 @@ void controlAltitudeAltWithGains(float dt, float expectedAltitude, float current
 
 __ATTR_ITCM_TEXT
 void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
+	//pidUpdateWithGains(&altRatePID, positionCordinateData.zVelocity, 0, dt, altControlGains.ratePGain, altControlGains.rateIGain, altControlGains.rateDGain);
 	pidUpdateWithGains(&altRatePID, positionCordinateData.zVelocity, altPID.pid, dt, altControlGains.ratePGain, altControlGains.rateIGain, altControlGains.rateDGain);
 }
 
@@ -191,3 +192,4 @@ void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 	controlData.altitudeControl = output;
 	controlData.altitudeControlDt = dt;
 }
+

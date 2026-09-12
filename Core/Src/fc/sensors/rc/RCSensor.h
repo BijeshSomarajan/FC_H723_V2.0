@@ -24,6 +24,7 @@
 #define RC_NAV_CHANNEL_INDEX         7 //Channel 8  //swb  //Hold/RTH
 #define RC_ALT_MODE_CHANNEL_INDEX    8 //Channel 9  //swc  //Terrain/ASL
 #define RC_LAND_CHANNEL_INDEX        9 //Channel 10 //key1 //Land
+#define RC_VARIO_CHANNEL_INDEX       10 //Channel 11 //Vario
 
 #else
 #define RC_ROLL_CHANNEL_INDEX        0 // Channel 1 // Rudder
@@ -34,8 +35,8 @@
 #define RC_NAV_CHANNEL_INDEX         5 //Channel 6  //swb  //Hold/RTH
 #define RC_ALT_MODE_CHANNEL_INDEX    6 //Channel 7  //swc  //Terrain/ASL
 #define RC_MISSION_CHANNEL_INDEX     7 //Channel 8  //swd  //Mission
-#define RC_LAND_CHANNEL_INDEX        8 //Channel 9 //key1 //Home PoS Set
-
+#define RC_LAND_CHANNEL_INDEX        8 //Channel 9  //key1 //Land channel
+#define RC_VARIO_CHANNEL_INDEX       9 //Channel 10 //Vario
 #endif
 
 #define RC_CHANNEL_MIN_VALUE 1000
@@ -56,7 +57,6 @@ struct _RC_DATA {
 	uint8_t cpu;
 	float updateDt;
 	float failSafeCheckDt;
-
 };
 
 typedef struct _RC_WP_DATA RC_WP_DATA;

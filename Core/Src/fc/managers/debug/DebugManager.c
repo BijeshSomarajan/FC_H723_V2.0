@@ -22,6 +22,7 @@
 #include "../config/ConfigHelper.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimator.h"
+#include "../position/estimator/VenturiBiasEstimator.h"
 
 int32_t DEBUG_DATA_BUFFER[16];
 extern LOWPASSFILTER thControlRefLPF;
@@ -59,12 +60,21 @@ void debugRC() {
 	DEBUG_DATA_BUFFER[3] = rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[4] = rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[5] = rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX];
-	DEBUG_DATA_BUFFER[6] = fcStatusData.isLandingModeActive;
-	DEBUG_DATA_BUFFER[7] = fcStatusData.isTerrainAltModeActive;
-	DEBUG_DATA_BUFFER[8] = fcStatusData.isNavModeActive;
-	DEBUG_DATA_BUFFER[9] = fcStatusData.isNavRTHModeActive;
+	DEBUG_DATA_BUFFER[6] = rcData.RC_DELTA_DATA[RC_VARIO_CHANNEL_INDEX];
+	DEBUG_DATA_BUFFER[7] = fcStatusData.isLandingModeActive;
+	DEBUG_DATA_BUFFER[8] = fcStatusData.isTerrainAltModeActive;
+	DEBUG_DATA_BUFFER[9] = fcStatusData.isNavModeActive;
+	DEBUG_DATA_BUFFER[10] = fcStatusData.isNavRTHModeActive;
+	DEBUG_DATA_BUFFER[11] = fcStatusData.isFailSafeModeActive;
+	DEBUG_DATA_BUFFER[12] = fcStatusData.isRCHealthy;
+	sendConfigData(DEBUG_DATA_BUFFER, 13, CMD_FC_DATA);
+}
 
-	sendConfigData(DEBUG_DATA_BUFFER, 10, CMD_FC_DATA);
+void debugModel() {
+	DEBUG_DATA_BUFFER[0] = positionCordinateData.xVelocity * 100;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.yVelocity * 100;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.heading * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 3, CMD_FC_DATA);
 }
 
 void debugPID() {
@@ -140,22 +150,29 @@ extern FFTContext fftContextGyroY;
 extern BIQUADFILTER noiseFilterFftNtfGyroX[2];
 extern BIQUADFILTER noiseFilterFftNtfGyroY[2];
 
-void debufFFT(){
-	sprintf(buf,"[%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f]\r\n",
-	       fftContextGyroX.topFreqBin[0],
-	       noiseFilterFftNtfGyroX[0].center_freq,
-	       fftContextGyroX.topFreqBin[1],
-	       noiseFilterFftNtfGyroX[1].center_freq,
-	       sensorAttitudeData.gxDS,
-	       sensorAttitudeData.gxDSFiltered,
-	       fftContextGyroY.topFreqBin[0],
-	       noiseFilterFftNtfGyroY[0].center_freq,
-	       fftContextGyroY.topFreqBin[1],
-	       noiseFilterFftNtfGyroY[1].center_freq,
-	       sensorAttitudeData.gyDS,
-	       sensorAttitudeData.gyDSFiltered);
+void debufFFT() {
+	sprintf(buf, "[%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f]\r\n", fftContextGyroX.topFreqBin[0], noiseFilterFftNtfGyroX[0].center_freq, fftContextGyroX.topFreqBin[1], noiseFilterFftNtfGyroX[1].center_freq, sensorAttitudeData.gxDS, sensorAttitudeData.gxDSFiltered,
+			fftContextGyroY.topFreqBin[0], noiseFilterFftNtfGyroY[0].center_freq, fftContextGyroY.topFreqBin[1], noiseFilterFftNtfGyroY[1].center_freq, sensorAttitudeData.gyDS, sensorAttitudeData.gyDSFiltered);
 	logString(buf);
 
+}
+
+extern VENTURI_ESTIMATE_DATA venturiEstimateData;
+extern PID altPID;
+extern PID altRatePID;
+extern PID altAccPID;
+void debugAltStr() {
+	sprintf(buf, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAltitudeData.altitudeSLFiltered * 100, sensorAltitudeData.altitudeTerrain * 100, venturiEstimateData.venturiBias * 100,
+			positionCordinateData.zPosition * 100, positionCordinateData.zVelocity * 100, positionCordinateData.zAcceleration * 100, altPID.pid * 100, altRatePID.pid * 100, altAccPID.pid, controlData.tiltCompThDelta , controlData.altitudeDOBControl, controlData.throttleControl);
+	logString(buf);
+}
+
+void debugAltGraph() {
+	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeSLFiltered * 1000;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 1000;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 100;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
 float nowMs = 0;
@@ -168,8 +185,11 @@ void debugTask() {
 //nowMs += dt;
 //debugBattery();
 //debugRC();
+//debugModel();
 //debugIMU();
-debugALt();
+//debugALt();
+	debugAltStr();
+//debugAltGraph();
 //debugGnssData();
 //	debugIMUStr();
 //	debufFFT();

@@ -4,7 +4,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #define RC_TASK_FREQUENCY 200
-#define RC_ACTIVE_CHECK_THRESHOLD_PERIOD  0.2f // Fail safe activated after a second
+#define RC_ACTIVE_CHECK_THRESHOLD_PERIOD  0.2f
+#define RC_HEALTH_CHECK_THRESHOLD_PERIOD  0.2f
 
 #define THROTTLE_CENTER_DEADBAND  15
 #define THROTTLE_CENTER_ARM_DEADBAND  25
