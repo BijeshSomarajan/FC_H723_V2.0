@@ -97,12 +97,14 @@ void controlAltitudeAltWithGains(float dt, float expectedAltitude, float current
 void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains);
 void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains);
 
-#define ALT_CONTROL_RATE_PID_D_LPF_FREQ 32.0f
-#define ALT_CONTROL_ACC_PID_D_LPF_FREQ  32.0f
+#define ALT_CONTROL_RATE_PID_D_LPF_FREQ 64.0f
+#define ALT_CONTROL_ACC_PID_D_LPF_FREQ  64.0f
 
 #define ALT_CONTROL_RATE_PID_I_LIMIT_RATIO 1.0f
 #define ALT_CONTROL_RATE_PID_D_LIMIT_RATIO 1.0f
 #define ALT_CONTROL_ACC_PID_D_LIMIT_RATIO 1.0f
+
+#define ALT_CONTROL_ENABLE_ACC_PID          0 // If disabled , the output will be the VelPid * thrustFactor
 
 /* --------------------------------------------------------------------------
  * Disturbance observer (REAL: compares measured accel against the accel the
