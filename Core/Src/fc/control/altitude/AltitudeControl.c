@@ -177,6 +177,7 @@ static void updateAltitudeDOB(float thrustGain, float dt, ALTITUDE_CONTROL_GAINS
 	controlData.altitudeDOBControl = constrainToRangeF(dobOutput, -ALT_CONTROL_DOB_OUTPUT_LIMIT, ALT_CONTROL_DOB_OUTPUT_LIMIT);
 }
 
+#if ALT_CONTROL_ENABLE_ACC_PID == 1
 __ATTR_ITCM_TEXT
 void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
 	/* ---- 1. Acceleration correction loop --------------------------------- */
@@ -192,4 +193,18 @@ void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 	controlData.altitudeControl = output;
 	controlData.altitudeControlDt = dt;
 }
-
+#else
+__ATTR_ITCM_TEXT
+void controlAltitudeAccWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
+	float thrustGain = fcStatusData.hoverThrottle / GRAVITY_MSS; /* K */
+	float output = altRatePID.pid * thrustGain;
+	/* ---- 2. Disturbance observer ----------------------------------------- */
+#if ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED == 1
+	updateAltitudeDOB(thrustGain, dt, altControlGains);
+#endif
+	/* ---- 3. Output limit -------------------------------------------------- */
+	output = constrainToRangeF(output, -altAccPIDLimit, altAccPIDLimit);
+	controlData.altitudeControl = output;
+	controlData.altitudeControlDt = dt;
+}
+#endif

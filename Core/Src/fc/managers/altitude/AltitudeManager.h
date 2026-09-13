@@ -14,13 +14,13 @@ void resetAltitudeManager(void);
 #define ALTITUDE_MANAGEMENT_TASK_FREQUENCY 1000
 #define ALTITUDE_MANAGEMENT_TASK_PERIOD 1.0f/ALTITUDE_MANAGEMENT_TASK_FREQUENCY
 
-#define ALTITUDE_MANAGEMENT_ACC_TASK_FREQUENCY 600
+#define ALTITUDE_MANAGEMENT_ACC_TASK_FREQUENCY 1000
 #define ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD 1.0f/ALTITUDE_MANAGEMENT_ACC_TASK_FREQUENCY
 
-#define ALTITUDE_MANAGEMENT_VEL_TASK_FREQUENCY 300
+#define ALTITUDE_MANAGEMENT_VEL_TASK_FREQUENCY 800
 #define ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD 1.0f/ALTITUDE_MANAGEMENT_VEL_TASK_FREQUENCY
 
-#define ALTITUDE_MANAGEMENT_ALT_TASK_FREQUENCY 75
+#define ALTITUDE_MANAGEMENT_ALT_TASK_FREQUENCY 100
 #define ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD 1.0f/ALTITUDE_MANAGEMENT_ALT_TASK_FREQUENCY
 
 //Lift Off throttle and Throttle LPF settings
@@ -79,11 +79,11 @@ void resetAltitudeManager(void);
 // =============================================================================
 
 #define ALT_MGR_TILT_COMP_ENABLED          1       // Enable tilt-based throttle compensation
-#define ALT_MGR_TILT_COMP_MIN_ANGLE        2.5f    // Start compensation above this tilt angle (degrees)
-#define ALT_MGR_TILT_COMP_MAX_ANGLE        30.0f   // Maximum tilt angle considered for compensation (degrees)
-#define ALT_MGR_TILT_COMP_TAU_RISE         0.01f    // Rise time constant; allows compensation to build quickly
-#define ALT_MGR_TILT_COMP_TAU_FADE         0.1f    // Fade time constant; removes compensation gradually
-#define ALT_MGR_TILT_COMP_MAX_LIMIT        80.0f   // Maximum allowed tilt compensation throttle contribution
+#define ALT_MGR_TILT_COMP_MIN_ANGLE        1.5f    // Start compensation above this tilt angle (degrees)
+#define ALT_MGR_TILT_COMP_MAX_ANGLE        45.0f   // Maximum tilt angle considered for compensation (degrees)
+#define ALT_MGR_TILT_COMP_TAU_RISE         0.001f    // Rise time constant; allows compensation to build quickly
+#define ALT_MGR_TILT_COMP_TAU_FADE         2.5f    // Fade time constant; removes compensation gradually
+#define ALT_MGR_TILT_COMP_MAX_LIMIT        75.0f   // Maximum allowed tilt compensation throttle contribution
 #define ALT_MGR_TILT_COMP_GAIN             1.0f    // Overall compensation gain; 1.0 = full calculated compensation
 
 // --- Alt Control Settings ---

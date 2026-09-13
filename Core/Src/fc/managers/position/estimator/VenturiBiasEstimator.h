@@ -71,20 +71,20 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Lower: catches slow-cruise tilt, but a miscalibrated level trim then
  *   integrates forever. 0.5 assumes a well-trimmed horizon (which this
  *   airframe has, post-Mahony fixes). */
-#define VENTURI_EST_PITCH_ANGLE_MIN             2.5f
-#define VENTURI_EST_ROLL_ANGLE_MIN              2.5f
+#define VENTURI_EST_PITCH_ANGLE_MIN             1.5f
+#define VENTURI_EST_ROLL_ANGLE_MIN              1.5f
 
 /* Pitch clamp, deg. Caps the model's accel input during aggressive maneuvers
  * so a stunt doesn't slingshot the speed state. Matches the attitude
  * envelope; no reason to tune independently of it. */
-#define VENTURI_EST_PITCH_ANGLE_MAX             30.0f
-#define VENTURI_EST_ROLL_ANGLE_MAX              30.0f
+#define VENTURI_EST_PITCH_ANGLE_MAX             45.0f
+#define VENTURI_EST_ROLL_ANGLE_MAX              45.0f
 /* ---------------- Speed-model dynamics ---------------- */
 
 /* Hard cap on the model speed state, m/s. Pure runaway protection - with
  * BIAS_GAIN 0.025 the bias clamp saturates at ~4.5 m/s anyway, so this
  * never binds in normal flight. Not a tuning knob. */
-#define VENTURI_EST_SPEED_MAX                   25.0f
+#define VENTURI_EST_SPEED_MAX                   5.0f
 
 /* Accel mapping gain: lateralAccel = tan(pitch)*g*THIS. 1.0 would be ideal
  * drag-free physics; 1.75 makes the model speed RAMP faster than the real
@@ -94,7 +94,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Lower: compensation lags entry -> dip during acceleration returns.
  * Couples with DRAG_GAIN (together they set ramp time AND terminal speed) -
  * change them as a pair or re-calibrate BIAS_GAIN afterward. */
-#define VENTURI_EST_ACCEL_GAIN                  1.75f
+#define VENTURI_EST_ACCEL_GAIN                  1.0f
 
 /* Model drag: decel = speed*THIS. Sets terminal model speed
  * (= tan(pitch)*g*ACCEL_GAIN/THIS: ~12 m/s at 10 deg) and the convergence
@@ -103,7 +103,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Lower: more momentum, slower everything.
  * WARNING: terminal-speed changes silently re-scale the bias at cruise -
  * re-run the BIAS_GAIN calibration after touching this. */
-#define VENTURI_EST_DRAG_GAIN                   0.25f
+#define VENTURI_EST_DRAG_GAIN                   0.5f
 
 /* Hold time after a braking zero-cross, s. THE fix for the brake-pitch
  * misfire: during a brake, pitch opposes velocity, and without this hold the
@@ -115,7 +115,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * rebuilding during the brake tail). Cost of raising: a genuine direction
  * reversal waits this long before compensation resumes - negligible, since
  * the bias needs seconds to matter anyway. */
-#define VENTURI_EST_BRAKE_DWELL                 0.8f
+#define VENTURI_EST_BRAKE_DWELL                0.5f
 
 /* Level-flight drain rate, 1/s: speed *= (1 - THIS*dt) when |pitch| is inside
  * the deadband. tau = 1/2.5 = 0.4 s - how fast compensation bleeds off after

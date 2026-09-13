@@ -182,7 +182,7 @@
  * This controls growth of Z position uncertainty during prediction. It does
  * not directly specify an altitude response time.
  */
-#define POS_EKF_Z_Q_POS                    0.01f// 0.001f
+#define POS_EKF_Z_Q_POS                    0.00005f// 0.001f
 
 /* Vertical-velocity random walk, (m/s)^2 per 1 ms predict step.
  *
@@ -192,7 +192,7 @@
  * correct accumulated acceleration error. Its effect must be considered
  * together with BARO_RP_MIN and the dynamic baro R scaling.
  */
-#define POS_EKF_Z_Q_VEL                    0.02f
+#define POS_EKF_Z_Q_VEL                    0.00005f
 
 /* Z accel-bias random walk, (m/s^2)^2 per 1 ms predict step.
  *
