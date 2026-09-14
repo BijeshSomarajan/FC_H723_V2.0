@@ -19,7 +19,7 @@ struct _FC_STATUS_DATA {
 	//The position references
 	double positionXRef, positionYRef;
 	//The mission position references
-	double positionXRefMission, positionYRefMission;
+	double positionXRefMission, positionYRefMission,positionVelMission;
 	//The home position
 	double positionLatHome, positionLongHome;
 	float positionXHome, positionYHome;

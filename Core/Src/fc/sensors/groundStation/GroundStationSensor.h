@@ -10,6 +10,7 @@ typedef struct {
 	uint16_t waypointIndex;
 	double latitude;      // 1e-7 degrees
 	double longitude;     // 1e-7 degrees
+	float velocity;
 } GroundStationSensorWPData;
 
 typedef void (*GroundStationMissionCallback)(uint8_t missionCommand);

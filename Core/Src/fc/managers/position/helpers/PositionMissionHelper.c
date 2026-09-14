@@ -27,17 +27,16 @@ uint8_t positionMissionWPComplete = 0;
 
 int16_t positionMissionWPCount = 0;
 
-float positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_DEFAULT;
+float positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_MIN;
 
 uint8_t loadWayPoints(void);
 void updateWPCompletionStatus(float dt);
 void updateMissionVelocityCommand(float dt);
 
 void initPositionMissionHelper() {
-	positionCruiseSpeed = get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR);
-
+	positionCruiseSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR));
 	if (positionCruiseSpeed < 0 || positionCruiseSpeed > POSITION_MISSION_CRUISE_SPEED_MAX) {
-		positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_DEFAULT;
+		positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_MIN;
 	}
 }
 
@@ -67,14 +66,14 @@ void resetNavMissionStates() {
 	positionMissionWPCount = 0;
 
 	fcStatusData.positionXRefMission = positionCordinateData.xPosition;
-
 	fcStatusData.positionYRefMission = positionCordinateData.yPosition;
+	fcStatusData.positionVelMission = positionCruiseSpeed;
 
 	resetNavWPStates();
 }
 
 __ATTR_ITCM_TEXT
-void updatePositionReferenceToWPRef(){
+void updatePositionReferenceToWPRef() {
 	fcStatusData.positionXRef = fcStatusData.positionXRefMission;
 	fcStatusData.positionYRef = fcStatusData.positionYRefMission;
 }
@@ -88,6 +87,8 @@ uint8_t loadWayPoints() {
 			convertGNSSToXYCordinates(groundStationSensorWPData->latitude, groundStationSensorWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
 			fcStatusData.positionXRefMission = posX;
 			fcStatusData.positionYRefMission = posY;
+			//Limit the velocity to cruise speed set , min is set to 0.5 M/s
+			fcStatusData.positionVelMission = constrainToRangeF(fabs(groundStationSensorWPData->velocity), POSITION_MISSION_CRUISE_SPEED_MIN, positionCruiseSpeed);
 			return 1;
 		}
 	}
@@ -115,6 +116,8 @@ void handleNavMission(float dt) {
 			groundStationSensorWPData.waypointIndex = 0;
 			groundStationSensorWPData.latitude = fcStatusData.positionLatHome;
 			groundStationSensorWPData.longitude = fcStatusData.positionLongHome;
+			//RTH will be at max cruise speed
+			groundStationSensorWPData.velocity = positionCruiseSpeed;
 			setGroundStationSensorWPData(groundStationSensorWPData);
 			groundStationMissionCallBack(NAV_ACTION_START_MISSION);
 			positionMissionWasRTHModeActive = 1;
@@ -139,7 +142,7 @@ void handleNavMission(float dt) {
 		if (!hasMoreWP) {
 			fcStatusData.isNavMissionComplete = 1;
 			updatePositionReferenceToWPRef(); // The last mission WP reference is taken as the new anchor
-			if (fcStatusData.isFailSafeModeActive){
+			if (fcStatusData.isFailSafeModeActive) {
 				//Trigger Landing
 				fcStatusData.isLandingModeActive = 1;
 				fcStatusData.isFailSafeModeActive = 0;
@@ -147,7 +150,6 @@ void handleNavMission(float dt) {
 		}
 	}
 }
-
 
 __ATTR_ITCM_TEXT
 void updateMissionVelocityCommand(float dt) {
@@ -177,7 +179,11 @@ void updateMissionVelocityCommand(float dt) {
 		float dirY = dy * invDist;
 		float remainingDistance = distance - POSITION_MISSION_WP_CAPTURE_RADIUS;
 		float brakingSpeed = fastSqrtf(2.0f * POSITION_MISSION_BRAKE_DECEL * remainingDistance);
-		float targetSpeed = fminf(positionCruiseSpeed, brakingSpeed);
+
+		//float targetSpeed = fminf(positionCruiseSpeed, brakingSpeed);
+		//Each Waypoint can have its velocity
+		float targetSpeed = fminf(fcStatusData.positionVelMission, brakingSpeed);
+
 		desiredVx = dirX * targetSpeed;
 		desiredVy = dirY * targetSpeed;
 	}

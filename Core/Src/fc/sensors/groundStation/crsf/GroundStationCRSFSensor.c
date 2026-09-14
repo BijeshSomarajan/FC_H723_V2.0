@@ -47,6 +47,7 @@ void _groundStationSensorCRSFWPCb(uint8_t wpCommand, CRSFNavWaypointPayload_t wp
 		groundStationSensorWPData.waypointIndex = groundStationSensorCRSFWPCount;
 		groundStationSensorWPData.latitude = (double) wp.latitude * 1e-7;
 		groundStationSensorWPData.longitude = (double) wp.longitude * 1e-7;
+		groundStationSensorWPData.velocity = (float) wp.velocity * 1e-1;
 		setGroundStationSensorWPData(groundStationSensorWPData);
 		break;
 	}

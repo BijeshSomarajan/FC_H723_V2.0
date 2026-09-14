@@ -51,10 +51,6 @@ void calculateCruiseScale(float dt) {
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
 	float gs = 0.0f;
 	/* No GNSS -> ground speed is dead-reckoned garbage; force hover profile ... */
-	/*if (fcStatusData.isNavModeActive) {
-	 gs = getGroundSpeed();
-	 }
-	 */
 	if (fcStatusData.isNavModeActive && fcStatusData.isNavDataReliable) {
 		gs = getGroundSpeed();
 	}
@@ -226,6 +222,7 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 	float dynamicRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN;
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
 	float motionScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
+
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
 	calculateCruiseScale(dt);
 	motionScale = fmaxf(motionScale, getCruiseScale());   // max, not sum — don't double-count a braking cruise
