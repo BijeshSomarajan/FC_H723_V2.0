@@ -36,6 +36,7 @@ void manageCRSFNavFrame(const uint8_t *payload) {
 			wp.waypointIndex = (uint16_t) ((p[0] << 8) | p[1]);
 			wp.latitude = (int32_t) (((uint32_t) p[2] << 24) | ((uint32_t) p[3] << 16) | ((uint32_t) p[4] << 8) | (uint32_t) p[5]);
 			wp.longitude = (int32_t) (((uint32_t) p[6] << 24) | ((uint32_t) p[7] << 16) | ((uint32_t) p[8] << 8) | (uint32_t) p[9]);
+			wp.velocity = (uint16_t) ((p[10] << 8) | p[11]);
 			crsfWayPointCB(CRSF_NAV_ACTION_ADD_WAYPOINT, wp);
 		}
 		break;

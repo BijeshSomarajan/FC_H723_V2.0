@@ -40,7 +40,7 @@ uint8_t initVenturiBiasEstimator(void) {
  */
 
 __ATTR_ITCM_TEXT
-static void venturiUpdateAxis(float angleDeg, float *speed, float *dwell, float dt) {
+void venturiUpdateAxisOld(float angleDeg, float *speed, float *dwell, float dt) {
 	/* 1. Signed acceleration mapping */
 	float lateralAccel = tanApprox(convertDegToRadF(angleDeg)) * GRAVITY_MSS * VENTURI_EST_ACCEL_GAIN;
 
@@ -78,6 +78,63 @@ static void venturiUpdateAxis(float angleDeg, float *speed, float *dwell, float 
 	/* 5. Runaway clamp */
 	*speed = constrainToRangeF(*speed, -VENTURI_EST_SPEED_MAX, VENTURI_EST_SPEED_MAX);
 }
+
+/**
+ * @brief Updates the venturi bias estimation for a single axis.
+ * @param angleDeg Current tilt angle of the axis in degrees.
+ * @param speed Pointer to the estimated speed variable (updated in-place).
+ * @param dwell Pointer to the braking dwell timer (updated in-place).
+ * @param dt Time step since the last update in seconds.
+ */
+__ATTR_ITCM_TEXT
+void venturiUpdateAxis(float angleDeg, float *speed, float *dwell, float dt) {
+	// Prevent processing if time hasn't moved to avoid NaN/Zero-division quirks
+	if (dt <= 0.0f) {
+		return;
+	}
+	/* 1. Signed acceleration mapping */
+	// tanApprox preserves sign: negative tilt gives negative acceleration
+	float lateralAccel = tanApprox(convertDegToRadF(angleDeg)) * GRAVITY_MSS * VENTURI_EST_ACCEL_GAIN;
+	/* 2. Drag and integration */
+	// Quadratic drag safely opposes the direction of movement
+	float drag = VENTURI_EST_DRAG_GAIN_Q * (*speed) * fabsf(*speed);
+	float acceleration = lateralAccel - drag;
+	float prevSpeed = *speed;
+	*speed += (acceleration * dt);
+	/* 3. Zero-cross braking protection: acceleration opposing current travel */
+	if ((prevSpeed > 0.0f && lateralAccel < 0.0f) || (prevSpeed < 0.0f && lateralAccel > 0.0f)) {
+		if (((prevSpeed > 0.0f && *speed <= 0.0f) || (prevSpeed < 0.0f && *speed >= 0.0f)) && fabsf(prevSpeed) > VENTURI_EST_BRAKE_ARM_SPEED) {
+			*speed = 0.0f;
+			*dwell = VENTURI_EST_BRAKE_DWELL;
+		}
+	}
+	/* 3b. Dwell hold: a zero-cross during braking means this axis stopped.
+	 *     Hold at zero so continued brake tilt is not read as reverse flight. */
+	if (*dwell > 0.0f) {
+		*dwell -= dt;
+		*speed = 0.0f;
+	}
+	/* 4. Deadband drain: tilt inside a small threshold -> cleanly bleed speed memory */
+	if (fabsf(angleDeg) < VENTURI_EST_DEADBAND_DEG) {
+		// Calculate dampening factor ensuring it stays bounded between 0.0 and 1.0
+		float dampingFactor = VENTURI_EST_DAMPING_GAIN * dt;
+		if (dampingFactor > 1.0f) {
+			dampingFactor = 1.0f;
+		}
+
+		// Scale speed toward zero perfectly regardless of positive or negative sign
+		*speed *= (1.0f - dampingFactor);
+
+		// Snap to zero if it's microscopic to prevent perpetual floating point creep
+		if (fabsf(*speed) < 0.001f) {
+			*speed = 0.0f;
+		}
+	}
+
+	/* 5. Runaway clamp */
+	*speed = constrainToRangeF(*speed, -VENTURI_EST_SPEED_MAX, VENTURI_EST_SPEED_MAX);
+}
+
 
 __ATTR_ITCM_TEXT
 float getVenturiBiasEstimate(float dt) {

@@ -313,6 +313,7 @@ void manageAltitude(float dt) {
 		} else {
 			altMgrWasThrottleCentered = 2;
 		}
+
 		altMgrPreviousThrottleControl = altMgrThrottleControlLPF.output;
 	}
 
@@ -333,6 +334,14 @@ void manageAltitude(float dt) {
 				altMgrVelDtAccumulation -= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD;
 			}
 			if (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD) {
+
+#if ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE == 1
+				//In terrain mode , allow alt hold.
+				if ((!fcStatusData.isTerrainAltModeActive || !fcStatusData.isTerrainSensorExist) && !fcStatusData.isNavRTHModeActive && !fcStatusData.isNavModeActive) {
+					fcStatusData.altitudeRef = positionCordinateData.zPosition;
+				}
+#endif
+
 				controlAltitudeAltWithGains(ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD, fcStatusData.altitudeRef, getClampedCurrentAltitude(), altControlGains);
 				altMgrAltDtAccumulation -= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD;
 			}

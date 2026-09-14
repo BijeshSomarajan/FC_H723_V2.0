@@ -182,7 +182,7 @@
  * This controls growth of Z position uncertainty during prediction. It does
  * not directly specify an altitude response time.
  */
-#define POS_EKF_Z_Q_POS                    0.00005f// 0.001f
+#define POS_EKF_Z_Q_POS                    0.0005f// 0.001f
 
 /* Vertical-velocity random walk, (m/s)^2 per 1 ms predict step.
  *
@@ -192,7 +192,7 @@
  * correct accumulated acceleration error. Its effect must be considered
  * together with BARO_RP_MIN and the dynamic baro R scaling.
  */
-#define POS_EKF_Z_Q_VEL                    0.00005f
+#define POS_EKF_Z_Q_VEL                    0.0005f
 
 /* Z accel-bias random walk, (m/s^2)^2 per 1 ms predict step.
  *
@@ -545,7 +545,7 @@
  * Higher -> smoother/more inertial altitude estimate, but greater reliance on
  *           clean acceleration and bias estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            4000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            5000.0f
 
 /* Maximum dynamic barometric position variance, m^2.
  *
@@ -554,7 +554,7 @@
  * Reached as motionScale increases, further reducing baro authority during
  * strong maneuver-induced pressure disturbances.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            10000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            20000.0f
 
 /* Numerical guards. Do not tune.
  */

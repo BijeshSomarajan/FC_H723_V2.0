@@ -115,7 +115,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * rebuilding during the brake tail). Cost of raising: a genuine direction
  * reversal waits this long before compensation resumes - negligible, since
  * the bias needs seconds to matter anyway. */
-#define VENTURI_EST_BRAKE_DWELL                0.5f
+#define VENTURI_EST_BRAKE_DWELL                0.75f
 
 /* Level-flight drain rate, 1/s: speed *= (1 - THIS*dt) when |pitch| is inside
  * the deadband. tau = 1/2.5 = 0.4 s - how fast compensation bleeds off after
@@ -165,6 +165,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * (~3.9 m/s phantom) is far above this threshold and still arms normally. */
 #define VENTURI_EST_BRAKE_ARM_SPEED             0.75f
 #define VENTURI_EST_DRAG_GAIN_Q                 0.10f
+#define VENTURI_EST_DEADBAND_DEG                0.5f
 
 uint8_t initVenturiBiasEstimator(void);
 float getVenturiBiasEstimate(float dt);

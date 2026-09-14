@@ -187,8 +187,8 @@ void debugTask() {
 //debugRC();
 //debugModel();
 //debugIMU();
-//debugALt();
-	debugAltStr();
+debugALt();
+//debugAltStr();
 //debugAltGraph();
 //debugGnssData();
 //	debugIMUStr();

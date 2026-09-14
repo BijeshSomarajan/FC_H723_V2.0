@@ -33,6 +33,9 @@ void resetAltitudeManager(void);
 #define ALT_MGR_MAX_ALT_DELTA 2.5f //Mts
 #define ALT_MGR_THROTTLE_AVERAGING_LPF_FREQUENCY 20.0f//5.0f
 
+//Uses only the Alt Vel loop , Alt ref will be updated continously , This works well , dont turn it off
+#define ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE   1
+
 /* --------------------------------------------------------------------------
  * Hover-throttle learner
  * --------------------------------------------------------------------------
@@ -82,7 +85,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_COMP_MIN_ANGLE        1.5f    // Start compensation above this tilt angle (degrees)
 #define ALT_MGR_TILT_COMP_MAX_ANGLE        45.0f   // Maximum tilt angle considered for compensation (degrees)
 #define ALT_MGR_TILT_COMP_TAU_RISE         0.001f    // Rise time constant; allows compensation to build quickly
-#define ALT_MGR_TILT_COMP_TAU_FADE         2.5f    // Fade time constant; removes compensation gradually
+#define ALT_MGR_TILT_COMP_TAU_FADE         0.1f    // Fade time constant; removes compensation gradually
 #define ALT_MGR_TILT_COMP_MAX_LIMIT        75.0f   // Maximum allowed tilt compensation throttle contribution
 #define ALT_MGR_TILT_COMP_GAIN             1.0f    // Overall compensation gain; 1.0 = full calculated compensation
 

@@ -18,6 +18,7 @@ typedef struct {
 	uint16_t waypointIndex;
 	int32_t latitude;      // 1e-7 degrees
 	int32_t longitude;     // 1e-7 degrees
+	uint16_t velocity;     // 1e-1 m/s
 } CRSFNavWaypointPayload_t;
 
 typedef void (*CRSFNavMissionCallback_t)(uint8_t missionCommand);
