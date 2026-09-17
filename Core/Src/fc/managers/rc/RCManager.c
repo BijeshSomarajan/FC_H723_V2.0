@@ -208,6 +208,14 @@ void configureRCStickControl() {
 	rcStickYawGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_YAW_RATE_P_ADDR);
 }
 
+float getRCStickPitchGain(){
+	return rcStickPitchGain;
+}
+
+float getRCStickRollGain(){
+	return rcStickRollGain;
+}
+
 int16_t getThrottleChannelValue() {
 	return rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX];
 }

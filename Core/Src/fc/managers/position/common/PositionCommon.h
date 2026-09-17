@@ -33,4 +33,6 @@ struct _POSITION_COMMAND_DATA {
 };
 extern POSITION_COMMAND_DATA positionCommandData;
 
+#define POSITION_COMMON_USE_STICK_VEL_IN_NAV_MODE 0 //Switch to control stick behaviour during Navigation mode.
+
 #endif /* SRC_FC_MANAGERS_POSITION_COMMON_POSITIONCOMMON_H_ */

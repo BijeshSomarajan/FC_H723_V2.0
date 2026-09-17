@@ -15,7 +15,7 @@
 #define POSITION_MISSION_MAX_ACCEL                        5.0f
 #define POSITION_MISSION_WP_COMPLETE_PERIOD               0.5f   //Was 1.0f
 #define POSITION_MISSION_WP_COMPLETE_MAX_GROUND_SPEED     0.5f
-
+#define POSITION_MISSION_RTH_CRUISE_VEL_GAIN              0.65f
 
 void initPositionMissionHelper(void);
 void handleNavMission(float dt);
@@ -23,5 +23,6 @@ void resetNavMissionStates(void);
 void resetNavRTHStates(void);
 void resetNavMissionModeStates(void);
 void resetNavWPStates(void);
+float getMaxCruiseSpeed(void);
 
 #endif /* SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMISSIONHELPER_H_ */

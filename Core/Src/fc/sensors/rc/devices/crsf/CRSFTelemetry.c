@@ -137,21 +137,21 @@ void crsfSendBattery(float voltage_v, float current_a, uint32_t capacity_mAh, ui
 	crsfSendTelemetry(CRSF_FRAMETYPE_BATTERY_SENSOR, (uint8_t*) &frame, sizeof(frame));
 }
 
-void crsfSendGNSS(double lat, double lon, float speed, float heading, float altitude, uint8_t satellites) {
+void crsfSendGNSS(double lat, double lon, float speed, float heading, float distance, uint8_t satellites) {
 	crsf_payload_gps_t frame;
 
 	int32_t latScaled = (int32_t) (lat * 10000000.0);
 	int32_t lonScaled = (int32_t) (lon * 10000000.0);
-
 	uint16_t speedScaled = (uint16_t) (speed * 100.0f);
 	uint16_t headingScaled = (uint16_t) (heading * 100.0f);
+	uint16_t distanceScaled = (uint16_t) (distance * 10 + 1000);
 
-	frame.latitude = __REV((uint32_t) latScaled);
-	frame.longitude = __REV((uint32_t) lonScaled);
+	frame.latitude     = __REV((uint32_t) latScaled);
+	frame.longitude    = __REV((uint32_t) lonScaled);
 	frame.ground_speed = __REV16(speedScaled);
-	frame.heading = __REV16(headingScaled);
-	frame.altitude = __REV16((uint16_t) ((altitude * 100.0f) + 10000.0f));
-	frame.satellites = satellites;
+	frame.heading      = __REV16(headingScaled);
+	frame.altitude     = __REV16(distanceScaled);
+	frame.satellites   = satellites;
 
 	crsfSendTelemetry(CRSF_FRAMETYPE_GPS, (uint8_t*) &frame, sizeof(frame));
 }

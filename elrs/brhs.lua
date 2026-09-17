@@ -3,8 +3,8 @@
 -- ==========================================================================
 
 -- Telemetry & Decoded data variables
-local txBat, rxBat, rxBatMax, lq, rssi, alt, altRef, heading, headingRef, throttleControl
-local homeBearing, homeDistance, satField, fm, pitch, roll
+local txBat, rxBat, rxBatMax, lq, rssi, alt, heading, headingRef, throttleControl
+local verticalSpeed, groundSpeed, homeDistance, satField, fm, pitch, roll
 local gnssReliable, nSat
 local latitude, longitude
 
@@ -364,11 +364,11 @@ local function sendTelemetryToVCP()
             tostring(latitude) .. "," ..
             tostring(longitude) .. "," ..
             tostring(alt) .. "," ..
-            tostring(altRef) .. "," ..
+            tostring(homeDistance) .. "," ..
             tostring(heading) .. "," ..
             tostring(headingRef) .. "," ..
-            tostring(homeBearing) .. "," ..
-            tostring(homeDistance) .. "," ..
+            tostring(verticalSpeed) .. "," ..
+            tostring(groundSpeed) .. "," ..
             tostring(satField) .. "," ..
             tostring(fm) .. "," ..
             tostring(pitch) .. "," ..
@@ -614,13 +614,8 @@ local function receiveDataFromVCPAndSendToFC()
             end
 
             local index = tonumber(fields[2])
-
-            local latStr =
-                string.match(fields[3], "^%s*(-?%d+)%s*$")
-
-            local lonStr =
-                string.match(fields[4], "^%s*(-?%d+)%s*$")
-
+            local latStr =  string.match(fields[3], "^%s*(-?%d+)%s*$")
+            local lonStr =  string.match(fields[4], "^%s*(-?%d+)%s*$")
             local velocity = tonumber(fields[5])
 
 
@@ -636,7 +631,6 @@ local function receiveDataFromVCPAndSendToFC()
                (index ~= math.floor(index)) or
                (velocity < 0) or
                (velocity > 6553.5) then
-
                 goto continue
             end
 
@@ -651,7 +645,6 @@ local function receiveDataFromVCPAndSendToFC()
             ------------------------------------------------------------------
 
             velocity = math.floor(velocity)
-
 
             ------------------------------------------------------------------
             -- Build and send payload
@@ -707,21 +700,23 @@ local function run(event)
     lq = getValue("RQly") or 0
     rssi = getValue("1RSS") or 0
 
+    -- Baro frame
     alt = getValue("Alt") or 0
-    altRef = getValue("Alts") or 0
-
-    heading = getValue("Yaw") or 0
-    headingRef = getValue("Hdg") or 0
-
-    homeBearing = getValue("VSpd") or 0
-    homeDistance = getValue("GSpd") or 0
-
-    satField = getValue("Sats") or 0
-    fm = getValue("FM") or "---"
-
+	verticalSpeed = getValue("VSpd") or 0
+    
+	--Attitude Frame
     pitch = getValue("Ptch") or getValue("Pitch") or 0
     roll = getValue("Roll") or getValue("Rol") or 0
-
+    heading = getValue("Yaw") or 0
+	
+   	--GPS frame
+    groundSpeed = getValue("GSpd") or 0
+	homeDistance = getValue("Alts") or 0
+	headingRef = getValue("Hdg") or 0
+	satField = getValue("Sats") or 0
+    
+	--Flight mode frame
+	fm = getValue("FM") or "---"
 
     --------------------------------------------------------------------------
     -- GPS Coordinates
@@ -737,7 +732,6 @@ local function run(event)
         longitude = gpsCoords.lon or 0
     end
 
-
     --------------------------------------------------------------------------
     -- Decode Telemetry
     --------------------------------------------------------------------------
@@ -750,18 +744,14 @@ local function run(event)
         headingRef = headingRef + 655.36
     end
 
-    if homeBearing < 0 then
-        homeBearing = homeBearing + 360
-    end
-
-
+  
     -- Match the 6th-bit shifting structure from firmware
     gnssReliable = satField >= 64
     nSat = satField % 64
 
 
     --------------------------------------------------------------------------
-    -- Row 1
+    -- Row 1 ( Battery Volts and Link Quality )
     --------------------------------------------------------------------------
 
     lcd.drawText(2, 2, "BV:", 0)
@@ -774,34 +764,59 @@ local function run(event)
 
 
     --------------------------------------------------------------------------
-    -- Row 2
+    -- Row 2 ( Vertical speed and Altitude )
     --------------------------------------------------------------------------
-
-    lcd.drawText(2, 12, "AR:", 0)
+	
+	lcd.drawText(2, 12, "AL:", 0)
     lcd.drawText(
-        18,
-        12,
-        string.format("%.1fm", (altRef - 9000) / 100),
-        BOLD
-    )
-
-    lcd.drawText(66, 12, "AC:", 0)
-    lcd.drawText(
-        82,
+	    18,
         12,
         string.format("%.1fm", alt / 10),
         BOLD
     )
-
+	
+	lcd.drawText(66, 12, "VS:", 0)
+    lcd.drawText(
+        82,
+        12,
+        string.format(
+            "%.1fms",
+            verticalSpeed
+        ),
+        BOLD
+    )
 
     --------------------------------------------------------------------------
-    -- Row 3
+    -- Row 3 Distance and Ground Speed
     --------------------------------------------------------------------------
 
-    lcd.drawText(2, 22, "HR:", 0)
+    lcd.drawText(2, 22, "DT:", 0)
     lcd.drawText(
         18,
         22,
+        string.format(
+            "%.1fm",
+            homeDistance/10          
+        ),
+        BOLD
+    )
+	
+	lcd.drawText(66, 22, "GS:", 0)
+    lcd.drawText(
+        82,
+        22,
+        string.format("%.1fms", groundSpeed / 10),
+        BOLD
+    )
+	
+    --------------------------------------------------------------------------
+    -- Row 4 , Heading Ref and Current heading
+    --------------------------------------------------------------------------
+   
+    lcd.drawText(2, 32, "HR:", 0)
+    lcd.drawText(
+        18,
+        32,
         string.format(
             "%.1f°%s",
             headingRef,
@@ -810,10 +825,10 @@ local function run(event)
         BOLD
     )
 
-    lcd.drawText(66, 22, "HC:", 0)
+    lcd.drawText(66, 32, "HC:", 0)
     lcd.drawText(
         82,
-        22,
+        32,
         string.format(
             "%.1f°%s",
             heading,
@@ -822,34 +837,8 @@ local function run(event)
         BOLD
     )
 
-
     --------------------------------------------------------------------------
-    -- Row 4
-    --------------------------------------------------------------------------
-
-    lcd.drawText(2, 32, "BR:", 0)
-    lcd.drawText(
-        18,
-        32,
-        string.format(
-            "%.1f°%s",
-            homeBearing,
-            getCompassDirection(homeBearing)
-        ),
-        BOLD
-    )
-
-    lcd.drawText(66, 32, "DT:", 0)
-    lcd.drawText(
-        82,
-        32,
-        string.format("%.1fm", homeDistance / 10),
-        BOLD
-    )
-
-
-    --------------------------------------------------------------------------
-    -- Row 5
+    -- Row 5 Throttle and GNSS status
     --------------------------------------------------------------------------
 
     lcd.drawText(2, 42, "TH:", 0)
@@ -859,11 +848,9 @@ local function run(event)
     lcd.drawText(82, 42, gnssReliable and "Y" or "N", BOLD)
     lcd.drawText(91, 43, string.format(",%d", nSat), SMLSIZE)
 
-
     --------------------------------------------------------------------------
     -- Flight Mode
     --------------------------------------------------------------------------
-
     lcd.drawText(
         38,
         54,

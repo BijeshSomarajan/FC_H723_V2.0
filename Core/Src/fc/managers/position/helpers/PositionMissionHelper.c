@@ -40,6 +40,10 @@ void initPositionMissionHelper() {
 	}
 }
 
+float getMaxCruiseSpeed(){
+	return positionCruiseSpeed;
+}
+
 void resetNavWPStates() {
 	positionMissionWPComplete = 0;
 	positionMissionWPCompleteDt = 0;
@@ -116,8 +120,8 @@ void handleNavMission(float dt) {
 			groundStationSensorWPData.waypointIndex = 0;
 			groundStationSensorWPData.latitude = fcStatusData.positionLatHome;
 			groundStationSensorWPData.longitude = fcStatusData.positionLongHome;
-			//RTH will be at max cruise speed
-			groundStationSensorWPData.velocity = positionCruiseSpeed;
+			//RTH will be at a percentage of cruise speed
+			groundStationSensorWPData.velocity = positionCruiseSpeed * POSITION_MISSION_RTH_CRUISE_VEL_GAIN;
 			setGroundStationSensorWPData(groundStationSensorWPData);
 			groundStationMissionCallBack(NAV_ACTION_START_MISSION);
 			positionMissionWasRTHModeActive = 1;

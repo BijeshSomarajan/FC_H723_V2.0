@@ -124,8 +124,8 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_CONTROL_SETTING_DOB_TAU        0.3f // Smooth handover
 
 /* Autolanding configuration */
-#define ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD       0.75f
-#define ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD         0.75f
+#define ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD       0.5f
+#define ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD         1.0f
 #define ALT_MGR_ALT_LANDING_STICK_COMMAND               150
 
 #endif

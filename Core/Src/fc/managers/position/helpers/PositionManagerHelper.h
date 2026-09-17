@@ -26,7 +26,6 @@
 void updateGNSSDataReliability(float dt);
 void updateTerrainAltDataReliability(float dt);
 void convertGNSSToXYCordinates(double latDeg, double longDeg, double latRef, double longRef, float *xCordinate, float *yCordinate);
-
 void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, float *xBody, float *yBody);
 void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth);
 float calculateDistance(double homeLat, double homeLon, double lat, double lon);

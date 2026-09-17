@@ -279,15 +279,6 @@ void updateXYVelocityGNSS(float sAcc, float velN, float velE, float dt) {
 #endif
 }
 
-__ATTR_ITCM_TEXT
-void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth) {
-	float headingRad = convertDegToRadF(heading);
-	float headingCosValue = cosApproxF(headingRad);
-	float headingSinValue = sinApproxF(headingRad);
-	// The transpose rotation matrix operation
-	*xEarth = (xBody * headingCosValue) - (yBody * headingSinValue);
-	*yEarth = (xBody * headingSinValue) + (yBody * headingCosValue);
-}
 
 __ATTR_ITCM_TEXT
 void updateZVelocityGNSS(float sAcc, float velZ, uint8_t navigationModeActive, float dt) {

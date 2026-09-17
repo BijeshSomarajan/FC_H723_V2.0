@@ -26,5 +26,9 @@ void uart7WriteDMA(uint8_t *data, uint16_t len);
 void uart7Write(uint8_t *data, uint16_t len);
 uint8_t uart7ReadStart(uint8_t *data, uint16_t len, UART_RxCallback_t callback);
 
+uint8_t uart8Init(void);
+void uart8WriteDMA(uint8_t *data, uint16_t len);
+void uart8Write(uint8_t *data, uint16_t len);
+uint8_t uart8ReadStart(uint8_t *data, uint32_t len, UART_RxCallback_t callback);
 
 #endif /* SRC_FC_IO_UART_UART_H_ */

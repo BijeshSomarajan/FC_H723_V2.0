@@ -175,6 +175,13 @@ void debugAltGraph() {
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
+extern float expectedPitch,expectedRoll;
+void debugNav(){
+	DEBUG_DATA_BUFFER[0] = expectedPitch * 10;
+	DEBUG_DATA_BUFFER[1] = expectedRoll * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 2, CMD_FC_DATA);
+}
+
 float nowMs = 0;
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
@@ -191,7 +198,8 @@ debugALt();
 //debugAltStr();
 //debugAltGraph();
 //debugGnssData();
-//	debugIMUStr();
-//	debufFFT();
-//	debugNoise();
+//debugIMUStr();
+//debufFFT();
+//debugNoise();
+//debugNav();
 }

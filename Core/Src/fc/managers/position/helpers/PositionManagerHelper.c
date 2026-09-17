@@ -112,6 +112,17 @@ void convertEarthToBodyCordinates(float xEarth, float yEarth, float heading, flo
 	*yBody = (-xEarth * headingSinValue) + (yEarth * headingCosValue);
 }
 
+__ATTR_ITCM_TEXT
+void convertBodyToEarthCordinates(float xBody, float yBody, float heading, float *xEarth, float *yEarth) {
+	float headingRad = convertDegToRadF(heading);
+	float headingCosValue = cosApproxF(headingRad);
+	float headingSinValue = sinApproxF(headingRad);
+	// The transpose rotation matrix operation
+	*xEarth = (xBody * headingCosValue) - (yBody * headingSinValue);
+	*yEarth = (xBody * headingSinValue) + (yBody * headingCosValue);
+}
+
+__ATTR_ITCM_TEXT
 float calculateDistance(double homeLat, double homeLon, double lat, double lon) {
 	float lat1 = convertDegToRadF((float) homeLat);
 	float lat2 = convertDegToRadF((float) lat);

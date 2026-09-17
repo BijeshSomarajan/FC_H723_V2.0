@@ -131,30 +131,6 @@ void resetPositionCommands() {
 }
 
 __ATTR_ITCM_TEXT
-void updatePositionRateCommand(float dt) {
-	if (isNavModeActive() && fcStatusData.isPositionHomeSet) {
-		if (fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
-			if (fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING) {
-				positionMgrPosHoldRatePIDGain = POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
-			} else {
-				positionMgrPosHoldRatePIDGain = 1.0f;
-			}
-			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy);
-			float pitchCommand, rollCommand;
-			convertEarthToBodyCordinates(controlData.positionXControl, controlData.positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
-			positionCommandData.pitchCommand = pitchCommand;
-			positionCommandData.rollCommand = rollCommand;
-		} else {
-			positionMgrPosHoldRatePIDGain = 1.0f;
-			resetPositionCommands();
-		}
-	} else {
-		positionMgrPosHoldRatePIDGain = 1.0f;
-		resetPositionCommands();
-	}
-}
-
-__ATTR_ITCM_TEXT
 void resetBrakingStates() {
 	positionMgrBrakeVx = 0;
 	positionMgrBrakeVy = 0;
@@ -189,6 +165,74 @@ void doBraking(float dt) {
 	}
 }
 
+#if POSITION_COMMON_USE_STICK_VEL_IN_NAV_MODE == 1
+__ATTR_ITCM_TEXT
+void updatePositionRateCommand(float dt) {
+	if (isNavModeActive() && fcStatusData.isPositionHomeSet) {
+		controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy);
+		float pitchCommand, rollCommand;
+		convertEarthToBodyCordinates(controlData.positionXControl, controlData.positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
+		positionCommandData.pitchCommand = pitchCommand;
+		positionCommandData.rollCommand = rollCommand;
+	} else {
+		positionMgrPosHoldRatePIDGain = 1.0f;
+		resetPositionCommands();
+	}
+}
+
+__ATTR_ITCM_TEXT
+void updatePositionCordinateCommand(float dt) {
+	if (!isNavRTHModeActive() && !isNavMissionModeActive()) {
+		resetNavMissionStates(); //Clears RTH states also.
+	} else if (!isNavRTHModeActive()) {
+		resetNavRTHStates();
+	}
+	if (isNavModeActive() && fcStatusData.isPositionHomeSet) {
+		if (!rcData.pitchCentered || !rcData.rollCentered) {
+			float maxSpeed = getMaxCruiseSpeed();
+			float rcStickMaxScale = (float) RC_CHANNEL_DELTA_VALUE * 0.5f;
+			float normalizedPitch = (float) rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX] / rcStickMaxScale;
+			float expectedPitchVel = normalizedPitch * maxSpeed;
+			float normalizedRoll = (float) rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX] / rcStickMaxScale;
+			float expectedRollVel = normalizedRoll * maxSpeed;
+			float xVel = 0;
+			float yVel = 0;
+			convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, sensorAttitudeData.heading, &xVel, &yVel);
+			setExpectedPositionVelocity(dt, xVel, yVel);
+			updatePositionReference();
+		} else {
+			if ((isNavRTHModeActive() || isNavMissionModeActive()) && !fcStatusData.isNavMissionComplete) {
+				handleNavMission(dt);
+			} else {
+				controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
+			}
+		}
+	} else {
+		resetPositionCommands();
+		resetNavMissionStates();
+	}
+}
+#else
+
+__ATTR_ITCM_TEXT
+void updatePositionRateCommand(float dt) {
+	if (isNavModeActive() && fcStatusData.isPositionHomeSet) {
+		if (fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
+			controlPositionRateWithGains(dt, 1.0f, 1.0f, 1.0f, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy);
+			float pitchCommand, rollCommand;
+			convertEarthToBodyCordinates(controlData.positionXControl, controlData.positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
+			positionCommandData.pitchCommand = pitchCommand;
+			positionCommandData.rollCommand = rollCommand;
+		} else {
+			positionMgrPosHoldRatePIDGain = 1.0f;
+			resetPositionCommands();
+		}
+	} else {
+		positionMgrPosHoldRatePIDGain = 1.0f;
+		resetPositionCommands();
+	}
+}
+
 __ATTR_ITCM_TEXT
 void updatePositionCordinateCommand(float dt) {
 	if (!rcData.pitchCentered || !rcData.rollCentered) {
@@ -206,17 +250,17 @@ void updatePositionCordinateCommand(float dt) {
 
 	if (isNavModeActive() && (fcStatusData.isPositionHomeSet)) {
 		switch (fcStatusData.postionHoldState) {
-		case POS_HOLD_STATE_IDLE:
+			case POS_HOLD_STATE_IDLE:
 			resetPositionCommands();
 			resetBrakingStates();
 			positionMgrBrakeVx = positionCordinateData.xVelocity;
 			positionMgrBrakeVy = positionCordinateData.yVelocity;
 			fcStatusData.postionHoldState = POS_HOLD_STATE_BRAKING;
 			break;
-		case POS_HOLD_STATE_BRAKING:
+			case POS_HOLD_STATE_BRAKING:
 			doBraking(dt);
 			break;
-		case POS_HOLD_STATE_SETTLING:
+			case POS_HOLD_STATE_SETTLING:
 			positionMgrPosHoldElapseDtSum += dt;
 			resetBrakingStates();
 			setExpectedPositionVelocity(dt, 0.0f, 0.0f);
@@ -227,7 +271,7 @@ void updatePositionCordinateCommand(float dt) {
 				fcStatusData.postionHoldState = POS_HOLD_STATE_LOCKED;
 			}
 			break;
-		case POS_HOLD_STATE_LOCKED:
+			case POS_HOLD_STATE_LOCKED:
 			resetBrakingStates();
 			if ((isNavRTHModeActive() || isNavMissionModeActive()) && !fcStatusData.isNavMissionComplete) {
 				handleNavMission(dt);
@@ -243,6 +287,7 @@ void updatePositionCordinateCommand(float dt) {
 		resetNavMissionStates();
 	}
 }
+#endif
 
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
@@ -377,7 +422,7 @@ void resetPositionManager(uint8_t hard) {
 
 	fcStatusData.isFailSafeModeActive = 0;
 
-	if(hard){
+	if (hard) {
 		fcStatusData.isPositionHomeSet = 0;
 	}
 
