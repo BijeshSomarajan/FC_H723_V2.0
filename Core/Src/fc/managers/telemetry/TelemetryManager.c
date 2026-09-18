@@ -142,9 +142,11 @@ void sendOSDData() {
 	        satCountAndReliability,
 	        fcStatusBuf,
 	        sensorAttitudeData.pitch,
-	        -sensorAttitudeData.roll,
+	        sensorAttitudeData.roll,
 	        (uint32_t) fcStatusData.currentThrottle,
-	        fcStatusData.batteryAlertState);
+			fcStatusData.batteryAlertState
+
+	);
 
 	uart8WriteDMA((uint8_t *)osdBuf, strlen(osdBuf));
 }

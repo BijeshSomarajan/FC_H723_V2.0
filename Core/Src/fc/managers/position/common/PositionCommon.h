@@ -29,6 +29,7 @@ extern POSITION_CORDINATE_DATA positionCordinateData;
 typedef struct _POSITION_COMMAND_DATA POSITION_COMMAND_DATA;
 struct _POSITION_COMMAND_DATA {
 	float pitchCommand, rollCommand;
+	float targetVelX , targetVelY;
 	float positionCommandDt;
 };
 extern POSITION_COMMAND_DATA positionCommandData;
