@@ -19,7 +19,7 @@
 #define RC_PITCH_CHANNEL_INDEX       2 // Channel 3
 #define RC_ROLL_CHANNEL_INDEX        3 // Channel 4
                                   // 4 //Channel 5 //Reserved
-#define RC_MISSION_CHANNEL_INDEX     5 //Channel 6  //swd  //Mission
+#define RC_RTH_CHANNEL_INDEX     5 //Channel 6  //swd  //Mission
 #define RC_START_CHANNEL_INDEX       6 //Channel 7  //swa  //ARM
 #define RC_NAV_CHANNEL_INDEX         7 //Channel 8  //swb  //Hold/RTH
 #define RC_ALT_MODE_CHANNEL_INDEX    8 //Channel 9  //swc  //Terrain/ASL
@@ -34,7 +34,7 @@
 #define RC_START_CHANNEL_INDEX       4 //Channel 5  //SA   //ARM
 #define RC_NAV_CHANNEL_INDEX         5 //Channel 6  //swb  //Hold/RTH
 #define RC_ALT_MODE_CHANNEL_INDEX    6 //Channel 7  //swc  //Terrain/ASL
-#define RC_MISSION_CHANNEL_INDEX     7 //Channel 8  //swd  //Mission
+#define RC_RTH_CHANNEL_INDEX         7 //Channel 8  //swd  //RTH
 #define RC_LAND_CHANNEL_INDEX        8 //Channel 9  //key1 //Land channel
 #define RC_VARIO_CHANNEL_INDEX       9 //Channel 10 //Vario
 #endif

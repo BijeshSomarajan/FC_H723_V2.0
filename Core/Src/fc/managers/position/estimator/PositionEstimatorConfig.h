@@ -521,7 +521,8 @@
  * primary mechanism controlling baro authority. Its importance increases if
  * RP_MIN is later reduced substantially.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           500.0f // 0.005f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           100.0f // 500.0f //Reduced to check sudden climbs at high velocity
+
 
 /* Low-pass coefficient applied to the dynamic baro variance.
  *
@@ -554,7 +555,7 @@
  * Reached as motionScale increases, further reducing baro authority during
  * strong maneuver-induced pressure disturbances.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            20000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            10000.0f
 
 /* Numerical guards. Do not tune.
  */

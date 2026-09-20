@@ -16,6 +16,7 @@
 #include "../../timers/GPTimer.h"
 #include "../../util/MathUtil.h"
 #include "../position/common/PositionCommon.h"
+#include "../position/helpers/PositionManagerHelper.h"
 
 extern POSITION_COMMAND_DATA positionCommandData;
 
@@ -113,8 +114,16 @@ void doAttitudeAngleControl(float dt) {
 		fcStatusData.headingRef = sensorAttitudeData.heading;
 	}
 	if (fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
-		float expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]) - positionCommandData.pitchCommand;
-		float expectedRoll = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] + positionCommandData.rollCommand;
+		float expectedPitch = 0;
+		float expectedRoll = 0;
+		//Cruise mode translates the stick movements to velocity commands
+		if (isNavCruiseModeActive()) {
+			expectedPitch = -positionCommandData.pitchCommand;
+			expectedRoll = positionCommandData.rollCommand;
+		} else {
+			expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]) - positionCommandData.pitchCommand;
+			expectedRoll = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] + positionCommandData.rollCommand;
+		}
 		float expectedYaw = ((float) rcData.RC_EFFECTIVE_DATA[RC_YAW_CHANNEL_INDEX]);
 		expectedPitch = constrainToRangeF(expectedPitch, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
 		expectedRoll = constrainToRangeF(expectedRoll, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);

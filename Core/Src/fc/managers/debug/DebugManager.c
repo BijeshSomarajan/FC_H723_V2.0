@@ -163,7 +163,7 @@ extern PID altRatePID;
 extern PID altAccPID;
 void debugAltStr() {
 	sprintf(buf, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAltitudeData.altitudeSLFiltered * 100, sensorAltitudeData.altitudeTerrain * 100, venturiEstimateData.venturiBias * 100,
-			positionCordinateData.zPosition * 100, positionCordinateData.zVelocity * 100, positionCordinateData.zAcceleration * 100, altPID.pid * 100, altRatePID.pid * 100, altAccPID.pid, controlData.tiltCompThDelta , controlData.altitudeDOBControl, controlData.throttleControl);
+			positionCordinateData.zPosition * 100, positionCordinateData.zVelocity * 100, positionCordinateData.zAcceleration * 100, altPID.pid * 100, altRatePID.pid * 100, altAccPID.pid, controlData.tiltCompThDelta, controlData.altitudeDOBControl, controlData.throttleControl);
 	logString(buf);
 }
 
@@ -173,6 +173,27 @@ void debugAltGraph() {
 	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 1000;
 	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 100;
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+}
+
+void debugNavStates() {
+	DEBUG_DATA_BUFFER[0] = fcStatusData.isNavCruiseModeActive * 100;
+	DEBUG_DATA_BUFFER[1] = fcStatusData.isNavModeActive * 100;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.isNavRTHModeActive * 100;
+	DEBUG_DATA_BUFFER[3] = fcStatusData.isNavMissionModeActive * 100;
+	DEBUG_DATA_BUFFER[4] = fcStatusData.isFailSafeModeActive * 100;
+	DEBUG_DATA_BUFFER[5] = fcStatusData.isNavMissionComplete  * 100;
+	DEBUG_DATA_BUFFER[6] = positionCommandData.targetYVel * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+}
+
+extern float expectedGroundSpeed;
+void debugTelemetry() {
+	DEBUG_DATA_BUFFER[0] = fcStatusData.headingHomeRef;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.heading;
+	DEBUG_DATA_BUFFER[2] = positionCommandData.targetXVel * 10;
+	DEBUG_DATA_BUFFER[3] = positionCommandData.targetYVel * 10;
+	DEBUG_DATA_BUFFER[4] = expectedGroundSpeed * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
 
 float nowMs = 0;
@@ -187,11 +208,15 @@ void debugTask() {
 //debugRC();
 //debugModel();
 //debugIMU();
-debugALt();
+//debugALt();
 //debugAltStr();
 //debugAltGraph();
 //debugGnssData();
-//	debugIMUStr();
-//	debufFFT();
-//	debugNoise();
+//debugIMUStr();
+//debufFFT();
+//debugNoise();
+//debugNav();
+//debugNavStates();
+debugTelemetry();
+
 }

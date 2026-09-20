@@ -14,9 +14,10 @@
 #define PITCH_CENTER_DEADBAND  15
 #define ROLL_CENTER_DEADBAND  15
 
-#define POS_HOLD_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
-#define RTH_HOLD_MODE_ACT_TSH  RC_CHANNEL_MAX_VALUE * 0.9f
-#define MISSION_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
+#define NAV_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
+#define CRUISE_MODE_ACT_TSH  RC_CHANNEL_MAX_VALUE * 0.9f
+
+#define RTH_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 
 #define LANDING_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 
@@ -28,6 +29,9 @@ void doRCManagement();
 void resetRCManager(void);
 void processRCData(float dt);
 void setRCData(int32_t *data, int32_t length);
+
+float getRCStickPitchGain(void);
+float getRCStickRollGain();
 
 int16_t getThrottleChannelValue();
 int16_t getPitchChannelValue();
@@ -50,8 +54,9 @@ void applyRCStickEffectiveness();
 void configureRCStickControl(void);
 
 uint8_t checkNavModeActivation(void);
-uint8_t checkRTHModeActivation(void);
-uint8_t checkLandingModeActivation();
+uint8_t checkNavCruiseModeActivation(void);
+uint8_t checkNavRTHModeActivation(void);
+uint8_t checkLandingModeActivation(void);
 
 uint8_t checkTerrainAltModeActivation(void);
 uint8_t checkTerrainNavModeActivation(void);

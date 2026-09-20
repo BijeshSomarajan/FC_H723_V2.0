@@ -125,33 +125,11 @@ __ATTR_ITCM_TEXT
 void resetPositionCommands() {
 	positionCommandData.pitchCommand = 0.0f;
 	positionCommandData.rollCommand = 0.0f;
+	positionCommandData.targetXVel = 0.0f;
+	positionCommandData.targetYVel = 0.0f;
 	fcStatusData.isNavMissionComplete = 0;
 	positionMgrPosHoldElapseDtSum = 0.0f;
 	resetPositionControl(1);
-}
-
-__ATTR_ITCM_TEXT
-void updatePositionRateCommand(float dt) {
-	if (isNavModeActive() && fcStatusData.isPositionHomeSet) {
-		if (fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
-			if (fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING) {
-				positionMgrPosHoldRatePIDGain = POSITION_MGR_POS_HOLD_BRAKE_RATE_PI_GAIN;
-			} else {
-				positionMgrPosHoldRatePIDGain = 1.0f;
-			}
-			controlPositionRateWithGains(dt, positionMgrPosHoldRatePIDGain, positionMgrPosHoldRatePIDGain, 1.0f, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy);
-			float pitchCommand, rollCommand;
-			convertEarthToBodyCordinates(controlData.positionXControl, controlData.positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
-			positionCommandData.pitchCommand = pitchCommand;
-			positionCommandData.rollCommand = rollCommand;
-		} else {
-			positionMgrPosHoldRatePIDGain = 1.0f;
-			resetPositionCommands();
-		}
-	} else {
-		positionMgrPosHoldRatePIDGain = 1.0f;
-		resetPositionCommands();
-	}
 }
 
 __ATTR_ITCM_TEXT
@@ -190,9 +168,50 @@ void doBraking(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void updatePositionCordinateCommand(float dt) {
-	if (!rcData.pitchCentered || !rcData.rollCentered) {
+void updatePositionRateCommand(float dt) {
+	if (isNavModeActive() && isPositionHomeSet()) {
+		if (isNavCruiseModeActive() || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
+			controlPositionRateWithGains(dt, 1.0f, 1.0f, 1.0f, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy);
+			float pitchCommand, rollCommand;
+			convertEarthToBodyCordinates(controlData.positionXControl, controlData.positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
+			positionCommandData.pitchCommand = pitchCommand;
+			positionCommandData.rollCommand = rollCommand;
+		} else {
+			positionMgrPosHoldRatePIDGain = 1.0f;
+			resetPositionCommands();
+		}
+	} else {
+		positionMgrPosHoldRatePIDGain = 1.0f;
 		resetPositionCommands();
+	}
+}
+
+__ATTR_ITCM_TEXT
+void manageCruiseCommand(float dt) {
+	float maxSpeed = getMaxCruiseSpeed();
+	float rcStickMaxScale = (float) RC_CHANNEL_DELTA_VALUE * 0.5f;
+	float normalizedPitch = (float) rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX] / rcStickMaxScale;
+	float expectedPitchVel = normalizedPitch * maxSpeed;
+	float normalizedRoll = (float) rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX] / rcStickMaxScale;
+	float expectedRollVel = normalizedRoll * maxSpeed;
+	float xVel = 0;
+	float yVel = 0;
+	convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, sensorAttitudeData.heading, &xVel, &yVel);
+	setExpectedPositionVelocity(dt, xVel, yVel);
+	updatePositionReference();
+	positionCommandData.targetXVel = xVel;
+	positionCommandData.targetYVel = yVel;
+}
+
+__ATTR_ITCM_TEXT
+void updatePositionCordinateCommand(float dt) {
+
+	if (!rcData.pitchCentered || !rcData.rollCentered) {
+		if (isNavCruiseModeActive()) {
+			manageCruiseCommand(dt);
+		} else {
+			resetPositionCommands();
+		}
 		resetBrakingStates();
 		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		return;
@@ -204,7 +223,7 @@ void updatePositionCordinateCommand(float dt) {
 		resetNavRTHStates();
 	}
 
-	if (isNavModeActive() && (fcStatusData.isPositionHomeSet)) {
+	if (isNavModeActive() || isNavRTHModeActive() || isNavMissionModeActive()) {
 		switch (fcStatusData.postionHoldState) {
 		case POS_HOLD_STATE_IDLE:
 			resetPositionCommands();
@@ -302,14 +321,14 @@ void loadAndProcessGNSSData() {
 		gnssData.updateDt = dt;
 		updateGNSSDataReliability(dt);
 
-		if (fcStatusData.isNavDataReliable) {
+		if (isNavDataReliable()) {
 			uint8_t wasHomeJustSet = 0;
-			if (!fcStatusData.isPositionHomeSet) {
+			if (!isPositionHomeSet()) {
 				updateHomePositionAcquisition(dt);
 				wasHomeJustSet = fcStatusData.isPositionHomeSet;
 			}
 
-			if (fcStatusData.isPositionHomeSet) {
+			if (isPositionHomeSet()) {
 				convertGNSSToXYCordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
 				if (wasHomeJustSet) {
 					resetPVEstimation(POS_EKF_X_AXIS, 1);
@@ -320,13 +339,13 @@ void loadAndProcessGNSSData() {
 
 				// Update Velocity and Position
 				updateXYVelocityGNSS(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
-				updateZVelocityGNSS(gnssData.sAcc, -gnssData.velD, fcStatusData.isNavDataReliable && isNavModeActive(), dt); //GNSS is +ve down ( NED )
+				updateZVelocityGNSS(gnssData.sAcc, -gnssData.velD, isNavDataReliable() && isNavModeActive(), dt); //GNSS is +ve down ( NED )
 				updateXYPositionGNSS(gnssData.hAcc, positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
-				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, fcStatusData.isNavDataReliable && isNavModeActive(), dt);
+				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, isNavDataReliable() && isNavModeActive(), dt);
 			}
 
 		} else {
-			if (!fcStatusData.isPositionHomeSet) {
+			if (!isPositionHomeSet()) {
 				resetHomePositionAcquisition();
 			}
 		}
@@ -342,7 +361,7 @@ void doPositionManagement() {
 		positionManagerWasInStabMode = 1;
 	} else if (positionManagerWasInStabMode && fcStatusData.isStabilized) {
 		positionManagerWasInStabMode = 0;
-	} else if (!fcStatusData.isRCHealthy && fcStatusData.isFlying && fcStatusData.isPositionHomeSet && fcStatusData.isNavModeActive) {
+	} else if (!fcStatusData.isRCHealthy && fcStatusData.isFlying && isNavModeActive()) {
 		fcStatusData.isFailSafeModeActive = 1;
 	}
 	loadAndProcessGNSSData();
@@ -377,7 +396,7 @@ void resetPositionManager(uint8_t hard) {
 
 	fcStatusData.isFailSafeModeActive = 0;
 
-	if(hard){
+	if (hard) {
 		fcStatusData.isPositionHomeSet = 0;
 	}
 

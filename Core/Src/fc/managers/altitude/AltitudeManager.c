@@ -324,27 +324,23 @@ void manageAltitude(float dt) {
 		altMgrAccDtAccumulation += dt;
 		altMgrVelDtAccumulation += dt;
 		altMgrAltDtAccumulation += dt;
-		while (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD || altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD || altMgrAccDtAccumulation >= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD) {
-			if (altMgrAccDtAccumulation >= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD) {
-				controlAltitudeAccWithGains(ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD, altControlGains);
-				altMgrAccDtAccumulation -= ALTITUDE_MANAGEMENT_ACC_TASK_PERIOD;
-			}
+		while (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD || altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD ) {
 			if (altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD) {
 				controlAltitudeVelWithGains(ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD, altControlGains);
 				altMgrVelDtAccumulation -= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD;
 			}
-			if (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD) {
 
+			if (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD) {
 #if ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE == 1
 				//In terrain mode , allow alt hold.
-				if ((!fcStatusData.isTerrainAltModeActive || !fcStatusData.isTerrainSensorExist) && !fcStatusData.isNavRTHModeActive && !fcStatusData.isNavModeActive) {
+				if ((!fcStatusData.isTerrainAltModeActive || !fcStatusData.isTerrainSensorExist) && !isNavModeActive()) {
 					fcStatusData.altitudeRef = positionCordinateData.zPosition;
 				}
 #endif
-
 				controlAltitudeAltWithGains(ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD, fcStatusData.altitudeRef, getClampedCurrentAltitude(), altControlGains);
 				altMgrAltDtAccumulation -= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD;
 			}
+
 		}
 #if ALT_MGR_TILT_COMP_ENABLED ==1
 		calculateTiltCompThrottle(dt);

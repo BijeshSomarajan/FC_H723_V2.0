@@ -9,7 +9,6 @@
 #include "../managers/altitude/AltitudeManager.h"
 #include "../managers/battery/BatteryManager.h"
 #include "../managers/motor/MotorManager.h"
-#include "../managers/debug/DebugManager.h"
 #include "../managers/rc/RCManager.h"
 #include "../timers/DelayTimer.h"
 #include "../timers/DeltaTimer.h"
@@ -18,6 +17,7 @@
 #include "../timers/Scheduler.h"
 #include "../timers/GPTimer.h"
 #include "../status/FCStatus.h"
+#include "debug/DebugManager.h"
 #include "position/PositionManager.h"
 #include "telemetry/TelemetryManager.h"
 

@@ -21,7 +21,6 @@ float rcStickRollGain = 0;
 float rcStickYawGain = 0;
 float rcStickThrottleGain = 0;
 
-void updateRCDataTask(void);
 void resetFCStatus();
 void determineFCState(float dt);
 void rcTask(void);
@@ -125,13 +124,11 @@ void processRCData(float dt) {
 	applyRCStickEffectiveness();
 
 	// Set the FC status
-	fcStatusData.isNavRTHModeActive = checkRTHModeActivation();
-	fcStatusData.isNavMissionModeActive = checkMissionModeActivation();
-
+	fcStatusData.isNavRTHModeActive = checkNavRTHModeActivation();
 	fcStatusData.isNavModeActive = checkNavModeActivation();
+	fcStatusData.isNavCruiseModeActive = checkNavCruiseModeActivation();
 
 	fcStatusData.isTerrainAltModeActive = checkTerrainAltModeActivation();
-
 
 	//If throttle is not centered , reset
 	if (checkLandingModeActivation()) {
@@ -208,6 +205,14 @@ void configureRCStickControl() {
 	rcStickYawGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_YAW_RATE_P_ADDR);
 }
 
+float getRCStickPitchGain(){
+	return rcStickPitchGain;
+}
+
+float getRCStickRollGain(){
+	return rcStickRollGain;
+}
+
 int16_t getThrottleChannelValue() {
 	return rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX];
 }
@@ -245,7 +250,7 @@ void loadRCStickDelta() {
 	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = getRCValue(RC_YAW_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_YAW_CHANNEL_INDEX];
 	// Aux channels
 	rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] = getRCValue(RC_NAV_CHANNEL_INDEX);
-	rcData.RC_DELTA_DATA[RC_MISSION_CHANNEL_INDEX] = getRCValue(RC_MISSION_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_RTH_CHANNEL_INDEX] = getRCValue(RC_RTH_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = getRCValue(RC_LAND_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = getRCValue(RC_ALT_MODE_CHANNEL_INDEX);
 	// Apply dead bands
@@ -314,21 +319,21 @@ uint8_t checkTerrainNavModeActivation() {
  * Checks if Position Hold mode is active
  */
 uint8_t checkNavModeActivation() {
-	return (rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] > POS_HOLD_MODE_ACT_TSH);
+	return (rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] > NAV_MODE_ACT_TSH);
+}
+
+/**
+ * Checks if Position Hold mode is active
+ */
+uint8_t checkNavCruiseModeActivation() {
+	return (rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] > CRUISE_MODE_ACT_TSH);
 }
 
 /**
  * Checks if RTH Mode is active
  */
-uint8_t checkRTHModeActivation() {
-	return (rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] > RTH_HOLD_MODE_ACT_TSH);
-}
-
-/**
- * Checks if mission mode is active
- */
-uint8_t checkMissionModeActivation() {
-	return (rcData.RC_DELTA_DATA[RC_MISSION_CHANNEL_INDEX] > MISSION_MODE_ACT_TSH);
+uint8_t checkNavRTHModeActivation() {
+	return (rcData.RC_DELTA_DATA[RC_RTH_CHANNEL_INDEX] > RTH_MODE_ACT_TSH);
 }
 
 /**
