@@ -28,6 +28,7 @@ uint8_t positionMissionWPComplete = 0;
 int16_t positionMissionWPCount = 0;
 
 float positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_MIN;
+float positionRTHSpeed = POSITION_MISSION_CRUISE_SPEED_MIN;
 
 uint8_t loadWayPoints(void);
 void updateWPCompletionStatus(float dt);
@@ -38,9 +39,19 @@ void initPositionMissionHelper() {
 	if (positionCruiseSpeed < 0 || positionCruiseSpeed > POSITION_MISSION_CRUISE_SPEED_MAX) {
 		positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_MIN;
 	}
+
+	positionRTHSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RTH_SPEED_ADDR));
+	if (positionRTHSpeed < 0 || positionRTHSpeed > positionCruiseSpeed) {
+		positionRTHSpeed = positionCruiseSpeed * 0.8f;
+	}
+
+	char buf[64];
+	sprintf(buf, "[PositionMissionHelper] RS:%.3f,CS:%.3f\n", positionRTHSpeed, positionCruiseSpeed);
+	logString(buf);
+
 }
 
-float getMaxCruiseSpeed(){
+float getMaxCruiseSpeed() {
 	return positionCruiseSpeed;
 }
 
@@ -96,24 +107,32 @@ uint8_t loadWayPoints() {
 			return 1;
 		}
 	}
-
 	return 0;
 }
 
 void groundStationMissionCallBack(uint8_t action) {
 	if (action == NAV_ACTION_START_MISSION) {
 		resetNavMissionStates();
+		if (!isNavRTHModeActive()) { // RTH injects a synthetic mission
+			fcStatusData.isNavMissionModeActive = 1;
+			positionMissionWasMissionModeActive = 0;
+		} else {
+			positionMissionWasRTHModeActive = 0;
+		}
 		positionMissionWPCount = getGroundStationSensorWPDataCount();
 		loadWayPoints();
 	} else if (action == NAV_ACTION_ABORT_MISSION) {
 		resetNavMissionStates();
+		fcStatusData.isNavMissionModeActive = 0;
 	}
 }
 
 __ATTR_ITCM_TEXT
 void handleNavMission(float dt) {
+
 	if (isNavRTHModeActive()) {
 		positionMissionWasMissionModeActive = 0;
+		fcStatusData.isNavMissionModeActive = 0;
 		if (!positionMissionWasRTHModeActive) {
 			clearGroundStationSensorWPData();
 			GroundStationSensorWPData groundStationSensorWPData;
@@ -121,7 +140,7 @@ void handleNavMission(float dt) {
 			groundStationSensorWPData.latitude = fcStatusData.positionLatHome;
 			groundStationSensorWPData.longitude = fcStatusData.positionLongHome;
 			//RTH will be at a percentage of cruise speed
-			groundStationSensorWPData.velocity = positionCruiseSpeed * POSITION_MISSION_RTH_CRUISE_VEL_GAIN;
+			groundStationSensorWPData.velocity = positionRTHSpeed;
 			setGroundStationSensorWPData(groundStationSensorWPData);
 			groundStationMissionCallBack(NAV_ACTION_START_MISSION);
 			positionMissionWasRTHModeActive = 1;
@@ -130,11 +149,11 @@ void handleNavMission(float dt) {
 		positionMissionWasRTHModeActive = 0;
 		if (isNavMissionModeActive()) {
 			if (!positionMissionWasMissionModeActive) {
-				groundStationMissionCallBack(NAV_ACTION_START_MISSION);
 				positionMissionWasMissionModeActive = 1;
 			}
 		}
 	}
+
 	updateMissionVelocityCommand(dt);
 	updateWPCompletionStatus(dt);
 	updatePositionReference();
@@ -218,26 +237,23 @@ __ATTR_ITCM_TEXT
 void updateWPCompletionStatus(float dt) {
 	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
 	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
+	float distSq = dx * dx + dy * dy;
+
+	// Squared compare: no sqrt needed
+	uint8_t insideRadius = (distSq <= POSITION_MISSION_WP_COMPLETE_RADIUS_SQ);
 	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MISSION_WP_COMPLETE_MAX_GROUND_SPEED);
-	float distance = fastSqrtf(dx * dx + dy * dy);
-	// ---------------------------------------------------------------
-	// Completion timer
-	// ---------------------------------------------------------------
-	if (distance <= POSITION_MISSION_WP_COMPLETE_RADIUS) {
-		if (positionMissionWPCompleteDt < POSITION_MISSION_WP_COMPLETE_PERIOD) {
+
+	// Dwell timer: counts continuous time inside the capture radius
+	if (insideRadius) {
+		if (positionMissionWPCompleteDt < POSITION_MISSION_WP_DWELL_TIMEOUT) {
 			positionMissionWPCompleteDt += dt;
 		}
 	} else {
 		positionMissionWPCompleteDt = 0.0f;
 	}
-	// ---------------------------------------------------------------
-	// Completion condition
-	// ---------------------------------------------------------------
-	uint8_t timeoutReached = (positionMissionWPCompleteDt >= POSITION_MISSION_WP_COMPLETE_PERIOD);
-	if (distance <= POSITION_MISSION_WP_COMPLETE_RADIUS && (lowGroundSpeed || timeoutReached)) {
-		positionMissionWPComplete = 1;
-	} else {
-		positionMissionWPComplete = 0;
-	}
-}
 
+	// Normal path: inside radius and settled
+	// Worst case:  inside radius for DWELL_TIMEOUT regardless of speed
+	uint8_t dwellTimeout = (positionMissionWPCompleteDt >= POSITION_MISSION_WP_DWELL_TIMEOUT);
+	positionMissionWPComplete = (insideRadius && (lowGroundSpeed || dwellTimeout)) ? 1 : 0;
+}

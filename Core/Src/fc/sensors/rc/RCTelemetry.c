@@ -4,6 +4,7 @@
 #if RC_RX_TYPE== RC_RX_TYPE_CRSF
 extern void crsfSendBattery(float voltage, float current, uint32_t capacity, uint8_t percent);
 extern void crsfSendGNSS(double lat, double lon, float speed, float heading, float distance, uint8_t nSat);
+extern void crsfSendGNSSExtended(float nSpeed, float eSpeed , float h_acc, float v_acc) ;
 extern void crsfSendAttitude(float pitch, float roll, float yaw);
 extern void crsfSendAltitude(float distance, float verticalSpeed);
 extern void crsfSendFlightMode(const char *modeStr, uint8_t length);
@@ -18,6 +19,12 @@ void sendBatteryTelemetry(float voltage, float current, uint32_t capacity, uint8
 void sendGNSSTelemetry(double lat, double lon, float speed, float heading, float distance, uint8_t nSat) {
 #if RC_RX_TYPE== RC_RX_TYPE_CRSF
 	crsfSendGNSS(lat, lon, speed, heading, distance, nSat);
+#endif
+}
+
+void sendGNSSTelemetryExtended(float nSpeed, float eSpeed , float h_acc, float v_acc) {
+#if RC_RX_TYPE== RC_RX_TYPE_CRSF
+	crsfSendGNSSExtended(nSpeed, eSpeed, h_acc, v_acc);
 #endif
 }
 

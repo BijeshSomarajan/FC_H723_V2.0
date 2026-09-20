@@ -73,16 +73,37 @@ void updateGNSSDataReliability(float dt) {
 
 __ATTR_ITCM_TEXT
 uint8_t isNavModeActive() {
-	return (fcStatusData.isNavRTHModeActive || fcStatusData.isNavModeActive);
+	return (fcStatusData.isNavModeActive || fcStatusData.isNavCruiseModeActive) && isPositionHomeSet();
+}
+
+__ATTR_ITCM_TEXT
+uint8_t isNavCruiseModeActive() {
+	return isNavModeActive() && (fcStatusData.isNavCruiseModeActive) ;
 }
 
 __ATTR_ITCM_TEXT
 uint8_t isNavRTHModeActive() {
-	return (fcStatusData.isNavRTHModeActive || fcStatusData.isFailSafeModeActive);
+	return isNavModeActive() && (fcStatusData.isNavRTHModeActive || fcStatusData.isFailSafeModeActive) ;
 }
 
-uint8_t isNavMissionModeActive(){
-	return fcStatusData.isNavMissionModeActive;
+__ATTR_ITCM_TEXT
+uint8_t isNavMissionModeActive() {
+	return isNavModeActive() && fcStatusData.isNavMissionModeActive ;
+}
+
+__ATTR_ITCM_TEXT
+uint8_t isFailSafeModeActive() {
+	return fcStatusData.isFailSafeModeActive && isPositionHomeSet();
+}
+
+__ATTR_ITCM_TEXT
+uint8_t isPositionHomeSet(){
+	return (fcStatusData.isPositionHomeSet);
+}
+
+__ATTR_ITCM_TEXT
+uint8_t isNavDataReliable(){
+	return fcStatusData.isNavDataReliable;
 }
 
 __ATTR_ITCM_TEXT
@@ -151,7 +172,7 @@ void alignEarthAccelToNED(float axIn, float ayIn, float azIn, float *axOut, floa
 
 __ATTR_ITCM_TEXT
 void updatePositionReference() {
-	if (fcStatusData.canFly && fcStatusData.isNavDataReliable && fcStatusData.isPositionHomeSet) {
+	if (fcStatusData.canFly && isNavDataReliable() && isPositionHomeSet()) {
 		fcStatusData.positionXRef = positionCordinateData.xPosition;
 		fcStatusData.positionYRef = positionCordinateData.yPosition;
 	}

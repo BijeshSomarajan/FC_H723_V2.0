@@ -22,6 +22,18 @@ void manageCRSFNavFrame(const uint8_t *payload) {
 	 */
 	const CRSFNavCommand_t *cmd = (const CRSFNavCommand_t*) (payload + 3);
 	switch (cmd->action) {
+	case CRSF_NAV_ACTION_START_MISSION: {
+		if (crsfMissionCB) {
+			crsfMissionCB(CRSF_NAV_ACTION_START_MISSION);
+		}
+		break;
+	}
+	case CRSF_NAV_ACTION_ABORT_MISSION: {
+		if (crsfMissionCB) {
+			crsfMissionCB(CRSF_NAV_ACTION_ABORT_MISSION);
+		}
+		break;
+	}
 	case CRSF_NAV_ACTION_CLEAR_WAYPOINTS: {
 		if (crsfWayPointCB) {
 			CRSFNavWaypointPayload_t dummy = { 0 };

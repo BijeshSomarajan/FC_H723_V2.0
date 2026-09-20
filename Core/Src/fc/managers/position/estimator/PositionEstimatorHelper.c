@@ -1,12 +1,16 @@
-#include "../../position/estimator/PositionEstimatorHelper.h"
+#include "PositionEstimatorHelper.h"
 
-#include <string.h>
-#include "../../../memory/Memory.h"
-#include "../../../util/MathUtil.h"
+#include <math.h>
+#include <sys/_stdint.h>
+
 #include "../../../imu/IMU.h"
+#include "../../../memory/Memory.h"
 #include "../../../status/FCStatus.h"
-#include "../../position/common/PositionCommon.h"
-#include "../../position/estimator/VenturiBiasEstimator.h"
+#include "../../../util/MathUtil.h"
+#include "../common/PositionCommon.h"
+#include "../helpers/PositionManagerHelper.h"
+#include "PositionEstimatorConfig.h"
+#include "VenturiBiasEstimator.h"
 
 const float H_BARO_WITH_BIAS[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
 const float H_BARO[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
@@ -51,7 +55,7 @@ void calculateCruiseScale(float dt) {
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
 	float gs = 0.0f;
 	/* No GNSS -> ground speed is dead-reckoned garbage; force hover profile ... */
-	if (fcStatusData.isNavModeActive && fcStatusData.isNavDataReliable) {
+	if (isNavModeActive() && isNavDataReliable()) {
 		gs = getGroundSpeed();
 	}
 	float target = constrainToRangeF((gs - POS_ESTIMATOR_Z_CRUISE_SPEED_LO) / (POS_ESTIMATOR_Z_CRUISE_SPEED_HI - POS_ESTIMATOR_Z_CRUISE_SPEED_LO), 0.0f, 1.0f);

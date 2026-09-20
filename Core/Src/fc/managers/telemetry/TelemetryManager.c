@@ -1,8 +1,11 @@
 #include "TelemetryManager.h"
 
+#include <stdio.h>
+#include <string.h>
 #include <sys/_stdint.h>
 
 #include "../../FCConfig.h"
+#include "../../io/uart/UART.h"
 #include "../../logger/Logger.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
 #include "../../sensors/battery/BatterySensor.h"
@@ -13,7 +16,7 @@
 #include "../../util/MathUtil.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
-#include "../../io/uart/UART.h"
+#include "../position/helpers/PositionManagerHelper.h"
 
 /* ============================================================================
  * BRHS Telemetry Mapping
@@ -55,6 +58,7 @@ char osdBuf[100];
 uint8_t satCountAndReliability = 0;
 float homeDistance = 0;
 float groundSpeed = 0;
+float expectedGroundSpeed = 0;
 
 TelemetryStep currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
 
@@ -71,24 +75,28 @@ void prepareFCStatus() {
 	} else if (fcStatusData.canStart) {
 		fcStatusBuf[0] = 'I';
 	}
-	// Loiter, Pos Hold, RTH
+
+	// Stab, Nav,Cruise , RTH
 	fcStatusBuf[1] = '-';
-	if (fcStatusData.isFailSafeModeActive) {
+	if (isFailSafeModeActive()) {
 		fcStatusBuf[2] = 'F';
 		if (fcStatusData.isNavMissionComplete) {
 			fcStatusBuf[2] = 'C';
 		}
-	} else if (fcStatusData.isNavRTHModeActive) {
+	} else if (isNavRTHModeActive()) {
 		if (fcStatusData.isNavMissionComplete) {
 			fcStatusBuf[2] = 'C';
 		} else {
 			fcStatusBuf[2] = 'R';
 		}
-	} else if (fcStatusData.isNavModeActive) {
+	} else if (isNavCruiseModeActive()) {
+		fcStatusBuf[2] = 'V'; //Cruise Mode
+	} else if (isNavModeActive()) {
 		fcStatusBuf[2] = 'N'; //Nav Mode
 	} else {
 		fcStatusBuf[2] = 'S'; // Stab Mode
 	}
+
 	// Terrain/Baro
 	fcStatusBuf[3] = '-';
 	if (fcStatusData.isTerrainAltModeActive && fcStatusData.isTerrainSensorExist) {
@@ -105,7 +113,7 @@ void prepareFCStatus() {
 	}
 	//Mission
 	fcStatusBuf[7] = '-';
-	if (fcStatusData.isNavModeActive && fcStatusData.isNavMissionModeActive && !fcStatusData.isNavRTHModeActive) {
+	if (isNavModeActive() && isNavMissionModeActive() && !isNavRTHModeActive()) {
 		if (fcStatusData.isNavMissionComplete) {
 			fcStatusBuf[8] = 'C';
 		} else {
@@ -119,36 +127,28 @@ void prepareFCStatus() {
 
 void prepareGNSSData(void) {
 	satCountAndReliability = (gnssData.satCount & 0x3F) | ((uint8_t) (fcStatusData.isNavDataReliable && fcStatusData.isPositionHomeSet) << 6);
-	if (fcStatusData.isPositionHomeSet) {
+	if (isPositionHomeSet()) {
 		float north = positionCordinateData.xPositionRaw;
 		float east = positionCordinateData.yPositionRaw;
 		homeDistance = fastSqrtf(north * north + east * east);
-		groundSpeed = getGroundSpeed();
+		groundSpeed =  getGroundSpeed();
+		if (isNavCruiseModeActive()) {
+			expectedGroundSpeed = fastSqrtf(positionCommandData.targetXVel * positionCommandData.targetXVel + positionCommandData.targetYVel * positionCommandData.targetYVel);
+		} else {
+			expectedGroundSpeed = 0;
+		}
 	}
 
 }
 
 void sendOSDData() {
 	//rxBat,rxBatMax,alt,homeDistance,heading,headingRef,verticalSpeed,groundSpeed,satField,fm,pitch,roll,throttle,batteryAlertState
-	sprintf(osdBuf, "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%s,%.1f,%.1f,%lu,%d\n",
-	        batteryData.voltage,
-	        fcStatusData.batteryNomVolt,
-	        positionCordinateData.zPosition,
-	        homeDistance,
-	        sensorAttitudeData.heading,
-	        fcStatusData.headingHomeRef,
-	        positionCordinateData.zVelocity,
-	        groundSpeed,
-	        satCountAndReliability,
-	        fcStatusBuf,
-	        sensorAttitudeData.pitch,
-	        sensorAttitudeData.roll,
-	        (uint32_t) fcStatusData.currentThrottle,
-			fcStatusData.batteryAlertState
+	sprintf(osdBuf, "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%s,%.1f,%.1f,%lu,%d\n", batteryData.voltage, fcStatusData.batteryNomVolt, positionCordinateData.zPosition, homeDistance, sensorAttitudeData.heading, fcStatusData.headingHomeRef, expectedGroundSpeed, groundSpeed, satCountAndReliability,
+			fcStatusBuf, sensorAttitudeData.pitch, sensorAttitudeData.roll, (uint32_t) fcStatusData.currentThrottle, fcStatusData.batteryAlertState
 
-	);
+			);
 
-	uart8WriteDMA((uint8_t *)osdBuf, strlen(osdBuf));
+	uart8WriteDMA((uint8_t*) osdBuf, strlen(osdBuf));
 }
 
 /**
@@ -158,7 +158,7 @@ void sendOSDData() {
 void telemetryUpdateTask() {
 	switch (currentTelemetryStep) {
 	case TELEMETRY_STEP_ALTITUDE:
-		sendAltitudeTelemetry(positionCordinateData.zPosition, positionCordinateData.zVelocity);
+		sendAltitudeTelemetry(positionCordinateData.zPosition, expectedGroundSpeed);
 		break;
 	case TELEMETRY_STEP_ATTITUDE:
 		sendAttitudeTelemetry(sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAttitudeData.heading);
@@ -183,9 +183,9 @@ void telemetryUpdateTask() {
 	currentTelemetryStep++;
 	if (currentTelemetryStep >= TELEMETRY_STEP_COUNT) {
 		currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
-		#if TELEMETRY_OSD_ENABLED == 1
-				sendOSDData();
-		#endif
+#if TELEMETRY_OSD_ENABLED == 1
+		sendOSDData();
+#endif
 	}
 }
 
@@ -203,6 +203,7 @@ uint8_t initTelemetryManager() {
 #else
 	fcStatusData.isTelemetryEnabled = 0;
 #endif
+
 	logString("[Telemetry Manager] >> Init >> Success\n");
 	return 1;
 }

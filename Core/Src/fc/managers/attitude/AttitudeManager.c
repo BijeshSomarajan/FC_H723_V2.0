@@ -108,30 +108,22 @@ void attRateControlTimerCallback() {
 	doAttitudeRateControl(dt);
 }
 
-float expectedPitch = 0;
-float expectedRoll = 0;
-
 __ATTR_ITCM_TEXT
 void doAttitudeAngleControl(float dt) {
 	if (!rcData.yawCentered) {
 		fcStatusData.headingRef = sensorAttitudeData.heading;
 	}
 	if (fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
-
-#if POSITION_COMMON_USE_STICK_VEL_IN_NAV_MODE ==1
-		//In Nav Mode  , use position velocity commands.
-		if (isNavModeActive() && fcStatusData.isPositionHomeSet) {
+		float expectedPitch = 0;
+		float expectedRoll = 0;
+		//Cruise mode translates the stick movements to velocity commands
+		if (isNavCruiseModeActive()) {
 			expectedPitch = -positionCommandData.pitchCommand;
 			expectedRoll = positionCommandData.rollCommand;
 		} else {
-			//In Stab mode , use stick based angles.
-			expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]);
-			expectedRoll = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX];
+			expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]) - positionCommandData.pitchCommand;
+			expectedRoll = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] + positionCommandData.rollCommand;
 		}
-#else
-		float expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]) - positionCommandData.pitchCommand;
-		float expectedRoll = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] + positionCommandData.rollCommand;
-#endif
 		float expectedYaw = ((float) rcData.RC_EFFECTIVE_DATA[RC_YAW_CHANNEL_INDEX]);
 		expectedPitch = constrainToRangeF(expectedPitch, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
 		expectedRoll = constrainToRangeF(expectedRoll, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);

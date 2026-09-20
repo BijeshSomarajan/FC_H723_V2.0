@@ -7,13 +7,13 @@
 // MISSION NAVIGATION PROFILE
 // =============================================================================
 #define POSITION_MISSION_CRUISE_SPEED_MIN                 0.5f   // 1.0f //Note this will be clamped by the Postion PID settings
-#define POSITION_MISSION_CRUISE_SPEED_MAX                 20.0f   // 1.0f //Note this will be clamped by the Postion PID settings
-#define POSITION_MISSION_BRAKE_DECEL                      0.75f   // m/s²
-#define POSITION_MISSION_WP_NEAR_RADIUS                   1.6f
-#define POSITION_MISSION_WP_CAPTURE_RADIUS                1.2f    //Was 0.8f
-#define POSITION_MISSION_WP_COMPLETE_RADIUS               0.6f
+#define POSITION_MISSION_CRUISE_SPEED_MAX                 20.0f  // 1.0f //Note this will be clamped by the Postion PID settings
+#define POSITION_MISSION_BRAKE_DECEL                      0.75f  // m/s²
+#define POSITION_MISSION_WP_CAPTURE_RADIUS                1.25f  //Was 0.8f
+#define POSITION_MISSION_WP_COMPLETE_RADIUS               0.75f
+#define POSITION_MISSION_WP_COMPLETE_RADIUS_SQ            POSITION_MISSION_WP_COMPLETE_RADIUS * POSITION_MISSION_WP_COMPLETE_RADIUS
 #define POSITION_MISSION_MAX_ACCEL                        5.0f
-#define POSITION_MISSION_WP_COMPLETE_PERIOD               0.5f   //Was 1.0f
+#define POSITION_MISSION_WP_DWELL_TIMEOUT                 0.25f   //Was 1.0f
 #define POSITION_MISSION_WP_COMPLETE_MAX_GROUND_SPEED     0.5f
 #define POSITION_MISSION_RTH_CRUISE_VEL_GAIN              0.65f
 

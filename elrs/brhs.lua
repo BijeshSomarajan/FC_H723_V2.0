@@ -4,7 +4,7 @@
 
 -- Telemetry & Decoded data variables
 local txBat, rxBat, rxBatMax, lq, rssi, alt, heading, headingRef, throttleControl
-local verticalSpeed, groundSpeed, homeDistance, satField, fm, pitch, roll
+local expectedGroundSpeed, groundSpeed, homeDistance, satField, fm, pitch, roll
 local gnssReliable, nSat
 local latitude, longitude
 
@@ -69,6 +69,7 @@ local aAlertNavModes = {
     ["R"] = "/SOUNDS/en/brhs/nav/rth.wav",
     ["C"] = "/SOUNDS/en/brhs/nav/rthCom.wav",
     ["F"] = "/SOUNDS/en/brhs/nav/failSafe.wav",
+	["V"] = "/SOUNDS/en/brhs/nav/cruise.wav",
 }
 
 local aAlertAltModes = {
@@ -367,7 +368,7 @@ local function sendTelemetryToVCP()
             tostring(homeDistance) .. "," ..
             tostring(heading) .. "," ..
             tostring(headingRef) .. "," ..
-            tostring(verticalSpeed) .. "," ..
+            tostring(expectedGroundSpeed) .. "," ..
             tostring(groundSpeed) .. "," ..
             tostring(satField) .. "," ..
             tostring(fm) .. "," ..
@@ -589,7 +590,7 @@ local function receiveDataFromVCPAndSendToFC()
         -- Action 1: Mission command without WP data
         ----------------------------------------------------------------------
 
-        if action == 1 then
+        if action == 1 or action == 3 or action == 4 then
 
             local payload = buildNavMSPPayload(action)
 
@@ -702,12 +703,13 @@ local function run(event)
 
     -- Baro frame
     alt = getValue("Alt") or 0
-	verticalSpeed = getValue("VSpd") or 0
+	expectedGroundSpeed = getValue("VSpd") or 0
     
 	--Attitude Frame
     pitch = getValue("Ptch") or getValue("Pitch") or 0
     roll = getValue("Roll") or getValue("Rol") or 0
     heading = getValue("Yaw") or 0
+	heading =  (heading * 57.2957795) --Convert to degrees
 	
    	--GPS frame
     groundSpeed = getValue("GSpd") or 0
@@ -775,13 +777,13 @@ local function run(event)
         BOLD
     )
 	
-	lcd.drawText(66, 12, "VS:", 0)
+	lcd.drawText(66, 12, "TS:", 0)
     lcd.drawText(
         82,
         12,
         string.format(
             "%.1fms",
-            verticalSpeed
+            expectedGroundSpeed
         ),
         BOLD
     )
@@ -801,7 +803,7 @@ local function run(event)
         BOLD
     )
 	
-	lcd.drawText(66, 22, "GS:", 0)
+	lcd.drawText(66, 22, "CS:", 0)
     lcd.drawText(
         82,
         22,
@@ -813,7 +815,7 @@ local function run(event)
     -- Row 4 , Heading Ref and Current heading
     --------------------------------------------------------------------------
    
-    lcd.drawText(2, 32, "HR:", 0)
+    lcd.drawText(2, 32, "HH:", 0)
     lcd.drawText(
         18,
         32,

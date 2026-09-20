@@ -8,7 +8,7 @@ typedef enum {
     TELEMETRY_STEP_ATTITUDE,
     TELEMETRY_STEP_BATTERY,
     TELEMETRY_STEP_GNSS,
-    TELEMETRY_STEP_FC_STATUS,
+	TELEMETRY_STEP_FC_STATUS,
     TELEMETRY_STEP_COUNT // Keeps track of total states automatically (5)
 } TelemetryStep;
 
