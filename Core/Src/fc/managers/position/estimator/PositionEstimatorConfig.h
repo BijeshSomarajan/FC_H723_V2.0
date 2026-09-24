@@ -430,7 +430,7 @@
  *
  * This is intentionally extremely weak for normal altitude estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE           7000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE           4000.0f
 
 /* Very large GNSS-Z position variance used when the measurement is intentionally
  * muted.
@@ -472,7 +472,7 @@
  * Deliberately extremely weak: GNSS vertical velocity is considerably less
  * useful for this estimator than horizontal GNSS velocity.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE            3000.0f // Z vel is very twitchy
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE            1000.0f // Z vel is very twitchy
 
 /* Maximum dynamically calculated GNSS-Z velocity variance.
  *
@@ -546,7 +546,7 @@
  * Higher -> smoother/more inertial altitude estimate, but greater reliance on
  *           clean acceleration and bias estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            5000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            4500.0f
 
 /* Maximum dynamic barometric position variance, m^2.
  *
@@ -629,7 +629,7 @@
 
 /* Above this horizontal speed, use the full cruise-side Z profile.
  */
-#define POS_ESTIMATOR_Z_CRUISE_SPEED_HI                4.0f   // m/s
+#define POS_ESTIMATOR_Z_CRUISE_SPEED_HI                10.0f   // m/s
 
 /* Time constant for entering the cruise profile.
  *

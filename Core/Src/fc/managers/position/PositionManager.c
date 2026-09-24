@@ -169,7 +169,7 @@ void doBraking(float dt) {
 
 __ATTR_ITCM_TEXT
 void updatePositionRateCommand(float dt) {
-	if (isNavModeActive() && isPositionHomeSet()) {
+	if (isNavModeActive()) {
 		if (isNavCruiseModeActive() || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
 			controlPositionRateWithGains(dt, 1.0f, 1.0f, 1.0f, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy);
 			float pitchCommand, rollCommand;
@@ -205,7 +205,6 @@ void manageCruiseCommand(float dt) {
 
 __ATTR_ITCM_TEXT
 void updatePositionCordinateCommand(float dt) {
-
 	if (!rcData.pitchCentered || !rcData.rollCentered) {
 		if (isNavCruiseModeActive()) {
 			manageCruiseCommand(dt);

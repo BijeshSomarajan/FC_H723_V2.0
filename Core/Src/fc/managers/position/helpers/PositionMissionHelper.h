@@ -15,7 +15,9 @@
 #define POSITION_MISSION_MAX_ACCEL                        5.0f
 #define POSITION_MISSION_WP_DWELL_TIMEOUT                 0.25f   //Was 1.0f
 #define POSITION_MISSION_WP_COMPLETE_MAX_GROUND_SPEED     0.5f
-#define POSITION_MISSION_RTH_CRUISE_VEL_GAIN              0.65f
+#define POSITION_MISSION_WP_DISTANCE_LPF_ALPHA            0.65f   //LPF applied on the distance.
+
+#define POSITION_MISSION_IMPL_VERSION 0
 
 void initPositionMissionHelper(void);
 void handleNavMission(float dt);

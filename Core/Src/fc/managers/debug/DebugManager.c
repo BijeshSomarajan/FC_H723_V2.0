@@ -54,13 +54,13 @@ void debugGPS() {
 
 uint8_t sendX = 0;
 void debugRC() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.canStart;
+	DEBUG_DATA_BUFFER[0] = getRCValue(RC_START_CHANNEL_INDEX);
 	DEBUG_DATA_BUFFER[1] = rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[2] = rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[3] = rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[4] = rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[5] = rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX];
-	DEBUG_DATA_BUFFER[6] = rcData.RC_DELTA_DATA[RC_VARIO_CHANNEL_INDEX];
+	//DEBUG_DATA_BUFFER[6] = rcData.RC_DELTA_DATA[RC_VARIO_CHANNEL_INDEX];
 	DEBUG_DATA_BUFFER[7] = fcStatusData.isLandingModeActive;
 	DEBUG_DATA_BUFFER[8] = fcStatusData.isTerrainAltModeActive;
 	DEBUG_DATA_BUFFER[9] = fcStatusData.isNavModeActive;
@@ -205,7 +205,7 @@ void debugTask() {
 	(void) dt;
 //nowMs += dt;
 //debugBattery();
-//debugRC();
+debugRC();
 //debugModel();
 //debugIMU();
 //debugALt();
@@ -217,6 +217,6 @@ void debugTask() {
 //debugNoise();
 //debugNav();
 //debugNavStates();
-debugTelemetry();
+//debugTelemetry();
 
 }

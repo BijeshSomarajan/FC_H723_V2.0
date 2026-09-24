@@ -1,5 +1,5 @@
 #include "PositionMissionHelper.h"
-
+#if POSITION_MISSION_IMPL_VERSION == 0
 #include <math.h>
 #include <stdio.h>
 #include <sys/_stdint.h>
@@ -17,14 +17,11 @@
 float positionMissionVxCommand, positionMissionVyCommand;
 
 float positionMissionWPCompleteDt = 0;
-
+float positionMissionWPDistanceFiltered = 0;
 uint8_t positionMissionWasRTHModeActive = 0;
 uint8_t positionMissionWasMissionModeActive = 0;
-
 int16_t positionMissionWPIndx = 0;
-
 uint8_t positionMissionWPComplete = 0;
-
 int16_t positionMissionWPCount = 0;
 
 float positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_MIN;
@@ -36,12 +33,12 @@ void updateMissionVelocityCommand(float dt);
 
 void initPositionMissionHelper() {
 	positionCruiseSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR));
-	if (positionCruiseSpeed < 0 || positionCruiseSpeed > POSITION_MISSION_CRUISE_SPEED_MAX) {
+	if (positionCruiseSpeed > POSITION_MISSION_CRUISE_SPEED_MAX) {
 		positionCruiseSpeed = POSITION_MISSION_CRUISE_SPEED_MIN;
 	}
 
 	positionRTHSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RTH_SPEED_ADDR));
-	if (positionRTHSpeed < 0 || positionRTHSpeed > positionCruiseSpeed) {
+	if ( positionRTHSpeed > positionCruiseSpeed) {
 		positionRTHSpeed = positionCruiseSpeed * 0.8f;
 	}
 
@@ -58,6 +55,7 @@ float getMaxCruiseSpeed() {
 void resetNavWPStates() {
 	positionMissionWPComplete = 0;
 	positionMissionWPCompleteDt = 0;
+	positionMissionWPDistanceFiltered = 0;
 }
 
 void resetNavRTHStates() {
@@ -129,7 +127,6 @@ void groundStationMissionCallBack(uint8_t action) {
 
 __ATTR_ITCM_TEXT
 void handleNavMission(float dt) {
-
 	if (isNavRTHModeActive()) {
 		positionMissionWasMissionModeActive = 0;
 		fcStatusData.isNavMissionModeActive = 0;
@@ -153,11 +150,9 @@ void handleNavMission(float dt) {
 			}
 		}
 	}
-
 	updateMissionVelocityCommand(dt);
 	updateWPCompletionStatus(dt);
 	updatePositionReference();
-
 	if (positionMissionWPComplete) {
 		positionMissionWPIndx++;
 		resetNavWPStates();
@@ -238,9 +233,10 @@ void updateWPCompletionStatus(float dt) {
 	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
 	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
 	float distSq = dx * dx + dy * dy;
+	positionMissionWPDistanceFiltered +=  POSITION_MISSION_WP_DISTANCE_LPF_ALPHA * (distSq - positionMissionWPDistanceFiltered);
 
 	// Squared compare: no sqrt needed
-	uint8_t insideRadius = (distSq <= POSITION_MISSION_WP_COMPLETE_RADIUS_SQ);
+	uint8_t insideRadius = (positionMissionWPDistanceFiltered <= POSITION_MISSION_WP_COMPLETE_RADIUS_SQ);
 	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MISSION_WP_COMPLETE_MAX_GROUND_SPEED);
 
 	// Dwell timer: counts continuous time inside the capture radius
@@ -249,7 +245,9 @@ void updateWPCompletionStatus(float dt) {
 			positionMissionWPCompleteDt += dt;
 		}
 	} else {
-		positionMissionWPCompleteDt = 0.0f;
+		// Decay rather than hard-reset: a brief single-cycle excursion
+		// (noise) shouldn't erase several seconds of accumulated dwell.
+		positionMissionWPCompleteDt = fmaxf(positionMissionWPCompleteDt - dt, 0.0f);
 	}
 
 	// Normal path: inside radius and settled
@@ -257,3 +255,5 @@ void updateWPCompletionStatus(float dt) {
 	uint8_t dwellTimeout = (positionMissionWPCompleteDt >= POSITION_MISSION_WP_DWELL_TIMEOUT);
 	positionMissionWPComplete = (insideRadius && (lowGroundSpeed || dwellTimeout)) ? 1 : 0;
 }
+
+#endif
