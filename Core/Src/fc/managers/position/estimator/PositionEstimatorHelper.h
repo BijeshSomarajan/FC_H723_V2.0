@@ -2,7 +2,6 @@
 #define SRC_FC_MANAGERS_POSITION_ESTIMATOR_POSITIONESTIMATORHELPER_H_
 #include "../../position/estimator/PositionEstimator.h"
 
-#define POSITION_MGR_Z_ENABLE_DYNAMIC_R               1
 #define POSITION_MGR_VENTURI_ESTIMATE_ENABLED         1
 
 void resetPVEstimation(uint8_t axis, uint8_t keepBias);
