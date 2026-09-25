@@ -472,7 +472,7 @@
  * Deliberately extremely weak: GNSS vertical velocity is considerably less
  * useful for this estimator than horizontal GNSS velocity.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE            1000.0f // Z vel is very twitchy
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           200.0f// 1000.0f // Z vel is very twitchy
 
 /* Maximum dynamically calculated GNSS-Z velocity variance.
  *
@@ -485,7 +485,7 @@
  * This strongly de-weights the measurement rather than treating it as a
  * normal GNSS-Z velocity observation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MUTED          10000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MUTED          300000.0f
 
 
 /* =========================================================================
@@ -546,7 +546,7 @@
  * Higher -> smoother/more inertial altitude estimate, but greater reliance on
  *           clean acceleration and bias estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            4500.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN            10000.0f
 
 /* Maximum dynamic barometric position variance, m^2.
  *
@@ -555,8 +555,8 @@
  * Reached as motionScale increases, further reducing baro authority during
  * strong maneuver-induced pressure disturbances.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            10000.0f
-
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX             27000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MUTED          270000.0f
 /* Numerical guards. Do not tune.
  */
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_EPS            0.000001f
@@ -617,33 +617,28 @@
 /* =========================================================================
  * Group 9: Cruise-Adaptive Z Estimator Profile
  * ========================================================================= */
-
+#define POSITION_MGR_Z_ENABLE_DYNAMIC_R               1
 /* Enable transition between hover and cruise Z estimator profiles based on
  * horizontal speed.
  */
-#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED           1
-
+#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED          1
 /* Below this horizontal speed, use the hover-side Z profile.
  */
 #define POS_ESTIMATOR_Z_CRUISE_SPEED_LO                2.0f   // m/s
-
 /* Above this horizontal speed, use the full cruise-side Z profile.
  */
 #define POS_ESTIMATOR_Z_CRUISE_SPEED_HI                10.0f   // m/s
-
 /* Time constant for entering the cruise profile.
  *
  * Faster transition as sustained translation begins.
  */
 #define POS_ESTIMATOR_Z_CRUISE_TAU_RISE                0.3f   // s
-
 /* Time constant for returning toward the hover profile.
  *
  * Deliberately slower release avoids an abrupt change in Z measurement
  * authority immediately after braking or leveling.
  */
 #define POS_ESTIMATOR_Z_CRUISE_TAU_FALL                1.0f   // s
-
 /* GNSS-Z velocity variance used by the cruise profile.
  *
  * R = 1.0 (m/s)^2 -> sigma = 1.0 m/s.
@@ -655,6 +650,8 @@
  * ringing, since GNSS-Z velocity is otherwise intentionally near-muted.
  */
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_CRUISE    1.0f   // (m/s)^2
+
+
 
 #endif
 

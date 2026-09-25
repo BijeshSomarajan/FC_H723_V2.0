@@ -205,10 +205,10 @@ void debugTask() {
 	(void) dt;
 //nowMs += dt;
 //debugBattery();
-debugRC();
+//debugRC();
 //debugModel();
 //debugIMU();
-//debugALt();
+debugALt();
 //debugAltStr();
 //debugAltGraph();
 //debugGnssData();

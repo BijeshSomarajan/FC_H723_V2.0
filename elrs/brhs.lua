@@ -725,7 +725,7 @@ local function run(event)
 	
    	--GPS frame
     groundSpeed = getValue("GSpd") or 0
-	homeDistance = getFirstValue("GAlt", "Galt", "Alts") or 0 --Some tx does not support this property , you need to map this --
+	homeDistance = getFirstValue("galt","Galt", "GAlt", "Alts") or 0 --Some tx does not support this property , you need to map this --
 	headingRef = getValue("Hdg") or 0
 	satField = getValue("Sats") or 0
     

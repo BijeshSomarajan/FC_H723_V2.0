@@ -219,23 +219,24 @@ void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void updateZPositionSL(float offset, float zPos, float dt) {
+void updateZPositionSL(float offset, float zPos, float dt, uint8_t slValid) {
 	positionCordinateData.positionZSLUpdateDt = dt;
 	positionCordinateData.zPositionRawSL = zPos;
+	float dynamicRPSL = (slValid == 1 ? POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN : POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MUTED);
 
-	float dynamicRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN;
+	if (slValid == 1) {
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
-	float motionScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
-
+		float motionScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
-	calculateCruiseScale(dt);
-	motionScale = fmaxf(motionScale, getCruiseScale());   // max, not sum — don't double-count a braking cruise
+		calculateCruiseScale(dt);
+		motionScale = fmaxf(motionScale, getCruiseScale());   // max, not sum — don't double-count a braking cruise
 #endif
-	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
+		dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
 #endif
+	}
 
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
-	float venturiBias = getVenturiBiasEstimate(dt);
+	float venturiBias = (slValid == 1 ? getVenturiBiasEstimate(dt) : 0);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos - venturiBias, dynamicRPSL, H_BARO_WITH_BIAS);
 #else
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
@@ -282,7 +283,6 @@ void updateXYVelocityGNSS(float sAcc, float velN, float velE, float dt) {
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Y_AXIS, velEDb, dynamicRv, H_V_GNSS);
 #endif
 }
-
 
 __ATTR_ITCM_TEXT
 void updateZVelocityGNSS(float sAcc, float velZ, uint8_t navigationModeActive, float dt) {
