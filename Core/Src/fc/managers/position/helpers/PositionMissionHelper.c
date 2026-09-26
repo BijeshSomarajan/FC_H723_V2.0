@@ -1,5 +1,5 @@
 #include "PositionMissionHelper.h"
-#if POSITION_MISSION_IMPL_VERSION == 0
+
 #include <math.h>
 #include <stdio.h>
 #include <sys/_stdint.h>
@@ -70,8 +70,6 @@ void resetNavMissionStates() {
 	positionMissionVxCommand = 0;
 	positionMissionVyCommand = 0;
 
-	fcStatusData.isNavMissionComplete = 0;
-
 	resetNavRTHStates();
 	resetNavMissionModeStates();
 
@@ -111,6 +109,7 @@ uint8_t loadWayPoints() {
 void groundStationMissionCallBack(uint8_t action) {
 	if (action == NAV_ACTION_START_MISSION) {
 		resetNavMissionStates();
+		fcStatusData.isNavMissionComplete = 0;
 		if (!isNavRTHModeActive()) { // RTH injects a synthetic mission
 			fcStatusData.isNavMissionModeActive = 1;
 			positionMissionWasMissionModeActive = 0;
@@ -121,6 +120,7 @@ void groundStationMissionCallBack(uint8_t action) {
 		loadWayPoints();
 	} else if (action == NAV_ACTION_ABORT_MISSION) {
 		resetNavMissionStates();
+		fcStatusData.isNavMissionComplete = 0;
 		fcStatusData.isNavMissionModeActive = 0;
 	}
 }
@@ -159,6 +159,7 @@ void handleNavMission(float dt) {
 		uint8_t hasMoreWP = loadWayPoints();
 		if (!hasMoreWP) {
 			fcStatusData.isNavMissionComplete = 1;
+			fcStatusData.isNavMissionModeActive = 0;
 			updatePositionReferenceToWPRef(); // The last mission WP reference is taken as the new anchor
 			if (fcStatusData.isFailSafeModeActive) {
 				//Trigger Landing
@@ -249,11 +250,10 @@ void updateWPCompletionStatus(float dt) {
 		// (noise) shouldn't erase several seconds of accumulated dwell.
 		positionMissionWPCompleteDt = fmaxf(positionMissionWPCompleteDt - dt, 0.0f);
 	}
-
 	// Normal path: inside radius and settled
 	// Worst case:  inside radius for DWELL_TIMEOUT regardless of speed
 	uint8_t dwellTimeout = (positionMissionWPCompleteDt >= POSITION_MISSION_WP_DWELL_TIMEOUT);
 	positionMissionWPComplete = (insideRadius && (lowGroundSpeed || dwellTimeout)) ? 1 : 0;
 }
 
-#endif
+

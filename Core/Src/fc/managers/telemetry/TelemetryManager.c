@@ -113,11 +113,13 @@ void prepareFCStatus() {
 	}
 	//Mission
 	fcStatusBuf[7] = '-';
-	if (isNavModeActive() && isNavMissionModeActive() && !isNavRTHModeActive()) {
+	if (isNavModeActive()  && !isNavRTHModeActive()) {
 		if (fcStatusData.isNavMissionComplete) {
 			fcStatusBuf[8] = 'C';
-		} else {
+		} else if (isNavMissionModeActive()){
 			fcStatusBuf[8] = 'M';
+		}else{
+			fcStatusBuf[8] = 'N';
 		}
 	} else {
 		fcStatusBuf[8] = 'N';

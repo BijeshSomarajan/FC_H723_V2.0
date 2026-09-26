@@ -472,7 +472,7 @@
  * Deliberately extremely weak: GNSS vertical velocity is considerably less
  * useful for this estimator than horizontal GNSS velocity.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           200.0f// 1000.0f // Z vel is very twitchy
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE           1000.0f// 1000.0f // Z vel is very twitchy
 
 /* Maximum dynamically calculated GNSS-Z velocity variance.
  *
@@ -617,11 +617,12 @@
 /* =========================================================================
  * Group 9: Cruise-Adaptive Z Estimator Profile
  * ========================================================================= */
-#define POSITION_MGR_Z_ENABLE_DYNAMIC_R               1
+#define POSITION_MGR_Z_ENABLE_DYNAMIC_R               0 // Disabled , no real benefit
+#if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
 /* Enable transition between hover and cruise Z estimator profiles based on
  * horizontal speed.
  */
-#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED          1
+#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED           0 // Disabled , no real benefit
 /* Below this horizontal speed, use the hover-side Z profile.
  */
 #define POS_ESTIMATOR_Z_CRUISE_SPEED_LO                2.0f   // m/s
@@ -650,8 +651,7 @@
  * ringing, since GNSS-Z velocity is otherwise intentionally near-muted.
  */
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_CRUISE    1.0f   // (m/s)^2
-
-
+#endif
 
 #endif
 

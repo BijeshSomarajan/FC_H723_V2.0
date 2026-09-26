@@ -17,8 +17,6 @@
 #define POSITION_MISSION_WP_COMPLETE_MAX_GROUND_SPEED     0.5f
 #define POSITION_MISSION_WP_DISTANCE_LPF_ALPHA            0.65f   //LPF applied on the distance.
 
-#define POSITION_MISSION_IMPL_VERSION 0
-
 void initPositionMissionHelper(void);
 void handleNavMission(float dt);
 void resetNavMissionStates(void);
