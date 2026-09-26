@@ -113,11 +113,13 @@ void prepareFCStatus() {
 	}
 	//Mission
 	fcStatusBuf[7] = '-';
-	if (isNavModeActive() && isNavMissionModeActive() && !isNavRTHModeActive()) {
+	if (isNavModeActive()  && !isNavRTHModeActive()) {
 		if (fcStatusData.isNavMissionComplete) {
 			fcStatusBuf[8] = 'C';
-		} else {
+		} else if (isNavMissionModeActive()){
 			fcStatusBuf[8] = 'M';
+		}else{
+			fcStatusBuf[8] = 'N';
 		}
 	} else {
 		fcStatusBuf[8] = 'N';
@@ -131,12 +133,10 @@ void prepareGNSSData(void) {
 		float north = positionCordinateData.xPositionRaw;
 		float east = positionCordinateData.yPositionRaw;
 		homeDistance = fastSqrtf(north * north + east * east);
-		groundSpeed =  getGroundSpeed();
-		if (isNavCruiseModeActive()) {
-			expectedGroundSpeed = fastSqrtf(positionCommandData.targetXVel * positionCommandData.targetXVel + positionCommandData.targetYVel * positionCommandData.targetYVel);
-		} else {
-			expectedGroundSpeed = 0;
-		}
+		groundSpeed = getGroundSpeed();
+	} else {
+		homeDistance = 0.0f;
+		groundSpeed = 0.0f;
 	}
 
 }
@@ -158,6 +158,11 @@ void sendOSDData() {
 void telemetryUpdateTask() {
 	switch (currentTelemetryStep) {
 	case TELEMETRY_STEP_ALTITUDE:
+		if (isNavCruiseModeActive()) {
+			expectedGroundSpeed = fastSqrtf(positionCommandData.targetXVel * positionCommandData.targetXVel + positionCommandData.targetYVel * positionCommandData.targetYVel);
+		} else {
+			expectedGroundSpeed = 0.0f;
+		}
 		sendAltitudeTelemetry(positionCordinateData.zPosition, expectedGroundSpeed);
 		break;
 	case TELEMETRY_STEP_ATTITUDE:

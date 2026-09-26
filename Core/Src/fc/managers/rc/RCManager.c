@@ -260,7 +260,7 @@ void loadRCStickDelta() {
 	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX]);
 
 	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = getRCValue(RC_LAND_CHANNEL_INDEX);
-	rcData.RC_DELTA_DATA[RC_VARIO_CHANNEL_INDEX] = getRCValue(RC_VARIO_CHANNEL_INDEX);
+	//rcData.RC_DELTA_DATA[RC_VARIO_CHANNEL_INDEX] = getRCValue(RC_VARIO_CHANNEL_INDEX);
 }
 
 /*************************************************************************/
@@ -347,7 +347,7 @@ uint8_t checkLandingModeActivation() {
  Checks if the Model can be armed
  **/
 uint8_t canStartModel() {
-	if (getRCValue(RC_START_CHANNEL_INDEX) == RC_CHANNEL_MAX_VALUE) {
+	if (getRCValue(RC_START_CHANNEL_INDEX) > RC_CHANNEL_MID_VALUE) {
 		return 1;
 	} else {
 		return 0;

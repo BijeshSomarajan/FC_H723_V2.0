@@ -76,6 +76,20 @@ typedef struct __attribute__((packed)) {
 	int16_t vertical_speed;
 } crsf_payload_baro_t;
 
+/**
+ * @brief CRSF Barometric Altitude + Vertical Speed payload
+ *
+ * 2 bytes packed altitude
+ * 1 byte packed vertical speed
+ */
+// 1. Force the structure to be perfectly packed with NO alignment padding
+/*
+typedef struct __attribute__((packed)) {
+    uint16_t altitude;       // 2 bytes (Must be sent Big-Endian)
+    int8_t vertical_speed;   // 1 byte
+} crsf_payload3b_baro_t;
+*/
+
 /* ================================================================= *
  * COMMON CORE TRANSMITTER                       *
  * ================================================================= */
@@ -146,12 +160,12 @@ void crsfSendGNSS(double lat, double lon, float speed, float heading, float dist
 	uint16_t headingScaled = (uint16_t) (heading * 100.0f);
 	uint16_t distanceScaled = (uint16_t) (distance * 10 + 1000);
 
-	frame.latitude     = __REV((uint32_t) latScaled);
-	frame.longitude    = __REV((uint32_t) lonScaled);
+	frame.latitude = __REV((uint32_t) latScaled);
+	frame.longitude = __REV((uint32_t) lonScaled);
 	frame.ground_speed = __REV16(speedScaled);
-	frame.heading      = __REV16(headingScaled);
-	frame.altitude     = __REV16(distanceScaled);
-	frame.satellites   = satellites;
+	frame.heading = __REV16(headingScaled);
+	frame.altitude = __REV16(distanceScaled);
+	frame.satellites = satellites;
 
 	crsfSendTelemetry(CRSF_FRAMETYPE_GPS, (uint8_t*) &frame, sizeof(frame));
 }
@@ -186,6 +200,48 @@ uint16_t crsfPackAltitude(float altitude_m) {
 	// Extended mode
 	return (uint16_t) ((altitude_dm / 10) | 0x8000);
 }
+/*
+
+static uint16_t crsfPackAltitude3B(float altitude_m) {
+    int32_t altitude_dm = (int32_t)(altitude_m * 10.0f);
+    if (altitude_dm < -10000) {
+        return 0;
+    }
+    if (altitude_dm < 22768) {
+        return (uint16_t)(altitude_dm + 10000);
+    }
+    // Correctly apply the 0x8000 scale bit flag for high altitudes
+    return (uint16_t)(((int32_t)altitude_m & 0x7FFF) | 0x8000);
+}
+
+static int8_t crsfPackVerticalSpeed3B(float verticalSpeed) {
+    if (verticalSpeed == 0.0f) {
+        return 0;
+    }
+    float magnitude = fabsf(verticalSpeed);
+    // Betaflight/INAV VSpd logarithmic packing formula
+    float packed = logf(magnitude + 1.0f) / 0.026f;
+    int32_t value = (int32_t)(packed + 0.5f);
+    if (value > 127) {
+        value = 127;
+    }
+    if (verticalSpeed < 0.0f) {
+        value = -value;
+    }
+    return (int8_t)value;
+}
+void crsfSendAltitude3B(float altitude, float verticalSpeed) {
+    crsf_payload3b_baro_t frame;
+    // Pack and ensure Big-Endian byte swap
+    uint16_t packed_alt = crsfPackAltitude3B(altitude);
+    frame.altitude = __REV16(packed_alt);
+
+    frame.vertical_speed = crsfPackVerticalSpeed3B(verticalSpeed);
+
+    // sizeof(frame) will now reliably be exactly 3 bytes
+    crsfSendTelemetry(CRSF_FRAMETYPE_BARO_ALTITUDE, (uint8_t*)&frame, sizeof(frame));
+}
+*/
 
 void crsfSendAltitude(float altitude, float verticalSpeed) {
 	crsf_payload_baro_t frame;

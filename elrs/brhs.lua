@@ -672,6 +672,18 @@ local function receiveDataFromVCPAndSendToFC()
     end
 end
 
+local function getFirstValue(...)
+    for i = 1, select("#", ...) do
+        local name = select(i, ...)
+        local field = getFieldInfo(name)
+
+        if field then
+            return getValue(field.id)
+        end
+    end
+
+    return 0
+end
 
 -- ==========================================================================
 -- MAIN EXECUTION LOOP
@@ -713,7 +725,7 @@ local function run(event)
 	
    	--GPS frame
     groundSpeed = getValue("GSpd") or 0
-	homeDistance = getValue("Alts") or 0
+	homeDistance = getFirstValue("galt","Galt", "GAlt", "Alts") or 0 --Some tx does not support this property , you need to map this --
 	headingRef = getValue("Hdg") or 0
 	satField = getValue("Sats") or 0
     

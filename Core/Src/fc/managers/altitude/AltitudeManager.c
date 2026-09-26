@@ -324,13 +324,14 @@ void manageAltitude(float dt) {
 		altMgrAccDtAccumulation += dt;
 		altMgrVelDtAccumulation += dt;
 		altMgrAltDtAccumulation += dt;
-		while (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD || altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD ) {
+		while (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD || altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD) {
 			if (altMgrVelDtAccumulation >= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD) {
 				controlAltitudeVelWithGains(ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD, altControlGains);
 				altMgrVelDtAccumulation -= ALTITUDE_MANAGEMENT_VEL_TASK_PERIOD;
 			}
 
 			if (altMgrAltDtAccumulation >= ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD) {
+
 #if ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE == 1
 				//In terrain mode , allow alt hold.
 				if ((!fcStatusData.isTerrainAltModeActive || !fcStatusData.isTerrainSensorExist) && !isNavModeActive()) {
@@ -459,7 +460,12 @@ void doAltitudeManagement(void) {
 	if (dataAvailableMask != SENSOR_DATA_NONE) {
 
 		if (dataAvailableMask & SENSOR_DATA_BARO) {
-			updateZPositionSL(sensorAltitudeData.altitudeSLZOffset, sensorAltitudeData.altitudeSLScaled, altMgrSLAltUpdateDt);
+
+#if ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE == 1
+			updateZPositionSL(sensorAltitudeData.altitudeSLZOffset, sensorAltitudeData.altitudeSLScaled, altMgrSLAltUpdateDt, fcStatusData.isNavModeActive);
+#else
+			updateZPositionSL(sensorAltitudeData.altitudeSLZOffset, sensorAltitudeData.altitudeSLScaled, altMgrSLAltUpdateDt, 1);
+#endif
 			altMgrSLAltUpdateDt = 0.0f;
 		}
 

@@ -78,17 +78,17 @@ uint8_t isNavModeActive() {
 
 __ATTR_ITCM_TEXT
 uint8_t isNavCruiseModeActive() {
-	return isNavModeActive() && (fcStatusData.isNavCruiseModeActive) ;
+	return isNavModeActive() && (fcStatusData.isNavCruiseModeActive);
 }
 
 __ATTR_ITCM_TEXT
 uint8_t isNavRTHModeActive() {
-	return isNavModeActive() && (fcStatusData.isNavRTHModeActive || fcStatusData.isFailSafeModeActive) ;
+	return isNavModeActive() && (fcStatusData.isNavRTHModeActive || fcStatusData.isFailSafeModeActive);
 }
 
 __ATTR_ITCM_TEXT
 uint8_t isNavMissionModeActive() {
-	return isNavModeActive() && fcStatusData.isNavMissionModeActive ;
+	return isNavModeActive() && fcStatusData.isNavMissionModeActive;
 }
 
 __ATTR_ITCM_TEXT
@@ -97,12 +97,12 @@ uint8_t isFailSafeModeActive() {
 }
 
 __ATTR_ITCM_TEXT
-uint8_t isPositionHomeSet(){
-	return (fcStatusData.isPositionHomeSet);
+uint8_t isPositionHomeSet() {
+	return fcStatusData.isPositionHomeSet;
 }
 
 __ATTR_ITCM_TEXT
-uint8_t isNavDataReliable(){
+uint8_t isNavDataReliable() {
 	return fcStatusData.isNavDataReliable;
 }
 
