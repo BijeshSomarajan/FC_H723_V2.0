@@ -99,8 +99,8 @@
  * velocity and accel-bias states. Raise only if position covariance becomes
  * unrealistically constrained between GNSS updates.
  */
-#define POS_EKF_X_Q_POS                    0.00005f         // 0.000003f // 0.00001f
-#define POS_EKF_Y_Q_POS                    0.00005f         // 0.000003f // 0.00001f
+#define POS_EKF_X_Q_POS                    0.00005f    * 1.2f     // 0.000003f // 0.00001f
+#define POS_EKF_Y_Q_POS                    0.00005f    * 1.2f     // 0.000003f // 0.00001f
 
 /* Velocity random walk, (m/s)^2 per 1 ms predict step.
  *
@@ -115,8 +115,8 @@
  *
  * Tuned together with GNSS SACC_MIN and delay compensation.
  */
-#define POS_EKF_X_Q_VEL                     0.005f
-#define POS_EKF_Y_Q_VEL                     0.005f
+#define POS_EKF_X_Q_VEL                     0.005f  * 1.2f
+#define POS_EKF_Y_Q_VEL                     0.005f  * 1.2f
 
 /* Accel-bias random walk, (m/s^2)^2 per 1 ms predict step.
  *
@@ -248,8 +248,9 @@
  * prediction uncertainty so the filter is less likely to become overconfident
  * during violent maneuvers or vibration bursts.
  */
-#define POS_EKF_DYNAMIC_Q_ENABLED           1
+#define POS_EKF_DYNAMIC_Q_ENABLED          1
 
+#if POS_EKF_DYNAMIC_Q_ENABLED == 1
 /* XY linear-acceleration threshold, m/s^2.
  *
  * Dynamic Q scaling begins when XY linear acceleration reaches this threshold.
@@ -286,12 +287,15 @@
 #define POS_EKF_Q_VEL_STRESS_GAIN           2.5f
 #define POS_EKF_Q_BIAS_STRESS_GAIN          0.0f
 
+#endif
+
 /* Covariance multiplier applied during panic recovery.
  *
  * A 10x inflation rapidly reopens the measurement gate when the state has
  * clearly diverged.
  */
 #define POS_EKF_PANIC_P_INFLATE             10.0f
+
 
 
 /* =========================================================================
@@ -430,7 +434,7 @@
  *
  * This is intentionally extremely weak for normal altitude estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE           4000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE           5000.0f
 
 /* Very large GNSS-Z position variance used when the measurement is intentionally
  * muted.
