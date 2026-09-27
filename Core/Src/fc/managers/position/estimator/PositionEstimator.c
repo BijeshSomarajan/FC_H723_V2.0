@@ -109,6 +109,7 @@ void positionEKFInvalidate(POSITION_EKF *ekf, uint8_t axis) {
 	}
 }
 
+#if POS_EKF_DYNAMIC_Q_ENABLED == 1
 __ATTR_ITCM_TEXT
 void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axis, float ax, float ay, float az, float *out_q00, float *out_q11, float *out_q22, float *out_q33) {
 	const int i = axis * POS_EKF_AXIS_DIM;
@@ -156,7 +157,7 @@ void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axis, float ax, f
 	*out_q22 = q22;
 	*out_q33 = q33;
 }
-
+#endif
 
 __ATTR_ITCM_TEXT
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt) {
