@@ -1,15 +1,16 @@
 #include "AltitudeControl.h"
 
+#include <math.h>
 #include <sys/_stdint.h>
 
 #include "../../calibration/Calibration.h"
+#include "../../logger/Logger.h"
+#include "../../managers/position/common/PositionCommon.h"
 #include "../../memory/Memory.h"
+#include "../../status/FCStatus.h"
+#include "../../util/MathUtil.h"
 #include "../ControlData.h"
 #include "../Pid.h"
-#include "../../FCConfig.h"
-#include "../../managers/position/PositionManager.h"
-#include "../../status/FCStatus.h"
-#include "../../sensors/attitude/AttitudeSensor.h"
 
 PID altPID;
 PID altRatePID;
@@ -41,6 +42,9 @@ uint8_t initAltitudeControl() {
 
 	//Overall Limit
 	altControlLimit = get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_CONTROL_LIMIT_ADDR);
+	char buf[64];
+	sprintf(buf, "ACL:%f , RCL:%f ,FCL:%f\n", altMasterPLimit, altRateILimit, altControlLimit);
+	logString(buf);
 
 	altControlExpectedAccFilt = 0.0f;
 
@@ -48,31 +52,6 @@ uint8_t initAltitudeControl() {
 	return 1;
 }
 
-void resetAltitudeControlMPLimits(void) {
-	pidSetPOutputLimits(&altPID, -altMasterPLimit, altMasterPLimit);
-}
-
-void resetAltitudeControlRILimits(void) {
-	pidSetIOutputLimits(&altRatePID, -altRateILimit, altRateILimit);
-}
-
-float getAltitudeControlMPValue() {
-	return altPID.p;
-}
-
-float getAltitudeControlRIValue() {
-	return altRatePID.i;
-}
-
-void applyAltitudeControlMPMinLimitToValue(float value) {
-	value = constrainToRangeF(value, -altMasterPLimit, altMasterPLimit);
-	pidSetPOutputLimits(&altPID, value, altMasterPLimit);
-}
-
-void applyAltitudeControlRIMinLimitToValue(float value) {
-	value = constrainToRangeF(value, -altRateILimit, altRateILimit);
-	pidSetIOutputLimits(&altRatePID, value, altRateILimit);
-}
 
 void resetAltitudeControlMaster(void) {
 	pidReset(&altPID);
@@ -127,6 +106,13 @@ void controlAltitudeAltWithGains(float dt, float expectedAltitude, float current
 	pidUpdateWithGains(&altPID, currentAltitude, expectedAltitude, dt, altControlGains.masterPGain, 0.0f, 0.0f);
 }
 
+
+__ATTR_ITCM_TEXT
+void setExpectedAltitudeVelocity(float dt, float expectedVel) {
+	altPID.pid =constrainToRangeF(expectedVel, -altMasterPLimit, altMasterPLimit);
+}
+
+#if ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED == 1
 __ATTR_ITCM_TEXT
 static void updateAltitudeDOB(float thrustGain, float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
 	/* What acceleration SHOULD the previous throttle output have produced?
@@ -163,21 +149,41 @@ static void updateAltitudeDOB(float thrustGain, float dt, ALTITUDE_CONTROL_GAINS
 	float dobOutput = -altControlZDisturbanceEstimate * thrustGain * ALT_CONTROL_ACC_DISTURBANCE_FF_GAIN;
 	controlData.altitudeDOBControl = constrainToRangeF(dobOutput, -ALT_CONTROL_DOB_OUTPUT_LIMIT, ALT_CONTROL_DOB_OUTPUT_LIMIT);
 }
+#endif
+
+/*
+ * Back-calculation anti-windup for the altitude-rate loop.
+ *
+ * The rate PID output is converted to throttle units using thrustGain.
+ * If the resulting throttle command saturates, the saturation error is
+ * converted back into PID-output units and fed back into the integrator.
+ *
+ * This prevents the rate-loop I term from continuing to accumulate while
+ * the altitude control output is already at its actuator limit.
+ */
+__ATTR_ITCM_TEXT
+static float altitudeControlApplyRateSaturation(float output, float thrustGain, float dt) {
+	float outputClamped = constrainToRangeF(output, -altControlLimit, altControlLimit);
+	float saturationError = outputClamped - output;
+	if (fabsf(saturationError) < 0.0001f || thrustGain <= 0.001f || dt <= 0.0f) {
+		return outputClamped;
+	}
+	float integratorCorrection = (saturationError / thrustGain) * ALT_CONTROL_RATE_PID_I_ANTIWINDUP_GAIN * dt;
+	altRatePID.i = constrainToRangeF(altRatePID.i + integratorCorrection, altRatePID.limitIMin, altRatePID.limitIMax);
+	return outputClamped;
+}
 
 __ATTR_ITCM_TEXT
 void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGains) {
-	//pidUpdateWithGains(&altRatePID, positionCordinateData.zVelocity, 0, dt, altControlGains.ratePGain, altControlGains.rateIGain, altControlGains.rateDGain);
 	pidUpdateWithGains(&altRatePID, positionCordinateData.zVelocity, altPID.pid, dt, altControlGains.ratePGain, altControlGains.rateIGain, altControlGains.rateDGain);
-
 	float thrustGain = fcStatusData.hoverThrottle / GRAVITY_MSS; /* K */
 	float output = altRatePID.pid * thrustGain;
-
 	/* ---- 2. Disturbance observer ----------------------------------------- */
 #if ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED == 1
 	updateAltitudeDOB(thrustGain, dt, altControlGains);
 #endif
 	/* ---- 3. Output limit -------------------------------------------------- */
-	output = constrainToRangeF(output, -altControlLimit, altControlLimit);
+	output = altitudeControlApplyRateSaturation(output, thrustGain, dt);
 	controlData.altitudeControl = output;
 	controlData.altitudeControlDt = dt;
 }

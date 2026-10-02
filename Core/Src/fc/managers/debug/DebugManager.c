@@ -132,12 +132,18 @@ void debugBattery() {
 }
 
 extern IMU_DATA imuData;
+extern LOWPASSFILTER altMgrAltHoldBrakingLPF;
 void debugALt() {
-	DEBUG_DATA_BUFFER[0] = positionCordinateData.zVelocity * 100;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 100;
-	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altitudeSLScaled * 100;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 1000;
-	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = fcStatusData.currentThrottle ;
+	DEBUG_DATA_BUFFER[1] = controlData.altitudeControl;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.hoverThrottle;
+	DEBUG_DATA_BUFFER[3] = controlData.tiltCompThDelta;
+	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.pitch;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[7] = fcStatusData.altitudeHoldState  * 10;
+	DEBUG_DATA_BUFFER[8] = altMgrAltHoldBrakingLPF.output * 1000;
+	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
 }
 
 void debugGnssData() {
@@ -181,15 +187,15 @@ void debugNavStates() {
 	DEBUG_DATA_BUFFER[2] = fcStatusData.isNavRTHModeActive * 100;
 	DEBUG_DATA_BUFFER[3] = fcStatusData.isNavMissionModeActive * 100;
 	DEBUG_DATA_BUFFER[4] = fcStatusData.isFailSafeModeActive * 100;
-	DEBUG_DATA_BUFFER[5] = fcStatusData.isNavMissionComplete  * 100;
+	DEBUG_DATA_BUFFER[5] = fcStatusData.isNavMissionComplete * 100;
 	DEBUG_DATA_BUFFER[6] = positionCommandData.targetYVel * 10;
 	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
 }
 
 extern float expectedGroundSpeed;
 void debugTelemetry() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.headingHomeRef;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.heading;
+	DEBUG_DATA_BUFFER[0] = fcStatusData.headingHomeRef * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.heading * 10;
 	DEBUG_DATA_BUFFER[2] = positionCommandData.targetXVel * 10;
 	DEBUG_DATA_BUFFER[3] = positionCommandData.targetYVel * 10;
 	DEBUG_DATA_BUFFER[4] = expectedGroundSpeed * 10;
@@ -217,6 +223,5 @@ debugALt();
 //debugNoise();
 //debugNav();
 //debugNavStates();
-//debugTelemetry();
-
+//	debugTelemetry();
 }

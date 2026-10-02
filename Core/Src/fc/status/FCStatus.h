@@ -27,6 +27,8 @@ struct _FC_STATUS_DATA {
 
 	uint8_t isPositionHomeSet;
 	uint8_t postionHoldState;
+	uint8_t altitudeHoldState;
+
 
 	uint8_t isNavMissionComplete;
 

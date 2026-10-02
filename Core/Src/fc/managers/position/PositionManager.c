@@ -157,7 +157,7 @@ void doBraking(float dt) {
 	float vyCmd = constrainToRangeF(positionMgrBrakeVy, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
 	setExpectedPositionVelocity(dt, vxCmd, vyCmd);
 	// Termination conditions
-	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED);
+	uint8_t lowGroundSpeed = (getGroundSpeed() <= POSITION_MGR_POS_HOLD_BRAKE_MIN_GROUND_SPEED);
 	uint8_t timeoutReached = (positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_ACTIVE_PERIOD);
 	if (lowGroundSpeed || timeoutReached) {
 		positionMgrPosHoldElapseDtSum = 0.0f;
@@ -238,7 +238,7 @@ void updatePositionCordinateCommand(float dt) {
 			positionMgrPosHoldElapseDtSum += dt;
 			resetBrakingStates();
 			setExpectedPositionVelocity(dt, 0.0f, 0.0f);
-			if ((positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD && getGroundSpeed() <= 2.0f * POSITION_MGR_POS_HOLD_BRAKE_MAX_GROUND_SPEED) || positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT) {
+			if ((positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD && getGroundSpeed() <= 2.0f * POSITION_MGR_POS_HOLD_BRAKE_MIN_GROUND_SPEED) || positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT) {
 				updatePositionReference();
 				resetPositionControl(1);
 				positionMgrPosHoldElapseDtSum = 0.0f;
@@ -319,14 +319,12 @@ void loadAndProcessGNSSData() {
 		float dt = getDeltaTime(POSITION_MANAGER_GNSS_TIMER_CHANNEL);
 		gnssData.updateDt = dt;
 		updateGNSSDataReliability(dt);
-
 		if (isNavDataReliable()) {
 			uint8_t wasHomeJustSet = 0;
 			if (!isPositionHomeSet()) {
 				updateHomePositionAcquisition(dt);
 				wasHomeJustSet = fcStatusData.isPositionHomeSet;
 			}
-
 			if (isPositionHomeSet()) {
 				convertGNSSToXYCordinates(gnssData.latitude, gnssData.longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &positionCordinateData.xPositionRaw, &positionCordinateData.yPositionRaw);
 				if (wasHomeJustSet) {
@@ -335,14 +333,12 @@ void loadAndProcessGNSSData() {
 					fcStatusData.positionXHome = positionCordinateData.xPositionRaw;
 					fcStatusData.positionYHome = positionCordinateData.yPositionRaw;
 				}
-
 				// Update Velocity and Position
 				updateXYVelocityGNSS(gnssData.sAcc, gnssData.velN, gnssData.velE, dt);
-				updateZVelocityGNSS(gnssData.sAcc, -gnssData.velD, isNavDataReliable() && isNavModeActive(), dt); //GNSS is +ve down ( NED )
+				updateZVelocityGNSS(gnssData.sAcc, -gnssData.velD, dt); //GNSS is +ve down ( NED )
 				updateXYPositionGNSS(gnssData.hAcc, positionCordinateData.xPositionRaw, positionCordinateData.yPositionRaw, dt);
-				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, isNavDataReliable() && isNavModeActive(), dt);
+				updateZPositionGNSS(gnssData.vAcc, gnssData.heightMSL - fcStatusData.positionZHome, dt);
 			}
-
 		} else {
 			if (!isPositionHomeSet()) {
 				resetHomePositionAcquisition();
@@ -400,4 +396,3 @@ void resetPositionManager(uint8_t hard) {
 	}
 
 }
-

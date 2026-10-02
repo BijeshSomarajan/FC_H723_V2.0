@@ -62,7 +62,7 @@ void calculateCruiseScale(float dt) {
 	float tau = (target > positionEstCruiseScale) ? POS_ESTIMATOR_Z_CRUISE_TAU_RISE : POS_ESTIMATOR_Z_CRUISE_TAU_FALL;
 	positionEstCruiseScale += (dt / (tau + dt)) * (target - positionEstCruiseScale);
 #else
-	(void)dt;
+	(void) dt;
 	positionEstCruiseScale = 0.0f;
 #endif
 }
@@ -120,7 +120,7 @@ float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float motionScale) {
 		Pzz = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_EPS;
 	}
 
-	float denom = Pzz + POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN + POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_SCALE_EPS;
+	float denom = Pzz + POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE + POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_SCALE_EPS;
 	if (denom < 1e-3f) {
 		denom = 1e-3f;
 	}
@@ -131,9 +131,9 @@ float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float motionScale) {
 	/* ==============================================================
 	 * Dynamic R estimation (using injected motionScale)
 	 * ============================================================== */
-	float baseDynamicR = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN + residualTerm;
+	float baseDynamicR = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE + residualTerm;
 	float targetDynamicR = baseDynamicR + (motionScale * (POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX - baseDynamicR));
-	targetDynamicR = constrainToRangeF(targetDynamicR, POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN, POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX);
+	targetDynamicR = constrainToRangeF(targetDynamicR, POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX);
 
 	/* ==============================================================
 	 * LPF smoothing
@@ -161,10 +161,7 @@ float getEstimatedXYRV(float sAcc) {
 }
 
 __ATTR_ITCM_TEXT
-float getEstimatedTerrainRP(float distance, float quality, float minDistance, float maxDistance, uint8_t terrainDataValid) {
-	if (!terrainDataValid) {
-		return POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MUTED;
-	}
+float getEstimatedTerrainRP(float distance, float quality, float minDistance, float maxDistance) {
 	float distScale = (distance - minDistance) / (maxDistance - minDistance);
 	distScale = constrainToRangeF(distScale, 0.0f, 1.0f);
 	float qualityScale = 1.0f - quality;
@@ -181,14 +178,12 @@ float getEstimatedZRV(float sAcc, float cruiseScale) {
 	if (sAcc < POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN) {
 		sAcc = POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN;
 	}
-
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
 	float rvBase = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE - cruiseScale * (POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE - POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_CRUISE);
 	float dynamicRv = rvBase + (POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE * (sAcc * sAcc));
 #else
 	float dynamicRv = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE + (POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE * (sAcc * sAcc));
 #endif
-
 	if (dynamicRv > POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX) {
 		dynamicRv = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX;
 	}
@@ -219,12 +214,10 @@ void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void updateZPositionSL(float offset, float zPos, float dt, uint8_t slValid) {
+void updateZPositionSL(float offset, float zPos, float dt) {
 	positionCordinateData.positionZSLUpdateDt = dt;
 	positionCordinateData.zPositionRawSL = zPos;
-	float dynamicRPSL = (slValid == 1 ? POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MIN : POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MUTED);
-
-	if (slValid == 1) {
+	float dynamicRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE;
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
 		float motionScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
@@ -233,31 +226,24 @@ void updateZPositionSL(float offset, float zPos, float dt, uint8_t slValid) {
 #endif
 		dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
 #endif
-	}
-
+	float venturiBias = 0;
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
-	float venturiBias = (slValid == 1 ? getVenturiBiasEstimate(dt) : 0);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos - venturiBias, dynamicRPSL, H_BARO_WITH_BIAS);
-#else
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos, dynamicRPSL, H_BARO_WITH_BIAS);
+	venturiBias = getVenturiBiasEstimate(dt, getGroundSpeed());
 #endif
-
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos - venturiBias, dynamicRPSL, H_BARO);
 }
 
 __ATTR_ITCM_TEXT
-void updateZPositionTerrain(float offset, float distance, float strength, float minDistance, float maxDistance, uint8_t terrainDataValid, float dt) {
+void updateZPositionTerrain(float offset, float distance, float strength, float minDistance, float maxDistance, float dt) {
 	positionCordinateData.positionZTerrainUpdateDt = dt;
 	positionCordinateData.zPositionRawTerrain = distance;
-	float terrainR = getEstimatedTerrainRP(distance, strength, minDistance, maxDistance, terrainDataValid);
+	float terrainR = getEstimatedTerrainRP(distance, strength, minDistance, maxDistance);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + distance, terrainR, H_TERRAIN);
 }
 
 __ATTR_ITCM_TEXT
-void updateZPositionGNSS(float vAcc, float hMSL, uint8_t navigationModeActive, float dt) {
-	float dynamicRp = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MUTED;
-	if (navigationModeActive) {
-		dynamicRp = getEstimatedZRPGNSS(vAcc);
-	}
+void updateZPositionGNSS(float vAcc, float hMSL, float dt) {
+	float dynamicRp = getEstimatedZRPGNSS(vAcc);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, hMSL, dynamicRp, H_P_GNSS);
 }
 
@@ -285,13 +271,9 @@ void updateXYVelocityGNSS(float sAcc, float velN, float velE, float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void updateZVelocityGNSS(float sAcc, float velZ, uint8_t navigationModeActive, float dt) {
-	float dynamicRv = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MUTED;
-	if (navigationModeActive) {
+void updateZVelocityGNSS(float sAcc, float velZ, float dt) {
 		//dynamicRv = getEstimatedZRV(sAcc);
-		dynamicRv = getEstimatedZRV(sAcc, getCruiseScale());
-	}
-	float velDb = applyDeadBandFloat(0.0f, velZ, POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, velDb, dynamicRv, H_V_GNSS);
+		float dynamicRv = getEstimatedZRV(sAcc, getCruiseScale());
+		float velDb = applyDeadBandFloat(0.0f, velZ, POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND);
+		positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, velDb, dynamicRv, H_V_GNSS);
 }
-

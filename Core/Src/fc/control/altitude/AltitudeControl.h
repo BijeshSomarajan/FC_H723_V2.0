@@ -72,9 +72,6 @@ struct _ALTITUDE_CONTROL_GAINS {
 	float ratePGain;
 	float rateIGain;
 	float rateDGain;
-	float accPGain;
-	float accDGain;
-
 	float dobGain;
 };
 
@@ -82,12 +79,9 @@ uint8_t initAltitudeControl(void);
 void resetAltitudeControl(uint8_t hard);
 void resetAltitudeControlMaster(void);
 void resetAltitudeControlRate(void);
-
+void setExpectedAltitudeVelocity(float dt, float expectedVel);
 void resetAltitudeRIControl(void);
 void setAltitudeRIControl(float value);
-
-void applyAltitudeControlMPMinLimitToValue(float value);
-void applyAltitudeControlRIMinLimitToValue(float value);
 
 void resetAltitudeRateControl(void);
 void resetAltitudeMasterControl(void);
@@ -130,6 +124,9 @@ void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 // guard: at K = 51 and gain 0.5 it bounds DOB authority to ~102 throttle
 // units, a meaningful share of the budget below.
 #define ALT_CONTROL_DOB_ACC_LIMIT              4.0f
-#define ALT_CONTROL_DOB_OUTPUT_LIMIT           80.0f
+#define ALT_CONTROL_DOB_OUTPUT_LIMIT           50.0f
+
+
+#define ALT_CONTROL_RATE_PID_I_ANTIWINDUP_GAIN    2.0f
 
 #endif
