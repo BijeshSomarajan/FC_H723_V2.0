@@ -26,10 +26,10 @@ void resetAltitudeManager(void);
 //Max permissible throttle
 #define ALT_MGR_MAX_PERMISSIBLE_THROTTLE   RC_CHANNEL_MIN_VALUE + ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA
 #define ALT_MGR_ALT_SPEED_GAIN_DEFAULT  0.35f //meter per second
+#define ALT_MGR_ALT_PRE_LIFTOFF_SPEED_FACTOR  2.0f
 
 #define ALT_MGR_THROTTLE_CONTROL_LPF_FREQUENCY 20.0f //The frequency at which the overall throttle is meadured to create the baseline.
-//Uses only the Alt Vel loop , Alt ref will be updated continously , This works well , dont turn it off
-#define ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE   1
+
 
 /* --------------------------------------------------------------------------
  * Hover-throttle learner
@@ -81,14 +81,14 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_COMP_TAU_RISE         0.001f    // Rise time constant; allows compensation to build quickly
 #define ALT_MGR_TILT_COMP_TAU_FADE         0.1f    // Fade time constant; removes compensation gradually
 #define ALT_MGR_TILT_COMP_MAX_LIMIT        50.0f   // Maximum allowed tilt compensation throttle contribution
-#define ALT_MGR_TILT_COMP_GAIN             1.0f    // Overall compensation gain; 1.0 = full calculated compensation
+#define ALT_MGR_TILT_COMP_GAIN             2.0f    // Overall compensation gain; 1.0 = full calculated compensation
 #define ALT_MGR_THROTTLE_THRESHOLD_PERIOD 0.80f
 
 #define ALT_MGR_MAX_ALT_DELTA 2.0f //This is a safety net , max alt delta in normal flying is expected to be within this limit.
 /* Autolanding configuration */
-#define ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD       0.5f
-#define ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD         1.0f
-#define ALT_MGR_ALT_LANDING_STICK_COMMAND               150
+#define ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD       0.65f
+#define ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD         1.5f
+#define ALT_MGR_ALT_LANDING_STICK_COMMAND               200
 
 typedef enum {
 	ALT_HOLD_STATE_IDLE = 0, ALT_HOLD_STATE_BRAKING, ALT_HOLD_STATE_LOCKED
@@ -97,4 +97,8 @@ typedef enum {
 #define ALTITUDE_MGR_ALT_HOLD_BRAKE_MIN_SPEED   0.2f
 #define ALTITUDE_MGR_ALT_HOLD_BRAKE_REF_LPF_FREQ   0.65f
 #define ALTITUDE_MGR_ALT_HOLD_BRAKE_MAX_PERIOD   15.0f
+
+//Uses only the Alt Vel loop , Alt ref will be updated continously , This works well , dont turn it off
+#define ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE   1
+
 #endif

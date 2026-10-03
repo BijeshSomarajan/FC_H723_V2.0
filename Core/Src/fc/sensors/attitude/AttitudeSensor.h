@@ -96,7 +96,6 @@ extern SENSOR_ATTITUDE_DATA sensorAttitudeData;
 // Magnetometer (MAG) Calibration
 #define SENSOR_MAG_CALIB_SAMPLE_COUNT           5000
 #define SENSOR_MAG_CALIB_SAMPLE_DELAY           10
-#define SENSOR_MAG_CALIB_USE_SIMPLE_ALGO        1
 
 #define SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G  0.25f
 #define SENSOR_ACC_LEVER_ARM_X_OFFSET           -0.02f // Negative value: _ve behind CoG , +ve ahead of GoG

@@ -103,6 +103,10 @@ __ATTR_ITCM_TEXT
 void handleThrottleChange(float dt) {
 	float currentStick = altMgrLandingPulseActive ? -altMgrLandingCommand : rcData.RC_EFFECTIVE_DATA[RC_TH_CHANNEL_INDEX];
 	float gain = currentStick * altMgrAltSpeedGain * dt;
+	//Helps in faster throttle rise at starting up and landing
+	if (fcStatusData.throttlePercent <= fcStatusData.liftOffThrottlePercent) {
+		gain *= ALT_MGR_ALT_PRE_LIFTOFF_SPEED_FACTOR;
+	}
 	// Clean, unobstructed tracking of stick inputs
 	float nextThrottle = fcStatusData.currentThrottle + gain;
 	if (currentStick < 0.0f) { // Moving Down
@@ -249,7 +253,6 @@ void calculateTiltCompThrottle(float dt) {
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
 
-
 __ATTR_ITCM_TEXT
 void applyAltitudeControls(float dt) {
 	altMgrVelDtAccumulation += dt;
@@ -278,18 +281,24 @@ void applyAltitudeControls(float dt) {
 				altMgrBrakingDt += ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD;
 				float verticalSpeed = fabsf(altMgrAltHoldBrakingLPF.output);
 				if (verticalSpeed <= ALTITUDE_MGR_ALT_HOLD_BRAKE_MIN_SPEED) {
-				    // Normal completion: vertical speed is sufficiently low.
-				    fcStatusData.altitudeRef = positionCordinateData.zPosition;
-				    fcStatusData.altitudeHoldState = ALT_HOLD_STATE_LOCKED;
+					// Normal completion: vertical speed is sufficiently low.
+					fcStatusData.altitudeRef = positionCordinateData.zPosition;
+					fcStatusData.altitudeHoldState = ALT_HOLD_STATE_LOCKED;
 				} else if (altMgrBrakingDt >= ALTITUDE_MGR_ALT_HOLD_BRAKE_MAX_PERIOD) {
-				    // Timeout: braking did not reach the normal speed threshold.
-				    // Record this condition for diagnostics.
-				    // Do not interpret timeout as proof that vertical motion has stopped.
-				    fcStatusData.altitudeRef = positionCordinateData.zPosition;
-				    fcStatusData.altitudeHoldState = ALT_HOLD_STATE_LOCKED;
+					// Timeout: braking did not reach the normal speed threshold.
+					// Record this condition for diagnostics.
+					// Do not interpret timeout as proof that vertical motion has stopped.
+					fcStatusData.altitudeRef = positionCordinateData.zPosition;
+					fcStatusData.altitudeHoldState = ALT_HOLD_STATE_LOCKED;
 				}
 				break;
 			case ALT_HOLD_STATE_LOCKED:
+#if ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE == 1
+				//In terrain mode , allow alt hold.
+				if ((!fcStatusData.isTerrainAltModeActive || !fcStatusData.isTerrainSensorExist) && !isNavModeActive()) {
+					fcStatusData.altitudeRef = positionCordinateData.zPosition;
+				}
+#endif
 				lowPassFilterUpdate(&altMgrAltHoldBrakingLPF, positionCordinateData.zVelocity, ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD);
 				controlAltitudeAltWithGains(ALTITUDE_MANAGEMENT_ALT_TASK_PERIOD, fcStatusData.altitudeRef, getClampedCurrentAltitude(), altControlGains);
 				break;

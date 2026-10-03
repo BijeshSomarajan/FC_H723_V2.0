@@ -490,7 +490,7 @@
  * Higher -> smoother/more inertial altitude estimate, but greater reliance on
  *           acceleration and bias estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE           5000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE           6000.0f
 
 /* Maximum dynamic barometric position variance, m^2.
  *

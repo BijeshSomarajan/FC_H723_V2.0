@@ -213,8 +213,8 @@ void debugTask() {
 //debugBattery();
 //debugRC();
 //debugModel();
-//debugIMU();
-debugALt();
+debugIMU();
+//debugALt();
 //debugAltStr();
 //debugAltGraph();
 //debugGnssData();
