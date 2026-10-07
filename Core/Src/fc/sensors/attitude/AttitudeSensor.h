@@ -97,11 +97,6 @@ extern SENSOR_ATTITUDE_DATA sensorAttitudeData;
 #define SENSOR_MAG_CALIB_SAMPLE_COUNT           5000
 #define SENSOR_MAG_CALIB_SAMPLE_DELAY           10
 
-#define SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G  0.25f
-#define SENSOR_ACC_LEVER_ARM_X_OFFSET           -0.02f // Negative value: _ve behind CoG , +ve ahead of GoG
-#define SENSOR_ACC_LEVER_ARM_Y_OFFSET           -1.2f // Negative value: _ve behind CoG , +ve ahead of GoG
-
-
 /* -----------------------------------------------------------
  * 📞 Function Prototypes
  * -----------------------------------------------------------*/

@@ -14,6 +14,7 @@
 #include "../../status/FCStatus.h"
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
+#include "../altitude/helpers/AltitudeCommandHelper.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
 #include "../position/helpers/PositionManagerHelper.h"
@@ -104,13 +105,19 @@ void prepareFCStatus() {
 	} else {
 		fcStatusBuf[4] = 'B';
 	}
+
 	// Landing/Flying
 	fcStatusBuf[5] = '-';
-	if (fcStatusData.isLandingModeActive) {
+	if(isAltCommandComplete()){
+		fcStatusBuf[6] = 'C';
+	}else if (fcStatusData.isLandingModeActive && isAltCommandMode()) {
 		fcStatusBuf[6] = 'L';
-	} else {
+	} else if(fcStatusData.isTakeOffModeActive && isAltCommandMode()){
+		fcStatusBuf[6] = 'T';
+	} else{
 		fcStatusBuf[6] = 'F';
 	}
+
 	//Mission
 	fcStatusBuf[7] = '-';
 	if (isNavModeActive()  && !isNavRTHModeActive()) {

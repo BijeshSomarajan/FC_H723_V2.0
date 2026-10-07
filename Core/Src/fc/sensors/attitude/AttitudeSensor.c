@@ -175,42 +175,6 @@ void loadAttitudeSensorConfig() {
 	deviceAttitudeData.gyroZTempCoeff[3] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GZ_C3_ADDR) / 10000000.0f; // 0.00962;
 }
 
-/**
- * @brief Compensates X-axis accelerometer data for centripetal lever-arm effects
- * CoG offset is lateral along the X-axis (IMU is displaced left/right of CoG).
- */
-__ATTR_ITCM_TEXT
-float deviceAccApplyLeverArmCompensationX(void) {
-	// An IMU offset on the X-axis experiences centripetal forces from Pitch (gy) and Yaw (gz)
-	const float gy = convertDegToRadF(sensorAttitudeData.gyDSFiltered);
-	const float gz = convertDegToRadF(sensorAttitudeData.gzDSFiltered);
-	// Formula: a_x = -r_x * (omega_y^2 + omega_z^2)
-	// Since SENSOR_ACC_LEVER_ARM_X_OFFSET is negative (-0.02), this evaluates to a positive m/s^2 acceleration
-	const float centripetal_x_m_s2 = -SENSOR_ACC_LEVER_ARM_X_OFFSET * ((gy * gy) + (gz * gz));
-	float parasitic_x_g = centripetal_x_m_s2 * INVERSE_GRAVITY_MSS;
-	// Clamp the correction magnitude defensively
-	parasitic_x_g = constrainToRangeF(parasitic_x_g, -SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G, SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G);
-	// Subtract the false forward acceleration component from the X-axis raw variable
-	return deviceAttitudeData.axG - parasitic_x_g;
-}
-
-/**
- * @brief Compensates Y-axis accelerometer data for centripetal lever-arm effects
- * CoG offset is longitudinal along the Y-axis (IMU is behind the CoG).
- */
-__ATTR_ITCM_TEXT
-float deviceAccApplyLeverArmCompensationY(void) {
-	// An IMU offset on the Y-axis experiences centripetal forces from Roll (gx) and Yaw (gz)
-	float gx = convertDegToRadF(sensorAttitudeData.gxDSFiltered);
-	float gz = convertDegToRadF(sensorAttitudeData.gzDSFiltered);
-	// Since SENSOR_ACC_LEVER_ARM_Y_OFFSET is negative (-0.02), this evaluates to a positive m/s^2 acceleration
-	float centripetal_y_m_s2 = -SENSOR_ACC_LEVER_ARM_Y_OFFSET * ((gx * gx) + (gz * gz));
-	float parasitic_y_g = centripetal_y_m_s2 * INVERSE_GRAVITY_MSS;
-	// Clamp the correction magnitude defensively
-	parasitic_y_g = constrainToRangeF(parasitic_y_g, -SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G, SENSOR_ACC_LEVER_ARM_COMPENSATION_MAX_G);
-	// Subtract the false acceleration component from the Y-axis raw variable
-	return deviceAttitudeData.ayG - parasitic_y_g;
-}
 
 __ATTR_ITCM_TEXT
 void updateAccSensorData(float dt) {

@@ -13,12 +13,12 @@
 #include "../../logger/Logger.h"
 #include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
-#include "../../sensors/attitude/devices/AttitudeDevice.h"
 #include "../../sensors/battery/BatterySensor.h"
 #include "../../sensors/position/GNSS.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/Scheduler.h"
+#include "../altitude/helpers/AltitudeCommandHelper.h"
 #include "../config/ConfigHelper.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimator.h"
@@ -134,14 +134,14 @@ void debugBattery() {
 extern IMU_DATA imuData;
 extern LOWPASSFILTER altMgrAltHoldBrakingLPF;
 void debugALt() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.currentThrottle ;
+	DEBUG_DATA_BUFFER[0] = fcStatusData.currentThrottle;
 	DEBUG_DATA_BUFFER[1] = controlData.altitudeControl;
 	DEBUG_DATA_BUFFER[2] = fcStatusData.hoverThrottle;
 	DEBUG_DATA_BUFFER[3] = controlData.tiltCompThDelta;
 	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.pitch;
 	DEBUG_DATA_BUFFER[5] = positionCordinateData.zPosition * 100;
 	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity * 100;
-	DEBUG_DATA_BUFFER[7] = fcStatusData.altitudeHoldState  * 10;
+	DEBUG_DATA_BUFFER[7] = fcStatusData.altitudeHoldState * 10;
 	DEBUG_DATA_BUFFER[8] = altMgrAltHoldBrakingLPF.output * 1000;
 	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
 }
@@ -202,6 +202,19 @@ void debugTelemetry() {
 	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
 
+extern AltCommandState altCommandState;
+void debufFCStatus() {
+	sprintf(buf, "%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive ,isAltCommandMode(), isAltCommandActive(), altCommandState, positionCordinateData.zPosition, positionCordinateData.zVelocity, controlData.throttleControl,
+			fcStatusData.throttlePercent, fcStatusData.altitudeSLHome, rcData.throttleCentered);
+	logString(buf);
+}
+
+void debugHeading() {
+	DEBUG_DATA_BUFFER[0] = fcStatusData.headingHomeRef * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.heading * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 2, CMD_FC_DATA);
+}
+
 float nowMs = 0;
 void debugTask() {
 	if (!fcStatusData.isDebugEnabled) {
@@ -213,7 +226,8 @@ void debugTask() {
 //debugBattery();
 //debugRC();
 //debugModel();
-debugIMU();
+//debugIMU();
+	debufFCStatus();
 //debugALt();
 //debugAltStr();
 //debugAltGraph();
@@ -224,4 +238,5 @@ debugIMU();
 //debugNav();
 //debugNavStates();
 //	debugTelemetry();
+//	debugHeading();
 }

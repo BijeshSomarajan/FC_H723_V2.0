@@ -25,10 +25,10 @@ void resetAltitudeManager(void);
 
 //Max permissible throttle
 #define ALT_MGR_MAX_PERMISSIBLE_THROTTLE   RC_CHANNEL_MIN_VALUE + ALT_MGR_MAX_PERMISSIBLE_THROTTLE_DELTA
-#define ALT_MGR_ALT_SPEED_GAIN_DEFAULT  0.35f //meter per second
-#define ALT_MGR_ALT_PRE_LIFTOFF_SPEED_FACTOR  2.0f
+#define ALT_MGR_ALT_SPEED_GAIN_MAX  1.0f //meter per second
+#define ALT_MGR_ALT_PRE_LIFTOFF_SPEED_FACTOR 4.0f
 
-#define ALT_MGR_THROTTLE_CONTROL_LPF_FREQUENCY 20.0f //The frequency at which the overall throttle is meadured to create the baseline.
+#define ALT_MGR_THROTTLE_CONTROL_LPF_FREQUENCY 50.0f //The frequency at which the overall throttle is measured to create the baseline.
 
 
 /* --------------------------------------------------------------------------
@@ -84,11 +84,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_COMP_GAIN             2.0f    // Overall compensation gain; 1.0 = full calculated compensation
 #define ALT_MGR_THROTTLE_THRESHOLD_PERIOD 0.80f
 
-#define ALT_MGR_MAX_ALT_DELTA 2.0f //This is a safety net , max alt delta in normal flying is expected to be within this limit.
-/* Autolanding configuration */
-#define ALT_MGR_ALT_LANDING_PULSE_INACTIVE_PERIOD       0.65f
-#define ALT_MGR_ALT_LANDING_PULSE_ACTIVE_PERIOD         1.5f
-#define ALT_MGR_ALT_LANDING_STICK_COMMAND               200
+#define ALT_MGR_MAX_ALT_DELTA 2.5f //This is a safety net , max alt delta in normal flying is expected to be within this limit.
 
 typedef enum {
 	ALT_HOLD_STATE_IDLE = 0, ALT_HOLD_STATE_BRAKING, ALT_HOLD_STATE_LOCKED
@@ -99,6 +95,24 @@ typedef enum {
 #define ALTITUDE_MGR_ALT_HOLD_BRAKE_MAX_PERIOD   15.0f
 
 //Uses only the Alt Vel loop , Alt ref will be updated continously , This works well , dont turn it off
-#define ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE   1
+#define ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE   0
+
+//Gain Adjustment
+#define ALT_MGR_ALT_CONTROL_SETTING_MASTER_P_GAIN  1.0f
+#define ALT_MGR_ALT_CONTROL_SETTING_MP_TAU         0.01f
+
+#define ALT_MGR_ALT_CONTROL_SETTING_RATE_P_GAIN    1.0f
+#define ALT_MGR_ALT_CONTROL_SETTING_RP_TAU         0.01f
+
+#define ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN    1.0f
+#define ALT_MGR_ALT_CONTROL_SETTING_RI_TAU         0.01f
+
+#define ALT_MGR_ALT_CONTROL_SETTING_RATE_D_GAIN    1.0f
+#define ALT_MGR_ALT_CONTROL_SETTING_RD_TAU         0.01f
+
+#define ALT_MGR_ALT_CONTROL_SETTING_DOB_GAIN       1.0f
+#define ALT_MGR_ALT_CONTROL_SETTING_DOB_TAU        0.01f
+
+#define ALT_MGR_ALT_CONTROL_COMMAND_TAKEOFF_ALT  0.6f
 
 #endif

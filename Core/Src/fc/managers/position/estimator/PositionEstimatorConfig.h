@@ -198,14 +198,14 @@
  * Controls growth of vertical position uncertainty during prediction.
  * It does not directly define an altitude response time.
  */
-#define POS_EKF_Z_Q_POS                    0.0005f * 0.1f
+#define POS_EKF_Z_Q_POS                    0.0005f// * 0.1f
 
 /* Z velocity process noise, (m/s)^2 per 1 ms prediction step.
  *
  * Allows vertical-velocity uncertainty to grow so measurements can correct
  * accumulated acceleration error.
  */
-#define POS_EKF_Z_Q_VEL                    0.0005f * 0.1f
+#define POS_EKF_Z_Q_VEL                    0.0005f// * 0.1f
 
 /* Z acceleration-bias process noise, (m/s^2)^2 per 1 ms prediction step.
  *
@@ -349,7 +349,7 @@
  *
  * 1.0 = use the receiver's reported sAcc directly.
  */
-#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_SCALE       100.0f
+#define POS_ESTIMATOR_DYNAMIC_XY_GNSS_SACC_SCALE       1.0f
 
 /* Minimum GNSS horizontal-velocity 1-sigma accuracy, m/s.
  *
@@ -437,13 +437,13 @@
  * vAcc is the receiver-reported vertical 1-sigma accuracy.
  * The large scale/base values deliberately keep GNSS-Z weak during normal use.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_SCALE        500.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_SCALE        100.0f
 
 /* Minimum receiver-reported vertical accuracy used by the dynamic R formula. */
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_MIN          0.5f
 
 /* GNSS vertical-velocity accuracy scaling. */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE        500.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE        100.0f
 
 /* Minimum reported vertical-velocity accuracy, m/s.
  *
@@ -490,7 +490,7 @@
  * Higher -> smoother/more inertial altitude estimate, but greater reliance on
  *           acceleration and bias estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE           6000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE           4000.0f
 
 /* Maximum dynamic barometric position variance, m^2.
  *

@@ -226,6 +226,7 @@ void imuFilterSetMode(uint8_t stabilize) {
 		mahonyFilterKP = MAHONY_FILTER_KP;
 		mahonyFilterKI = MAHONY_FILTER_KI;
 		mahonyFilterMagGainRatio = MAHONY_FILTER_MAG_GAIN_RATIO;
+		//Reset the integration bias.
 		mahonyFilterIBx = 0.0f;
 		mahonyFilterIBy = 0.0f;
 		mahonyFilterIBz = 0.0f;

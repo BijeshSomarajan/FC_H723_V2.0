@@ -202,3 +202,66 @@ uint8_t doMagCalibration(void) {
 	deviceAttitudeData.scaleMz = scale[2];
 	return 1;
 }
+
+
+uint8_t doMagCalibrationV0() {
+	deviceMagReadOffset();
+	// Determining magnetometer bias , Move the device in 8 pattern
+	int32_t mag_max[3] = { -2147483648, -2147483648, -2147483648 };
+	int32_t mag_min[3] = { 2147483647, 2147483647, 2147483647 };
+	for (int indx = 0; indx < SENSOR_MAG_CALIB_SAMPLE_COUNT; indx++) {
+		// Read the mag data
+		deviceMagRead();
+		delayMs(2);
+		deviceMagLoadData();
+		// Check X
+		if (deviceAttitudeData.rawMx > mag_max[0])
+			mag_max[0] = deviceAttitudeData.rawMx;
+		if (deviceAttitudeData.rawMx < mag_min[0])
+			mag_min[0] = deviceAttitudeData.rawMx;
+
+		// Check Y
+		if (deviceAttitudeData.rawMy > mag_max[1])
+			mag_max[1] = deviceAttitudeData.rawMy;
+		if (deviceAttitudeData.rawMy < mag_min[1])
+			mag_min[1] = deviceAttitudeData.rawMy;
+
+		// Check Z
+		if (deviceAttitudeData.rawMz > mag_max[2])
+			mag_max[2] = deviceAttitudeData.rawMz;
+		if (deviceAttitudeData.rawMz < mag_min[2])
+			mag_min[2] = deviceAttitudeData.rawMz;
+
+		delayMs(SENSOR_MAG_CALIB_SAMPLE_DELAY);
+	}
+
+	// Get hard iron correction , Bias
+	deviceAttitudeData.biasMx = ((float) (mag_max[0] + mag_min[0]) / 2.0f) * deviceAttitudeData.magSensitivity;
+	deviceAttitudeData.biasMy = ((float) (mag_max[1] + mag_min[1]) / 2.0f) * deviceAttitudeData.magSensitivity;
+	deviceAttitudeData.biasMz = ((float) (mag_max[2] + mag_min[2]) / 2.0f) * deviceAttitudeData.magSensitivity;
+
+	// Get soft iron correction estimate
+	deviceAttitudeData.scaleMx = (float) (mag_max[0] - mag_min[0]) / 2.0f; // get average x axis max chord length in counts
+	deviceAttitudeData.scaleMy = (float) (mag_max[1] - mag_min[1]) / 2.0f; // get average y axis max chord length in counts
+	deviceAttitudeData.scaleMz = (float) (mag_max[2] - mag_min[2]) / 2.0f; // get average z axis max chord length in counts
+	float avg_rad = (deviceAttitudeData.scaleMx + deviceAttitudeData.scaleMy + deviceAttitudeData.scaleMz) / 3.0f;
+
+	if (deviceAttitudeData.scaleMx != 0) {
+		deviceAttitudeData.scaleMx = avg_rad / deviceAttitudeData.scaleMx;
+	} else {
+		deviceAttitudeData.scaleMx = 1.0f;
+	}
+
+	if (deviceAttitudeData.scaleMy != 0) {
+		deviceAttitudeData.scaleMy = avg_rad / deviceAttitudeData.scaleMy;
+	} else {
+		deviceAttitudeData.scaleMy = 1.0f;
+	}
+
+	if (deviceAttitudeData.scaleMz != 0) {
+		deviceAttitudeData.scaleMz = avg_rad / deviceAttitudeData.scaleMz;
+	} else {
+		deviceAttitudeData.scaleMz = 1.0f;
+	}
+   return 1;
+}
