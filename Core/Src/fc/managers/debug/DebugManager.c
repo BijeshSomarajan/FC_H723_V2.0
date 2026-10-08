@@ -227,7 +227,7 @@ void debugTask() {
 //debugRC();
 //debugModel();
 //debugIMU();
-	debufFCStatus();
+//debufFCStatus();
 //debugALt();
 //debugAltStr();
 //debugAltGraph();
@@ -238,5 +238,5 @@ void debugTask() {
 //debugNav();
 //debugNavStates();
 //	debugTelemetry();
-//	debugHeading();
+debugHeading();
 }

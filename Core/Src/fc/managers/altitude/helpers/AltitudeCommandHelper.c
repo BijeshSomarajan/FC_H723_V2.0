@@ -38,13 +38,23 @@ uint8_t isMovingUp(void) {
 	return (getAltitudeError() >= 0.0f);   // live sign, flips automatically on overshoot
 }
 
+
+__ATTR_ITCM_TEXT
+static float getVelocityLimit(float lowLimit, float farLimit) {
+	float extra = fabsf(getAltitudeError()) - ALT_COMMAND_FAR_DISTANCE;
+	if (extra <= 0.0f) {
+		return lowLimit;
+	}
+	return fminf(lowLimit + (ALT_COMMAND_FAR_VELOCITY_GAIN * extra), farLimit);
+}
+
 __ATTR_ITCM_TEXT
 uint8_t isVelocityLimitReached(void) {
 	float zVelocity = positionCordinateData.zVelocity;
 	if (isMovingUp()) {
-		return (zVelocity >= ALT_COMMAND_MAX_CLIMB_VELOCITY);
+		return (zVelocity >= getVelocityLimit(ALT_COMMAND_MAX_CLIMB_VELOCITY, ALT_COMMAND_FAR_MAX_CLIMB_VELOCITY));
 	}
-	return (zVelocity <= -ALT_COMMAND_MAX_DESCENT_VELOCITY);
+	return (zVelocity <= -getVelocityLimit(ALT_COMMAND_MAX_DESCENT_VELOCITY, ALT_COMMAND_FAR_MAX_DESCENT_VELOCITY));
 }
 
 __ATTR_ITCM_TEXT
@@ -53,19 +63,38 @@ uint8_t isVelocitySettled(void) {
 }
 
 __ATTR_ITCM_TEXT
-uint8_t isPhaseThrottleLimitReached(void) {
+uint8_t isPhaseThrottleLimitReachedOld(void) {
 	float throttleDelta = fabsf(fcStatusData.currentThrottle - altCommandPhaseStartThrottle);
 	return (throttleDelta >= ALT_COMMAND_MAX_PHASE_THROTTLE_DELTA);
 }
 
 __ATTR_ITCM_TEXT
-void adjustBaseThrottle(float dt) {
+uint8_t isPhaseThrottleLimitReached(void) {
+	float limit = (altCommandType == ALT_COMMAND_TYPE_TAKEOFF) ? ALT_COMMAND_TAKEOFF_MAX_PHASE_THROTTLE_DELTA : ALT_COMMAND_MAX_PHASE_THROTTLE_DELTA;
+	float throttleDelta = fabsf(fcStatusData.currentThrottle - altCommandPhaseStartThrottle);
+	return (throttleDelta >= limit);
+}
+
+__ATTR_ITCM_TEXT
+void adjustPostLiftOffBaseThrottle(float dt) {
 	float rate = ALT_COMMAND_BASE_THROTTLE_RATE * (fabsf(getAltitudeError()) / ALT_COMMAND_RATE_FULL_ERROR);
 	rate = constrainToRangeF(rate, ALT_COMMAND_MIN_BASE_THROTTLE_RATE, ALT_COMMAND_BASE_THROTTLE_RATE);
 	// Landing completes on throttle, not altitude, so don't let baro drift change its rate
 	if (altCommandType == ALT_COMMAND_TYPE_LANDING) {
 		rate = ALT_COMMAND_BASE_THROTTLE_RATE;
 	}
+	// Takeoff punch: extra rate near the ground, fading to zero with altitude gained.
+	// Squared linear falloff approximates exp(-x/d) without expf; it reaches zero at 3*d.
+	else if ((altCommandType == ALT_COMMAND_TYPE_TAKEOFF) && isMovingUp()) {
+		float takeoffDelta = altCommandTargetAltitude - altCommandCurrentAltitude;
+		float decayDist = constrainToRangeF(takeoffDelta * ALT_COMMAND_TAKEOFF_BOOST_DECAY_FRACTION,ALT_COMMAND_TAKEOFF_BOOST_MIN_DECAY_DIST, ALT_COMMAND_TAKEOFF_BOOST_MAX_DECAY_DIST);
+		float gained = fmaxf(positionCordinateData.zPosition - altCommandCurrentAltitude, 0.0f);
+		float k = 1.0f - gained / (3.0f * decayDist);
+		if (k > 0.0f) {
+			rate += (ALT_COMMAND_TAKEOFF_BOOST_FACTOR * ALT_COMMAND_BASE_THROTTLE_RATE) * k * k;
+		}
+	}
+
 	float step = rate * dt;
 	if (isMovingUp()) {
 		fcStatusData.currentThrottle += step;
@@ -76,16 +105,16 @@ void adjustBaseThrottle(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void adjustBaseThrottleExponential(float dt, uint8_t increasing) {
-	//Added one to
-	float liftOffThrottle = (fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA) + 1;
-	float decay = expf(-ALT_COMMAND_LOW_THROTTLE_DECAY_RATE * dt);
+void adjustPreLiftOffBaseThrottle(float dt, uint8_t increasing) {
+	float liftOffThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
 	if (increasing) {
-		fcStatusData.currentThrottle += (liftOffThrottle - fcStatusData.currentThrottle) * (1.0f - decay);
-		fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0.0f, liftOffThrottle);
+		float rampRate = liftOffThrottle / ALT_COMMAND_TAKEOFF_RAMP_TIME;
+		fcStatusData.currentThrottle += rampRate * dt;
+		fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0.0f, liftOffThrottle + 1);
 	} else {
-		fcStatusData.currentThrottle *= decay;
-		fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0.0f, fcStatusData.currentThrottle);
+		float rampRate = liftOffThrottle / ALT_COMMAND_LANDING_RAMP_TIME;
+		fcStatusData.currentThrottle -= rampRate * dt;
+		fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0.0f, liftOffThrottle + 1);
 	}
 }
 
@@ -138,7 +167,7 @@ void manageAltCommand(float dt) {
 			float liftOffThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
 			if (fcStatusData.currentThrottle < liftOffThrottle) {
 				altCommandActive = 1;
-				adjustBaseThrottleExponential(dt, 1);
+				adjustPreLiftOffBaseThrottle(dt, 1);
 				altCommandPhaseStartThrottle = fcStatusData.currentThrottle;
 			} else if (isTargetAltitudeReached()) {
 				altCommandActive = 0;
@@ -150,7 +179,7 @@ void manageAltCommand(float dt) {
 				altCommandState = ALT_COMMAND_STATE_SETTLING;
 			} else {
 				altCommandActive = 1;
-				adjustBaseThrottle(dt);
+				adjustPostLiftOffBaseThrottle(dt);
 			}
 		} else if (altCommandType == ALT_COMMAND_TYPE_LANDING) {
 			float liftOffThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
@@ -160,11 +189,11 @@ void manageAltCommand(float dt) {
 					altCommandState = ALT_COMMAND_STATE_SETTLING;
 				} else {
 					altCommandActive = 1;
-					adjustBaseThrottle(dt);
+					adjustPostLiftOffBaseThrottle(dt);
 				}
 			} else if (fcStatusData.currentThrottle > ALT_COMMAND_THROTTLE_ZERO_TOLERANCE) {
 				altCommandActive = 1;
-				adjustBaseThrottleExponential(dt, 0);
+				adjustPreLiftOffBaseThrottle(dt, 0);
 				altCommandPhaseStartThrottle = fcStatusData.currentThrottle;
 			} else {
 				altCommandActive = 0;
@@ -183,7 +212,7 @@ void manageAltCommand(float dt) {
 				altCommandState = ALT_COMMAND_STATE_SETTLING;
 			} else {
 				altCommandActive = 1;
-				adjustBaseThrottle(dt);
+				adjustPostLiftOffBaseThrottle(dt);
 			}
 		}
 		break;

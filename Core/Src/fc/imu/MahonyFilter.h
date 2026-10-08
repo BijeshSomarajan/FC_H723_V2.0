@@ -34,7 +34,7 @@
 #define MAHONY_FILTER_STABILIZE_MAG_GAIN_RATIO 1.0f
 // Reference-norm learner: very slow LPF, only adapts when the field is clean.
 //"The reference magnetic-field magnitude should adapt to changes in the measured magnitude with a time constant of about x seconds."
-#define MAHONY_FILTER_MAG_REF_LEARN_TAU       10.0f //30.0f   // seconds
+#define MAHONY_FILTER_MAG_REF_LEARN_TAU       30.0f   // seconds
 
 
 /* --- Mahony Accel Norm Gate ---

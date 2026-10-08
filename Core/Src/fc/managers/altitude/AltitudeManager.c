@@ -53,6 +53,8 @@ float altMgrAltSpeedGain = ALT_MGR_ALT_SPEED_GAIN_MAX; //Meter Per Sec
 
 uint8_t wasLandingModeActive = 0;
 uint8_t wasTakeOffModeActive = 0;
+float   altMgrTakeOffCommandAlt = 2.0f ;//mts
+
 
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
@@ -81,6 +83,8 @@ uint8_t initAltitudeManager(void) {
 		if (altMgrAltSpeedGain <= 0.0f || altMgrAltSpeedGain >= ALT_MGR_ALT_SPEED_GAIN_MAX) {
 			altMgrAltSpeedGain = ALT_MGR_ALT_SPEED_GAIN_MAX;
 		}
+
+		altMgrTakeOffCommandAlt = get100XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_LIFT_OFF_ALT_ADDR);
 
 		initAltitudeControl();
 	} else {
@@ -298,7 +302,7 @@ void checkForAltCommands() {
 		if (!wasTakeOffModeActive && !fcStatusData.isFlying) {
 			wasTakeOffModeActive = 1;
 			abortAltCommand();
-			startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + ALT_MGR_ALT_CONTROL_COMMAND_TAKEOFF_ALT, ALT_COMMAND_TYPE_TAKEOFF);
+			startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + altMgrTakeOffCommandAlt, ALT_COMMAND_TYPE_TAKEOFF);
 		}
 	} else {
 		wasLandingModeActive = 0;

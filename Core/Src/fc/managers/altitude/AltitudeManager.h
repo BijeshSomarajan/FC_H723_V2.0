@@ -113,6 +113,4 @@ typedef enum {
 #define ALT_MGR_ALT_CONTROL_SETTING_DOB_GAIN       1.0f
 #define ALT_MGR_ALT_CONTROL_SETTING_DOB_TAU        0.01f
 
-#define ALT_MGR_ALT_CONTROL_COMMAND_TAKEOFF_ALT  0.6f
-
 #endif
