@@ -36,10 +36,10 @@
 // ---------------------------------------------------------------------------
 // Takeoff boost: extra throttle rate right after lift-off, fading out with altitude gained
 // ---------------------------------------------------------------------------
-#define ALT_COMMAND_TAKEOFF_BOOST_FACTOR           1.35f  // peak extra rate at the ground, as a multiple of BASE_THROTTLE_RATE
-#define ALT_COMMAND_TAKEOFF_BOOST_DECAY_FRACTION   0.25f  // fade-out distance as a fraction of the takeoff altitude delta
+#define ALT_COMMAND_TAKEOFF_BOOST_FACTOR           1.5f  // peak extra rate at the ground, as a multiple of BASE_THROTTLE_RATE
+#define ALT_COMMAND_TAKEOFF_BOOST_DECAY_FRACTION   0.35f  // fade-out distance as a fraction of the takeoff altitude delta
 #define ALT_COMMAND_TAKEOFF_BOOST_MIN_DECAY_DIST   0.15f  // m, lower clamp on the fade-out distance (short takeoffs)
-#define ALT_COMMAND_TAKEOFF_BOOST_MAX_DECAY_DIST   0.60f  // m, upper clamp on the fade-out distance (long takeoffs)
+#define ALT_COMMAND_TAKEOFF_BOOST_MAX_DECAY_DIST   0.80f  // m, upper clamp on the fade-out distance (long takeoffs)
 
 // ---------------------------------------------------------------------------
 // Linear throttle ramps below lift-off throttle
