@@ -74,7 +74,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Raise toward 0.7-1.0 Hz if logs show bias arriving late vs the artifact;
  * lower if the bias output is jittery. Note the EKF's BP fusion adds its own
  * ~0.5 s - tune this from end-to-end logs (artifact vs BP), not in isolation. */
-#define VENTURI_EST_BIAS_LPF_FREQ               5.0f
+#define VENTURI_EST_BIAS_LPF_FREQ               25.0f
 
 /* Quadratic gain: bias[m] = lateralSpeed^2 * THIS.  ** THE calibrated core **
  * MEASURED, not guessed: two independent logs gave artifact ~0.32 m at model

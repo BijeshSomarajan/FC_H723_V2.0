@@ -204,15 +204,17 @@ void debugTelemetry() {
 
 extern AltCommandState altCommandState;
 void debufFCStatus() {
-	sprintf(buf, "%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive ,isAltCommandMode(), isAltCommandActive(), altCommandState, positionCordinateData.zPosition, positionCordinateData.zVelocity, controlData.throttleControl,
-			fcStatusData.throttlePercent, fcStatusData.altitudeSLHome, rcData.throttleCentered);
+	sprintf(buf, "%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(), isAltCommandActive(), altCommandState, positionCordinateData.zPosition, positionCordinateData.zVelocity,
+			controlData.throttleControl, fcStatusData.throttlePercent, fcStatusData.altitudeSLHome, rcData.throttleCentered);
 	logString(buf);
 }
 
 void debugHeading() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.headingHomeRef * 10;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.heading * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 2, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.mx * 10;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.my * 10;
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.mz * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
 float nowMs = 0;
@@ -222,21 +224,21 @@ void debugTask() {
 	}
 	float dt = 1.0f / DEBUG_TASK_FREQUENCY;
 	(void) dt;
-//nowMs += dt;
-//debugBattery();
-//debugRC();
-//debugModel();
-//debugIMU();
-//debufFCStatus();
-//debugALt();
-//debugAltStr();
-//debugAltGraph();
-//debugGnssData();
-//debugIMUStr();
-//debufFFT();
-//debugNoise();
-//debugNav();
-//debugNavStates();
-//	debugTelemetry();
-debugHeading();
+	//nowMs += dt;
+	//debugBattery();
+	//debugRC();
+	//debugModel();
+	//debugIMU();
+	//debufFCStatus();
+	//debugALt();
+	//debugAltStr();
+	//debugAltGraph();
+	//debugGnssData();
+	//debugIMUStr();
+	//debufFFT();
+	//debugNoise();
+	//debugNav();
+	//debugNavStates();
+	//debugTelemetry();
+	debugHeading();
 }
