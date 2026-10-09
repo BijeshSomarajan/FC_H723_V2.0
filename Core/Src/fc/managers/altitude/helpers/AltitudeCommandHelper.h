@@ -11,7 +11,7 @@
 #define ALT_COMMAND_MAX_DESCENT_VELOCITY           0.5f   // m/s
 
 // Far limits: beyond FAR_DISTANCE the limit grows with the remaining error, up to the FAR caps
-#define ALT_COMMAND_FAR_DISTANCE                   6.0f   // m, error at/below which the low limits apply
+#define ALT_COMMAND_FAR_DISTANCE                   3.0f   // m, error at/below which the low limits apply
 #define ALT_COMMAND_FAR_VELOCITY_GAIN              0.2f   // 1/s: extra limit (m/s) per metre of error beyond FAR_DISTANCE
 #define ALT_COMMAND_FAR_MAX_CLIMB_VELOCITY         0.70f   // m/s cap (reached at 4.0 m of error)
 #define ALT_COMMAND_FAR_MAX_DESCENT_VELOCITY       0.70f   // m/s cap (reached at 5.0 m of error)
@@ -33,11 +33,11 @@
 #define ALT_COMMAND_MAX_PHASE_THROTTLE_DELTA            100.0f  // throttle units, normal altitude commands
 #define ALT_COMMAND_TAKEOFF_MAX_PHASE_THROTTLE_DELTA    200.0f  // throttle units, takeoff
 #define ALT_COMMAND_THROTTLE_ZERO_TOLERANCE             0.01f   // throttle units, landing completes at/below this
-
+#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_CROSSOVER_DELTA 0.0f
 // ---------------------------------------------------------------------------
 // Takeoff boost: extra throttle rate right after lift-off, fading out with altitude gained
 // ---------------------------------------------------------------------------
-#define ALT_COMMAND_TAKEOFF_BOOST_FACTOR           1.25f  // peak extra rate at the ground, as a multiple of BASE_THROTTLE_RATE
+#define ALT_COMMAND_TAKEOFF_BOOST_FACTOR           1.35f  // peak extra rate at the ground, as a multiple of BASE_THROTTLE_RATE
 #define ALT_COMMAND_TAKEOFF_BOOST_DECAY_FRACTION   0.25f  // fade-out distance as a fraction of the takeoff altitude delta
 #define ALT_COMMAND_TAKEOFF_BOOST_MIN_DECAY_DIST   0.15f  // m, lower clamp on the fade-out distance (short takeoffs)
 #define ALT_COMMAND_TAKEOFF_BOOST_MAX_DECAY_DIST   0.60f  // m, upper clamp on the fade-out distance (long takeoffs)

@@ -28,7 +28,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_SPEED_GAIN_MAX  1.0f //meter per second
 #define ALT_MGR_ALT_PRE_LIFTOFF_SPEED_FACTOR 4.0f
 
-#define ALT_MGR_THROTTLE_CONTROL_LPF_FREQUENCY 50.0f //The frequency at which the overall throttle is measured to create the baseline.
+#define ALT_MGR_THROTTLE_CONTROL_LPF_FREQUENCY 25.0f //The frequency at which the overall throttle is measured to create the baseline.
 
 
 /* --------------------------------------------------------------------------
