@@ -13,12 +13,12 @@
 #include "../../logger/Logger.h"
 #include "../../sensors/altitude/AltitudeSensor.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
-#include "../../sensors/attitude/devices/AttitudeDevice.h"
 #include "../../sensors/battery/BatterySensor.h"
 #include "../../sensors/position/GNSS.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/Scheduler.h"
+#include "../altitude/helpers/AltitudeCommandHelper.h"
 #include "../config/ConfigHelper.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimator.h"
@@ -132,12 +132,18 @@ void debugBattery() {
 }
 
 extern IMU_DATA imuData;
+extern LOWPASSFILTER altMgrAltHoldBrakingLPF;
 void debugALt() {
-	DEBUG_DATA_BUFFER[0] = positionCordinateData.zVelocity * 100;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 100;
-	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altitudeSLScaled * 100;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 1000;
-	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = fcStatusData.currentThrottle;
+	DEBUG_DATA_BUFFER[1] = controlData.altitudeControl;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.hoverThrottle;
+	DEBUG_DATA_BUFFER[3] = controlData.tiltCompThDelta;
+	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.pitch;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[7] = fcStatusData.altitudeHoldState * 10;
+	DEBUG_DATA_BUFFER[8] = altMgrAltHoldBrakingLPF.output * 1000;
+	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
 }
 
 void debugGnssData() {
@@ -181,19 +187,34 @@ void debugNavStates() {
 	DEBUG_DATA_BUFFER[2] = fcStatusData.isNavRTHModeActive * 100;
 	DEBUG_DATA_BUFFER[3] = fcStatusData.isNavMissionModeActive * 100;
 	DEBUG_DATA_BUFFER[4] = fcStatusData.isFailSafeModeActive * 100;
-	DEBUG_DATA_BUFFER[5] = fcStatusData.isNavMissionComplete  * 100;
+	DEBUG_DATA_BUFFER[5] = fcStatusData.isNavMissionComplete * 100;
 	DEBUG_DATA_BUFFER[6] = positionCommandData.targetYVel * 10;
 	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
 }
 
 extern float expectedGroundSpeed;
 void debugTelemetry() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.headingHomeRef;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.heading;
+	DEBUG_DATA_BUFFER[0] = fcStatusData.headingHomeRef * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.heading * 10;
 	DEBUG_DATA_BUFFER[2] = positionCommandData.targetXVel * 10;
 	DEBUG_DATA_BUFFER[3] = positionCommandData.targetYVel * 10;
 	DEBUG_DATA_BUFFER[4] = expectedGroundSpeed * 10;
 	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+}
+
+extern AltCommandState altCommandState;
+void debufFCStatus() {
+	sprintf(buf, "%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(), isAltCommandActive(), altCommandState, positionCordinateData.zPosition, positionCordinateData.zVelocity,
+			controlData.throttleControl, fcStatusData.throttlePercent, fcStatusData.altitudeSLHome, rcData.throttleCentered);
+	logString(buf);
+}
+
+void debugHeading() {
+	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading * 10;
+	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.mx * 10;
+	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.my * 10;
+	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.mz * 10;
+	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
 float nowMs = 0;
@@ -203,20 +224,21 @@ void debugTask() {
 	}
 	float dt = 1.0f / DEBUG_TASK_FREQUENCY;
 	(void) dt;
-//nowMs += dt;
-//debugBattery();
-//debugRC();
-//debugModel();
-//debugIMU();
-debugALt();
-//debugAltStr();
-//debugAltGraph();
-//debugGnssData();
-//debugIMUStr();
-//debufFFT();
-//debugNoise();
-//debugNav();
-//debugNavStates();
-//debugTelemetry();
-
+	//nowMs += dt;
+	//debugBattery();
+	//debugRC();
+	//debugModel();
+	//debugIMU();
+	//debufFCStatus();
+	//debugALt();
+	//debugAltStr();
+	//debugAltGraph();
+	//debugGnssData();
+	//debugIMUStr();
+	//debufFFT();
+	//debugNoise();
+	//debugNav();
+	//debugNavStates();
+	//debugTelemetry();
+	debugHeading();
 }

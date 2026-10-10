@@ -131,10 +131,18 @@ void processRCData(float dt) {
 	fcStatusData.isTerrainAltModeActive = checkTerrainAltModeActivation();
 
 	//If throttle is not centered , reset
-	if (checkLandingModeActivation()) {
-		fcStatusData.isLandingModeActive = 1;
+	if (checkTOffLandingActivation()) {
+		uint8_t isTakeOff = checkTOffLandingModeActivation();
+		if (isTakeOff) {
+			fcStatusData.isTakeOffModeActive = 1;
+			fcStatusData.isLandingModeActive = 0;
+		} else {
+			fcStatusData.isTakeOffModeActive = 0;
+			fcStatusData.isLandingModeActive = 1;
+		}
 	} else if (!rcData.throttleCentered) {
 		fcStatusData.isLandingModeActive = 0;
+		fcStatusData.isTakeOffModeActive = 0;
 	}
 
 }
@@ -190,7 +198,7 @@ void resetRCManager() {
 
 	rcData.RC_DELTA_DATA[RC_START_CHANNEL_INDEX] = 0;
 	rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] = 0;
-	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = 0;
+	rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_CHANNEL_INDEX] = 0;
 	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = 0;
 }
 
@@ -205,11 +213,11 @@ void configureRCStickControl() {
 	rcStickYawGain = get1KXScaledCalibrationValue(CALIB_PROP_RC_YAW_RATE_P_ADDR);
 }
 
-float getRCStickPitchGain(){
+float getRCStickPitchGain() {
 	return rcStickPitchGain;
 }
 
-float getRCStickRollGain(){
+float getRCStickRollGain() {
 	return rcStickRollGain;
 }
 
@@ -251,7 +259,7 @@ void loadRCStickDelta() {
 	// Aux channels
 	rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] = getRCValue(RC_NAV_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_RTH_CHANNEL_INDEX] = getRCValue(RC_RTH_CHANNEL_INDEX);
-	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = getRCValue(RC_LAND_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_CHANNEL_INDEX] = getRCValue(RC_TOFF_AND_LAND_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = getRCValue(RC_ALT_MODE_CHANNEL_INDEX);
 	// Apply dead bands
 	rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX]);
@@ -259,8 +267,8 @@ void loadRCStickDelta() {
 	rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX]);
 	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX]);
 
-	rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] = getRCValue(RC_LAND_CHANNEL_INDEX);
-	//rcData.RC_DELTA_DATA[RC_VARIO_CHANNEL_INDEX] = getRCValue(RC_VARIO_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_CHANNEL_INDEX] = getRCValue(RC_TOFF_AND_LAND_CHANNEL_INDEX);
+	rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX] = getRCValue(RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX);
 }
 
 /*************************************************************************/
@@ -339,8 +347,15 @@ uint8_t checkNavRTHModeActivation() {
 /**
  * Checks if Landing Mode is active
  */
-uint8_t checkLandingModeActivation() {
-	return (rcData.RC_DELTA_DATA[RC_LAND_CHANNEL_INDEX] > LANDING_MODE_ACT_TSH);
+uint8_t checkTOffLandingActivation() {
+	return (rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_CHANNEL_INDEX] > LANDING_MODE_ACT_TSH);
+}
+
+/**
+ * Checks if Landing Mode is active
+ */
+uint8_t checkTOffLandingModeActivation() {
+	return (rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX] > LANDING_MODE_ACT_TSH);
 }
 
 /**

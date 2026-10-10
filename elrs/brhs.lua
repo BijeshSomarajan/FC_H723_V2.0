@@ -78,7 +78,9 @@ local aAlertAltModes = {
 }
 
 local aAlertLandModes = {
-    ["L"] = "/SOUNDS/en/brhs/land/land.wav",
+    ["C"] = "/SOUNDS/en/brhs/land/altc.wav",
+    ["T"] = "/SOUNDS/en/brhs/land/takeoff.wav",
+	["L"] = "/SOUNDS/en/brhs/land/land.wav",
     ["F"] = "/SOUNDS/en/brhs/land/fly.wav",
 }
 

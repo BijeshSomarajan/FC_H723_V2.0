@@ -56,7 +56,9 @@ void configureRCStickControl(void);
 uint8_t checkNavModeActivation(void);
 uint8_t checkNavCruiseModeActivation(void);
 uint8_t checkNavRTHModeActivation(void);
-uint8_t checkLandingModeActivation(void);
+
+uint8_t checkTOffLandingActivation(void);
+uint8_t checkTOffLandingModeActivation(void);
 
 uint8_t checkTerrainAltModeActivation(void);
 uint8_t checkTerrainNavModeActivation(void);

@@ -75,7 +75,7 @@ void alignImuAnglesToBoard() {
 
 __ATTR_ITCM_TEXT
 void doAttitudeRateControl(float dt) {
-	if (!fcStatusData.hasCrashed) {
+	if (!fcStatusData.hasCrashed && fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
 		float ratePGain = 1.0f;
 		float rateIGain = 1.0;
 		float rateDGain = 1.0f;
@@ -113,7 +113,7 @@ void doAttitudeAngleControl(float dt) {
 	if (!rcData.yawCentered) {
 		fcStatusData.headingRef = sensorAttitudeData.heading;
 	}
-	if (fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
+	if (!fcStatusData.hasCrashed && fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
 		float expectedPitch = 0;
 		float expectedRoll = 0;
 		//Cruise mode translates the stick movements to velocity commands

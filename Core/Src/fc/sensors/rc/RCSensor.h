@@ -23,8 +23,8 @@
 #define RC_START_CHANNEL_INDEX       6 //Channel 7  //swa  //ARM
 #define RC_NAV_CHANNEL_INDEX         7 //Channel 8  //swb  //Hold/RTH
 #define RC_ALT_MODE_CHANNEL_INDEX    8 //Channel 9  //swc  //Terrain/ASL
-#define RC_LAND_CHANNEL_INDEX        9 //Channel 10 //key1 //Land
-#define RC_VARIO_CHANNEL_INDEX       10 //Channel 11 //Vario
+#define RC_TOFF_AND_LAND_CHANNEL_INDEX        9 //Channel 10 //key1 //Land
+#define RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX       10 //Channel 11 //Vario
 
 #else
 #define RC_ROLL_CHANNEL_INDEX        0 // Channel 1 // Rudder
@@ -38,10 +38,8 @@
 #define RC_NAV_CHANNEL_INDEX         5 //Channel 6  //swb  //Hold/RTH
 #define RC_ALT_MODE_CHANNEL_INDEX    6 //Channel 7  //swc  //Terrain/ASL
 #define RC_RTH_CHANNEL_INDEX         7 //Channel 8  //swd  //RTH
-#define RC_LAND_CHANNEL_INDEX        8 //Channel 9  //key1 //Land channel
-//#define RC_VARIO_CHANNEL_INDEX     9 //Channel 10 //Vario
-
-
+#define RC_TOFF_AND_LAND_CHANNEL_INDEX        8 //Channel 9  //key1 //Land channel
+#define RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX    4 //Channel 10 //Vario
 
 #endif
 

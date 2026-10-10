@@ -8,7 +8,7 @@ from pathlib import Path
 # CONFIGURATION
 # ============================================================
 
-CSV_FILE = "Log6.csv"
+CSV_FILE = "AutoLanding.csv"
 
 # True:
 #   All signals are normalized so they can be compared on

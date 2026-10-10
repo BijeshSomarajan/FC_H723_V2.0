@@ -3,16 +3,16 @@
 
 #include "VenturiBiasEstimator.h"
 
-#include <math.h>
 #include <stdio.h>
 
 #include "../../../calibration/Calibration.h"
 #include "../../../dsp/LowPassFilter.h"
 #include "../../../logger/Logger.h"
 #include "../../../memory/Memory.h"
-#include "../../../sensors/attitude/AttitudeSensor.h"
 #include "../../../status/FCStatus.h"
 #include "../../../util/MathUtil.h"
+#include "../helpers/PositionManagerHelper.h"
+#include "PositionEstimatorHelper.h"
 
 VENTURI_ESTIMATE_DATA venturiEstimateData;
 LOWPASSFILTER venturiBiasLPF;
@@ -31,154 +31,22 @@ uint8_t initVenturiBiasEstimator(void) {
 	return 1;
 }
 
-/*
- * One axis of the speed model. Identical maths to the original single-axis
- * version, operating on whichever state pair is handed in.
- * angleDeg : already deadbanded and clamped, signed, degrees
- * speed    : in/out signed speed state for this axis [m/s]
- * dwell    : in/out brake dwell timer for this axis  [s]
- */
-
 __ATTR_ITCM_TEXT
-void venturiUpdateAxisOld(float angleDeg, float *speed, float *dwell, float dt) {
-	/* 1. Signed acceleration mapping */
-	float lateralAccel = tanApprox(convertDegToRadF(angleDeg)) * GRAVITY_MSS * VENTURI_EST_ACCEL_GAIN;
-
-	/* 2. Drag and integration */
-	//float drag = (*speed) * VENTURI_EST_DRAG_GAIN;
-	float drag = VENTURI_EST_DRAG_GAIN_Q * (*speed) * fabsf(*speed);
-
-	float acceleration = lateralAccel - drag;
-	float prevSpeed = *speed;
-	*speed += (acceleration * dt);
-
-	/* 3. Zero-cross braking protection: acceleration opposing current travel */
-	if ((prevSpeed > 0.0f && lateralAccel < 0.0f) || (prevSpeed < 0.0f && lateralAccel > 0.0f)) {
-		if (((prevSpeed > 0.0f && *speed <= 0.0f) || (prevSpeed < 0.0f && *speed >= 0.0f)) && fabsf(prevSpeed) > VENTURI_EST_BRAKE_ARM_SPEED) {
-			*speed = 0.0f;
-			*dwell = VENTURI_EST_BRAKE_DWELL;
-		}
-	}
-
-	/* 3b. Dwell hold: a zero-cross during braking means this axis stopped.
-	 *     Hold at zero so continued brake tilt is not read as reverse flight. */
-	if (*dwell > 0.0f) {
-		*dwell -= dt;
-		*speed = 0.0f;
-	}
-
-	/* 4. Deadband drain: tilt inside the deadband -> bleed the speed memory */
-	if (angleDeg == 0.0f) {
-		*speed -= ((*speed) * VENTURI_EST_DAMPING_GAIN * dt);
-		if (fabsf(*speed) < 0.001f) {
-			*speed = 0.0f;
-		}
-	}
-
-	/* 5. Runaway clamp */
-	*speed = constrainToRangeF(*speed, -VENTURI_EST_SPEED_MAX, VENTURI_EST_SPEED_MAX);
-}
-
-/**
- * @brief Updates the venturi bias estimation for a single axis.
- * @param angleDeg Current tilt angle of the axis in degrees.
- * @param speed Pointer to the estimated speed variable (updated in-place).
- * @param dwell Pointer to the braking dwell timer (updated in-place).
- * @param dt Time step since the last update in seconds.
- */
-__ATTR_ITCM_TEXT
-void venturiUpdateAxis(float angleDeg, float *speed, float *dwell, float dt) {
-	// Prevent processing if time hasn't moved to avoid NaN/Zero-division quirks
-	if (dt <= 0.0f) {
-		return;
-	}
-	/* 1. Signed acceleration mapping */
-	// tanApprox preserves sign: negative tilt gives negative acceleration
-	float lateralAccel = tanApprox(convertDegToRadF(angleDeg)) * GRAVITY_MSS * VENTURI_EST_ACCEL_GAIN;
-	/* 2. Drag and integration */
-	// Quadratic drag safely opposes the direction of movement
-	float drag = VENTURI_EST_DRAG_GAIN_Q * (*speed) * fabsf(*speed);
-	float acceleration = lateralAccel - drag;
-	float prevSpeed = *speed;
-	*speed += (acceleration * dt);
-	/* 3. Zero-cross braking protection: acceleration opposing current travel */
-	if ((prevSpeed > 0.0f && lateralAccel < 0.0f) || (prevSpeed < 0.0f && lateralAccel > 0.0f)) {
-		if (((prevSpeed > 0.0f && *speed <= 0.0f) || (prevSpeed < 0.0f && *speed >= 0.0f)) && fabsf(prevSpeed) > VENTURI_EST_BRAKE_ARM_SPEED) {
-			*speed = 0.0f;
-			*dwell = VENTURI_EST_BRAKE_DWELL;
-		}
-	}
-	/* 3b. Dwell hold: a zero-cross during braking means this axis stopped.
-	 *     Hold at zero so continued brake tilt is not read as reverse flight. */
-	if (*dwell > 0.0f) {
-		*dwell -= dt;
-		*speed = 0.0f;
-	}
-	/* 4. Deadband drain: tilt inside a small threshold -> cleanly bleed speed memory */
-	if (fabsf(angleDeg) < VENTURI_EST_DEADBAND_DEG) {
-		// Calculate dampening factor ensuring it stays bounded between 0.0 and 1.0
-		float dampingFactor = VENTURI_EST_DAMPING_GAIN * dt;
-		if (dampingFactor > 1.0f) {
-			dampingFactor = 1.0f;
-		}
-
-		// Scale speed toward zero perfectly regardless of positive or negative sign
-		*speed *= (1.0f - dampingFactor);
-
-		// Snap to zero if it's microscopic to prevent perpetual floating point creep
-		if (fabsf(*speed) < 0.001f) {
-			*speed = 0.0f;
-		}
-	}
-
-	/* 5. Runaway clamp */
-	*speed = constrainToRangeF(*speed, -VENTURI_EST_SPEED_MAX, VENTURI_EST_SPEED_MAX);
-}
-
-
-__ATTR_ITCM_TEXT
-float getVenturiBiasEstimate(float dt) {
-	/* 1. Safety guard: reset and bypass if the vehicle cannot fly or is below
-	 *    the liftoff threshold */
-	if (!fcStatusData.canFly || fcStatusData.throttlePercent <= fcStatusData.liftOffThrottlePercent) {
+float getVenturiBiasEstimate(float dt, float speed) {
+	if (speed < VENTURI_EST_SPEED_MIN || !fcStatusData.canFly || fcStatusData.throttlePercent <= fcStatusData.liftOffThrottlePercent || !isNavModeActive()) {
 		resetVenturiBiasEstimator();
 		return 0.0f;
 	}
-
-	/* 2. Condition both tilt inputs identically */
-	float imuPitch = applyDeadBandFloat(0.0f, sensorAttitudeData.pitch, VENTURI_EST_PITCH_ANGLE_MIN);
-	imuPitch = constrainToRangeF(imuPitch, -VENTURI_EST_PITCH_ANGLE_MAX, VENTURI_EST_PITCH_ANGLE_MAX);
-
-	float imuRoll = applyDeadBandFloat(0.0f, sensorAttitudeData.roll, VENTURI_EST_ROLL_ANGLE_MIN);
-	imuRoll = constrainToRangeF(imuRoll, -VENTURI_EST_ROLL_ANGLE_MAX, VENTURI_EST_ROLL_ANGLE_MAX);
-
-	/* 3. Advance both speed states independently */
-	venturiUpdateAxis(imuPitch, &venturiEstimateData.lateralSpeedPitch, &venturiEstimateData.brakeDwellPitch, dt);
-	venturiUpdateAxis(imuRoll, &venturiEstimateData.lateralSpeedRoll, &venturiEstimateData.brakeDwellRoll, dt);
-
-	/* 4. Quadratic Bernoulli translation on the speed MAGNITUDE.
-	 *    speedSq = |v|^2 = vPitch^2 + vRoll^2 - no sqrt needed, the bias is
-	 *    quadratic in speed anyway. */
-	float vP = venturiEstimateData.lateralSpeedPitch;
-	float vR = venturiEstimateData.lateralSpeedRoll;
-	float speedSq = (vP * vP) + (vR * vR);
-
-	venturiEstimateData.lateralSpeedMag = fastSqrtf(speedSq); /* logging only */
-
-	float bias = speedSq * venturiBiasGain;
+	venturiEstimateData.lateralSpeedMag = constrainToRangeF(speed, VENTURI_EST_SPEED_MIN, VENTURI_EST_SPEED_MAX);
+	float bias = venturiEstimateData.lateralSpeedMag * venturiEstimateData.lateralSpeedMag * venturiBiasGain;
 	bias = constrainToRangeF(bias, 0.0f, VENTURI_EST_BIAS_VALUE_MAX);
-
-	/* 5. Output LPF (pneumatic settling) */
 	venturiEstimateData.venturiBias = lowPassFilterUpdate(&venturiBiasLPF, bias, dt);
 	return venturiEstimateData.venturiBias;
 }
 
 void resetVenturiBiasEstimator(void) {
 	venturiEstimateData.venturiBias = 0.0f;
-	venturiEstimateData.lateralSpeedPitch = 0.0f;
-	venturiEstimateData.brakeDwellPitch = 0.0f;
-	venturiEstimateData.lateralSpeedRoll = 0.0f;
-	venturiEstimateData.brakeDwellRoll = 0.0f;
+	venturiEstimateData.lateralSpeedMag = 0.0f;
 	lowPassFilterReset(&venturiBiasLPF);
 }
 
