@@ -31,7 +31,7 @@ float getAltitudeError(void) {
 
 __ATTR_ITCM_TEXT
 uint8_t isTargetAltitudeReached(void) {
-	return (fabsf(getAltitudeError()) <= ALT_COMMAND_ALTITUDE_TOLERANCE);
+	return (fabsf(getAltitudeError()) <= ALT_COMMAND_TARGET_ALTITUDE_TOLERANCE);
 }
 
 __ATTR_ITCM_TEXT
@@ -60,7 +60,6 @@ uint8_t isVelocityLimitReached(void) {
 	return (zVelocity <= -getVelocityLimit(ALT_COMMAND_MAX_DESCENT_VELOCITY, ALT_COMMAND_FAR_MAX_DESCENT_VELOCITY));
 }
 
-
 __ATTR_ITCM_TEXT
 uint8_t isPhaseDistanceLimitReached(void) {
 	return (fabsf(positionCordinateData.zPosition - altCommandPhaseStartAltitude) >= ALT_COMMAND_MAX_PHASE_DISTANCE);
@@ -68,7 +67,7 @@ uint8_t isPhaseDistanceLimitReached(void) {
 
 __ATTR_ITCM_TEXT
 uint8_t isVelocitySettled(void) {
-	return (fabsf(positionCordinateData.zVelocity) <= ALT_COMMAND_RESUME_VELOCITY);
+	return (fabsf(positionCordinateData.zVelocity) <= ALT_COMMAND_TARGET_VELOCITY_TOLERANCE);
 }
 
 __ATTR_ITCM_TEXT
@@ -103,7 +102,7 @@ void adjustPostLiftOffBaseThrottle(float dt) {
 	} else {
 		fcStatusData.currentThrottle -= step;
 	}
-	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, altCommandLiftOffThrottle, MAX_PERMISSIBLE_THROTTLE_DELTA);
+	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, altCommandLiftOffThrottle - 1, MAX_PERMISSIBLE_THROTTLE_DELTA);
 }
 
 __ATTR_ITCM_TEXT

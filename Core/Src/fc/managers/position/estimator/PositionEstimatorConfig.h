@@ -490,7 +490,7 @@
  * Higher -> smoother/more inertial altitude estimate, but greater reliance on
  *           acceleration and bias estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE           6000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE           7000.0f
 
 /* Maximum dynamic barometric position variance, m^2.
  *
@@ -499,7 +499,7 @@
  * Reached as motionScale increases, further reducing baro authority during
  * strong maneuver-induced pressure disturbances.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            27000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            20000.0f
 
 /* Residual self-inflation gain.
  *
@@ -526,19 +526,6 @@
  * variance term.
  */
 #define POS_ESTIMATOR_DYNAMIC_Z_BARO_RESIDUAL_CLAMP    0.75f
-
-/* Linear-acceleration thresholds for baro motion scaling, m/s^2.
- *
- * As maneuver acceleration increases above these thresholds, baro R is
- * progressively increased toward RP_MAX.
- *
- * XY is intentionally low because lateral translation is where pressure-field
- * artifacts can become significant.
- *
- * Z is higher because vertical acceleration is treated separately.
- */
-#define POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH          3.0f
-#define POS_ESTIMATOR_DYNAMIC_Z_ACC_Z_THRESH           8.0f
 
 /* ============================================================================
  * Group 8: GNSS Delay Compensation (XY)
@@ -567,41 +554,24 @@
  * Group 9: Cruise-Adaptive Z Estimator Profile
  * ========================================================================== */
 
-/* Disabled by default. */
-#define POSITION_MGR_Z_ENABLE_DYNAMIC_R                0
-
+#define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
+#define POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH  3.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_SPEED_REF      15.0f   // m/s, speed at which scale saturates (tune from logs) ( ~0.7 * max flying speed )
+#define POS_ESTIMATOR_MOTION_SCLALE_TAU_RISE   0.01f   // fast attack
+#define POS_ESTIMATOR_MOTION_SCALE_TAU_FALL    2.0f    // slow release, 0.7-1.5s typical; set from measured error persistence
+#endif
 
-/* Enable transition between hover and cruise Z estimator profiles based on
- * horizontal speed.
- */
-#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED           0
-
+#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED           1
+#if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
 /* Below this horizontal speed, use the hover-side Z profile. */
 #define POS_ESTIMATOR_Z_CRUISE_SPEED_LO                2.0f   // m/s
-
 /* Above this horizontal speed, use the full cruise-side Z profile. */
-#define POS_ESTIMATOR_Z_CRUISE_SPEED_HI                10.0f  // m/s
-
+#define POS_ESTIMATOR_Z_CRUISE_SPEED_HI                15.0f  // m/s
 /* Time constant for entering the cruise profile. */
 #define POS_ESTIMATOR_Z_CRUISE_TAU_RISE                0.3f   // s
-
-/* Time constant for returning toward the hover profile.
- *
- * Slower release avoids an abrupt change in Z measurement authority after
- * braking or leveling.
- */
-#define POS_ESTIMATOR_Z_CRUISE_TAU_FALL                1.0f   // s
-
-/* GNSS-Z velocity variance used by the cruise profile.
- *
- * R = 1.0 (m/s)^2 -> 1.0 m/s 1-sigma.
- *
- * This is intentionally much more authoritative than the normal GNSS-Z
- * velocity variance and is therefore a deliberate cruise exception.
- *
- * Monitor for transition-induced velocity steps or ringing.
- */
+/* Time constant for returning toward the hover profile.*/
+#define POS_ESTIMATOR_Z_CRUISE_TAU_FALL                1.2f   // s
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_CRUISE    1.0f   // (m/s)^2
 
 #endif

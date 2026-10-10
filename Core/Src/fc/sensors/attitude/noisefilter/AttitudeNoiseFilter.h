@@ -42,7 +42,7 @@
 /* --- Magnetometer & Temperature LPF Configuration --- */
 
 // Low-pass filter cutoff frequency (Hz) for magnetometer data
-#define SENSOR_LPF_MAG_FREQUENCY                20.0f
+#define SENSOR_LPF_MAG_FREQUENCY                10.0f
 
 // Low-pass filter cutoff frequency (Hz) for temperature sensor data
 #define SENSOR_LPF_TEMP_FREQUENCY               2.0f

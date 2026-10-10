@@ -3,93 +3,60 @@
 #include <sys/_stdint.h>
 
 /* =============================================================================
- *  VENTURI BIAS ESTIMATOR - TUNING GUIDE
+ *  VENTURI BIAS ESTIMATOR
  * =============================================================================
+ *  Airflow over the baro port in horizontal flight lowers local pressure, so
+ *  baro reads HIGH -> EKF thinks we climbed -> controller descends -> dip.
+ *  This module estimates that artifact [m] and feeds it to the EKF BP state.
  *
- *  WHAT THIS MODELS
- *  ----------------
- *  Airflow over the barometer port during horizontal flight lowers the local
- *  pressure (venturi/dynamic-pressure effect), so the baro reads HIGH - the
- *  EKF thinks the drone climbed, the controller descends, and the drone dips.
- *  This module estimates that pressure artifact in meters and feeds it to the
- *  EKF as a pseudo-measurement of the baro bias state (BP), which the filter
- *  then subtracts from the baro reading.
+ *  Model chain:
+ *    pitch -> lateral accel -> integrated model speed (drag, brake dwell,
+ *    damping when level) -> bias = speed^2 * BIAS_GAIN (clamped) -> LPF
+ *    -> venturiBias [m] -> EKF BP state
  *
- *  THE MODEL CHAIN (each stage has its own constants below):
+ *  Known limits (accept, don't tune around):
+ *  - Wind-blind: hover in wind has airspeed with little pitch. Gusts are
+ *    handled by baro dynamic-R, not here.
+ *  - Direction-symmetric: real artifact is asymmetric (port placement).
+ *    Split fwd/bwd gains once the backward leg is calibrated.
+ *  - Model speed != ground speed. Gains are calibrated against model speed;
+ *    re-measure if a real speed source is ever used.
  *
- *    pitch --(deadband/clamp)--> lateralAccel = tan(pitch)*g*ACCEL_GAIN
- *          --(integrate, drag=v*DRAG_GAIN, zero-cross clamp, BRAKE_DWELL,
- *             DAMPING drain when level)--> lateralSpeed  [pitch-proxy, m/s]
- *          --> bias = lateralSpeed^2 * BIAS_GAIN, clamped to BIAS_VALUE_MAX
- *          --(LPF at BIAS_LPF_FREQ)--> venturiBias [m] --> EKF BP state
+ *  Tuning law for BIAS_GAIN: cruise compensation error becomes a real altitude
+ *  offset, repaid at the next stop.
+ *    Too low  -> flies LOW in cruise, RISES at stop.
+ *    Too high -> flies HIGH in cruise, DIPS at stop.
+ *  Fix the gain, not the transition.
  *
- *  KNOWN LIMITS OF THE PITCH PROXY (accept, don't tune around):
- *  - Wind-blind: in a hover-in-wind, airspeed exists with little pitch until
- *    the model's slow integrator catches up. Gust artifacts are handled by
- *    the baro dynamic-R machinery, not here.
- *  - Direction-symmetric: bias = v^2 is the same fwd/bwd, but the real
- *    artifact is asymmetric (port placement). Direction-split gains are the
- *    planned fix once GAIN_BWD is measured (see BIAS_GAIN notes).
- *  - Model speed is NOT ground speed. All gains below are calibrated against
- *    the MODEL's speed, not GPS speed. If a real speed source (GNSS/flow) is
- *    ever fed in, every speed-referenced gain must be re-measured.
- *
- *  THE ONE LAW TO REMEMBER WHEN TUNING BIAS_GAIN:
- *    Any compensation error during cruise becomes a REAL altitude offset of
- *    the opposite sign, repaid as a transient at the next stop.
- *      Under-compensate -> flies LOW in cruise, RISES at the stop.
- *      Over-compensate  -> flies HIGH in cruise, DIPS at the stop.
- *    The cruise symptom and the stop symptom are the same error - fix the
- *    gain, not the transition.
- *
- *  HOW TO CALIBRATE (the only honest way to set BIAS_GAIN):
- *    Fly a steady 5+ s cruise leg at 1.5-2 m altitude, away from walls and
- *    people, logging baro(altitudeSLFiltered), EKF z, and lateralSpeed.
- *    artifact = (baro - EKF z) averaged over the steady segment.
- *    BIAS_GAIN = artifact / lateralSpeed^2.
- *    Repeat backward for the (pending) GAIN_BWD.
+ *  Calibration: steady 5+ s cruise at 1.5-2 m, away from walls. Log baro, EKF z,
+ *  model speed. BIAS_GAIN = mean(baro - EKF z) / speed^2. Repeat backward for
+ *  GAIN_BWD (pending).
  * ============================================================================= */
 
 typedef struct _VENTURI_ESTIMATE_DATA VENTURI_ESTIMATE_DATA;
 struct _VENTURI_ESTIMATE_DATA {
-	float venturiBias;         // final output fed to EKF BP state [m]
+	float venturiBias;        // output to EKF BP state [m]
 	float lateralSpeedMag;    // sqrt(vPitch^2 + vRoll^2) [m/s]
 };
 extern VENTURI_ESTIMATE_DATA venturiEstimateData;
 
-/* Hard cap on the model speed state, m/s. Pure runaway protection - with
- * BIAS_GAIN 0.025 the bias clamp saturates at ~4.5 m/s anyway, so this
- * never binds in normal flight. Not a tuning knob. */
+/* Model speed cap [m/s]. Runaway protection only, not a tuning knob. */
 #define VENTURI_EST_SPEED_MAX                   50.0f
 #define VENTURI_EST_SPEED_MIN                   0.1f
-/* Output clamp, m. Safety ceiling on how much altitude the model may claim
- * the baro is lying by. With GAIN 0.025 this engages at model speed
- * ~4.5 m/s. Raise toward 1.0 only with outdoor high-speed calibration data
- * showing the real artifact exceeds 0.5 m - never to "fix" a dip (that is
- * always the gain or the decay, not the clamp). */
+/* Output clamp [m]. Safety ceiling on claimed baro error. Raise only with
+ * high-speed data showing the artifact exceeds it, never to fix a dip. */
 #define VENTURI_EST_BIAS_VALUE_MAX              1.0f
-/* Output LPF, Hz (tau ~0.45 s). Matches the pneumatic settling of the real
- * pressure field so the bias doesn't step. Part of the measured ~0.8 s total
- * compensation lag (model + this + BP fusion in the EKF).
- * Raise toward 0.7-1.0 Hz if logs show bias arriving late vs the artifact;
- * lower if the bias output is jittery. Note the EKF's BP fusion adds its own
- * ~0.5 s - tune this from end-to-end logs (artifact vs BP), not in isolation. */
+/* Output LPF cutoff [Hz], tau = 1/(2*pi*f). Should match the pneumatic settling
+ * of the real artifact. Tune from end-to-end logs (artifact vs BP), since EKF
+ * BP fusion adds its own lag. */
 #define VENTURI_EST_BIAS_LPF_FREQ               25.0f
-
-/* Quadratic gain: bias[m] = lateralSpeed^2 * THIS.  ** THE calibrated core **
- * MEASURED, not guessed: two independent logs gave artifact ~0.32 m at model
- * speed ~3.6 m/s -> 0.32/3.6^2 = 0.025. The previous 0.07 over-compensated
- * ~2.8x, which made the drone secretly fly ~0.15 m HIGH during cruise and
- * DIP at every stop (see THE ONE LAW above).
- * Symptoms: dips at stops / EKF sags below baro-consistent value in cruise
- *   -> gain too HIGH. Rises at stops / dips during cruise -> too LOW.
- * Re-measure (procedure in header) after ANY airframe/port/canopy change,
- * or after touching ACCEL_GAIN/DRAG_GAIN.
- * PENDING: direction split (GAIN_FWD/GAIN_BWD) - the artifact is measured
- * asymmetric with flight direction; backward-leg calibration not yet flown. */
-#define VENTURI_EST_BIAS_GAIN_DEFAULT     0.036f //0.03f//was 0.07f
+/* bias[m] = speed^2 * GAIN. The calibrated core.
+ * Measured: 0.32 m artifact at 3.6 m/s model speed -> 0.025.
+ * Dips at stops -> too high. Rises at stops -> too low.
+ * Re-measure after any airframe/port/canopy change or ACCEL/DRAG gain change. */
+#define VENTURI_EST_BIAS_GAIN_DEFAULT     0.036f
 
 uint8_t initVenturiBiasEstimator(void);
-float getVenturiBiasEstimate(float dt,float speed);
+float getVenturiBiasEstimate(float dt, float speed);
 void resetVenturiBiasEstimator(void);
 #endif

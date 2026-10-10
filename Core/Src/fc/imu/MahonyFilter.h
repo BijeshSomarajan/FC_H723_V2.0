@@ -23,19 +23,19 @@
 //        +---GATE_START---GATE_FULL--->  |norm deviation| (fraction of ref)
 //              0.10          0.30
 */
-#define MAHONY_FILTER_MAG_NORM_GATE_START     0.15f   //0.10f // fade begins at 10% deviation
-#define MAHONY_FILTER_MAG_NORM_GATE_FULL      0.40f   //0.30f // fully ignored at 30% deviation
-#define MAHONY_FILTER_MAG_NORM_GATE_INV_W     (1.0f / (MAHONY_FILTER_MAG_NORM_GATE_FULL - MAHONY_FILTER_MAG_NORM_GATE_START))
-// Mag channel gain as a fraction of KP. Heading only needs to correct slow
-// gyro drift: 0.15 * KP(0.6) -> heading tau ~ 11 s in flight.
-// Increase > Faster yaw correction toward magnetic heading
-#define MAHONY_FILTER_MAG_GAIN_RATIO          0.3f //0.15f
-// During ground stabilization we want fast initial heading alignment.
+/* Mag norm gate: mag correction fades with |norm - ref| / ref.
+ *   weight 1.0 below GATE_START, linear to 0.0 at GATE_FULL.
+ *   Catches current-induced norm distortion (not direction-only distortion). */
+#define MAHONY_FILTER_MAG_NORM_GATE_START   0.15f   // fade starts at 15% deviation
+#define MAHONY_FILTER_MAG_NORM_GATE_FULL    0.40f   // fully ignored at 40%
+#define MAHONY_FILTER_MAG_NORM_GATE_INV_W   (1.0f / (MAHONY_FILTER_MAG_NORM_GATE_FULL - MAHONY_FILTER_MAG_NORM_GATE_START))
+/* Mag gain as fraction of KP. Effective yaw gain = RATIO * KP.
+ * 0.3 * 0.6 = 0.18 -> heading tau ~5.5 s. Higher = faster heading pull. */
+#define MAHONY_FILTER_MAG_GAIN_RATIO          0.3f
+// Fast heading alignment on the ground only
 #define MAHONY_FILTER_STABILIZE_MAG_GAIN_RATIO 1.0f
-// Reference-norm learner: very slow LPF, only adapts when the field is clean.
-//"The reference magnetic-field magnitude should adapt to changes in the measured magnitude with a time constant of about x seconds."
-#define MAHONY_FILTER_MAG_REF_LEARN_TAU       30.0f   // seconds
-
+/* Reference norm learner: slow LPF, adapts only on clean field. [s] */
+#define MAHONY_FILTER_MAG_REF_LEARN_TAU       120.0f
 
 /* --- Mahony Accel Norm Gate ---
 // Accel correction trusted only when |a| ≈ 1g (gravity-dominated sample).

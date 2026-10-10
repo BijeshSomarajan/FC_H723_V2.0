@@ -20,7 +20,8 @@ const float H_P_GNSS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 const float H_V_GNSS[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
 
 float positionEstPrevRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX;
-static float positionEstCruiseScale;
+static float positionEstCruiseScale = 0.0f;
+static float positionEstMotionScaleFilt = 0.0f;
 
 /*--------------------------------------- Utilities and inner functions ----------------------------------------------------*/
 
@@ -31,41 +32,37 @@ void resetPVEstimation(uint8_t axis, uint8_t keepBias) {
 	}
 }
 
+/* ------------------------------------------------------------------ */
+/* Instantaneous motion stress, 0..1 (acceleration + speed^2)          */
+/* ------------------------------------------------------------------ */
 __ATTR_ITCM_TEXT
-float calculateMotionScale(float ax, float ay, float az) {
+float calculateMotionScale(float ax, float ay, float groundSpeed) {
 	float accXY = fastSqrtf(ax * ax + ay * ay);
-	float accZ = fabsf(az);
-
-	float accXYScale = constrainToRangeF(accXY / POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH, 0.0f, 1.0f);
-	float accZScale = constrainToRangeF(accZ / POS_ESTIMATOR_DYNAMIC_Z_ACC_Z_THRESH, 0.0f, 1.0f);
-
-	// Returns a consolidated 0.0 - 1.0 factor representing "Vibration/Acceleration Stress"
-	return constrainToRangeF(accXYScale + accZScale, 0.0f, 1.0f);
+	float scale = constrainToRangeF(accXY / POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH, 0.0f, 1.0f);
+	const float vRef2 = POS_ESTIMATOR_DYNAMIC_Z_SPEED_REF * POS_ESTIMATOR_DYNAMIC_Z_SPEED_REF;
+	scale = fmaxf(scale, constrainToRangeF((groundSpeed * groundSpeed) / vRef2, 0.0f, 1.0f));
+	return scale;
 }
 
 __ATTR_ITCM_TEXT
 float getGroundSpeed(void) {
-	float vx = positionCordinateData.xVelocity;
-	float vy = positionCordinateData.yVelocity;
-	return fastSqrtf((vx * vx) + (vy * vy));
+	if (isNavModeActive() && isNavDataReliable()) {
+		float vx = positionCordinateData.xVelocity;
+		float vy = positionCordinateData.yVelocity;
+		return fastSqrtf((vx * vx) + (vy * vy));
+	} else {
+		return 0;
+	}
 }
 
+#if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
 __ATTR_ITCM_TEXT
 void calculateCruiseScale(float dt) {
-#if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
-	float gs = 0.0f;
-	/* No GNSS -> ground speed is dead-reckoned garbage; force hover profile ... */
-	if (isNavModeActive() && isNavDataReliable()) {
-		gs = getGroundSpeed();
-	}
-	float target = constrainToRangeF((gs - POS_ESTIMATOR_Z_CRUISE_SPEED_LO) / (POS_ESTIMATOR_Z_CRUISE_SPEED_HI - POS_ESTIMATOR_Z_CRUISE_SPEED_LO), 0.0f, 1.0f);
+	float target = constrainToRangeF((getGroundSpeed() - POS_ESTIMATOR_Z_CRUISE_SPEED_LO) / (POS_ESTIMATOR_Z_CRUISE_SPEED_HI - POS_ESTIMATOR_Z_CRUISE_SPEED_LO), 0.0f, 1.0f);
 	float tau = (target > positionEstCruiseScale) ? POS_ESTIMATOR_Z_CRUISE_TAU_RISE : POS_ESTIMATOR_Z_CRUISE_TAU_FALL;
 	positionEstCruiseScale += (dt / (tau + dt)) * (target - positionEstCruiseScale);
-#else
-	(void) dt;
-	positionEstCruiseScale = 0.0f;
-#endif
 }
+#endif
 
 __ATTR_ITCM_TEXT
 float getCruiseScale(void) {
@@ -213,23 +210,34 @@ void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt) {
 #endif
 }
 
+/* ------------------------------------------------------------------ */
+/* Baro update                                                         */
+/* ------------------------------------------------------------------ */
 __ATTR_ITCM_TEXT
 void updateZPositionSL(float offset, float zPos, float dt) {
 	positionCordinateData.positionZSLUpdateDt = dt;
 	positionCordinateData.zPositionRawSL = zPos;
-	float dynamicRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE;
+	float rawScale = 0.0f;
+	float venturiBias = 0.0f;
+	float dynamicRPSL;
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
-		float motionScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, imuData.azEarthLinear);
+	rawScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, getGroundSpeed());
+#endif
+
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
-		calculateCruiseScale(dt);
-		motionScale = fmaxf(motionScale, getCruiseScale());   // max, not sum — don't double-count a braking cruise
+	calculateCruiseScale(dt);
+	rawScale = fmaxf(rawScale, getCruiseScale());   // max, not sum
 #endif
-		dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
-#endif
-	float venturiBias = 0;
+
+	float tau = (rawScale > positionEstMotionScaleFilt) ? POS_ESTIMATOR_MOTION_SCLALE_TAU_RISE : POS_ESTIMATOR_MOTION_SCALE_TAU_FALL;
+	positionEstMotionScaleFilt += (dt / (tau + dt)) * (rawScale - positionEstMotionScaleFilt);
+	float motionScale = constrainToRangeF(positionEstMotionScaleFilt, 0.0f, 1.0f);
+
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
 	venturiBias = getVenturiBiasEstimate(dt, getGroundSpeed());
 #endif
+
+	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos - venturiBias, dynamicRPSL, H_BARO);
 }
 
@@ -272,8 +280,8 @@ void updateXYVelocityGNSS(float sAcc, float velN, float velE, float dt) {
 
 __ATTR_ITCM_TEXT
 void updateZVelocityGNSS(float sAcc, float velZ, float dt) {
-		//dynamicRv = getEstimatedZRV(sAcc);
-		float dynamicRv = getEstimatedZRV(sAcc, getCruiseScale());
-		float velDb = applyDeadBandFloat(0.0f, velZ, POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND);
-		positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, velDb, dynamicRv, H_V_GNSS);
+	//dynamicRv = getEstimatedZRV(sAcc);
+	float dynamicRv = getEstimatedZRV(sAcc, getCruiseScale());
+	float velDb = applyDeadBandFloat(0.0f, velZ, POS_ESTIMATOR_DYNAMIC_Z_GNSS_VEL_DEADBAND);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, velDb, dynamicRv, H_V_GNSS);
 }
