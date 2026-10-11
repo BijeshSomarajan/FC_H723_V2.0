@@ -40,14 +40,19 @@ void _groundStationSensorCRSFWPCb(uint8_t wpCommand, CRSFNavWaypointPayload_t wp
 		break;
 	}
 	case CRSF_NAV_ACTION_ADD_WAYPOINT: {
-		if (wp.waypointIndex == 0) {
+		if (wp.waypointIndex == 0U) {
 			clearGroundStationSensorWPData();
 		}
-		GroundStationSensorWPData groundStationSensorWPData;
+		GroundStationSensorWPData groundStationSensorWPData = { 0 };
 		groundStationSensorWPData.waypointIndex = groundStationSensorCRSFWPCount;
 		groundStationSensorWPData.latitude = (double) wp.latitude * 1e-7;
 		groundStationSensorWPData.longitude = (double) wp.longitude * 1e-7;
-		groundStationSensorWPData.velocity = (float) wp.velocity * 1e-1;
+		groundStationSensorWPData.status = NAV_STATUS_OPEN;
+		for (uint8_t i = 0; i < NAV_MAX_OPERATIONS; i++) {
+			groundStationSensorWPData.operations[i].operation = wp.operations[i].operation;
+			groundStationSensorWPData.operations[i].value = (float) wp.operations[i].value * 1e-2;
+			groundStationSensorWPData.operations[i].status = NAV_STATUS_OPEN;
+		}
 		setGroundStationSensorWPData(groundStationSensorWPData);
 		break;
 	}

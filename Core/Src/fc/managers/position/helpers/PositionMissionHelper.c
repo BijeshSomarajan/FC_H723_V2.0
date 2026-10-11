@@ -38,7 +38,7 @@ void initPositionMissionHelper() {
 	}
 
 	positionRTHSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RTH_SPEED_ADDR));
-	if ( positionRTHSpeed > positionCruiseSpeed) {
+	if (positionRTHSpeed > positionCruiseSpeed) {
 		positionRTHSpeed = positionCruiseSpeed * 0.8f;
 	}
 
@@ -90,20 +90,40 @@ void updatePositionReferenceToWPRef() {
 }
 
 __ATTR_ITCM_TEXT
+float getWayPointVelocity(GroundStationSensorWPData *groundStationSensorWPData) {
+	float velocity = POSITION_MISSION_CRUISE_SPEED_MIN;
+	for (uint8_t i = 0; i < NAV_MAX_OPERATIONS; i++) {
+		if (groundStationSensorWPData->operations[i].operation == NAV_OPERATION_SET_VEL) {
+			velocity = groundStationSensorWPData->operations[i].value;
+			break;
+		}
+	}
+	return constrainToRangeF(fabs(velocity), POSITION_MISSION_CRUISE_SPEED_MIN, positionCruiseSpeed);
+}
+__ATTR_ITCM_TEXT
 uint8_t loadWayPoints() {
 	if (positionMissionWPIndx >= 0 && positionMissionWPIndx < positionMissionWPCount) {
 		GroundStationSensorWPData *groundStationSensorWPData = getGroundStationSensorWPData(positionMissionWPIndx);
-		if (groundStationSensorWPData != NULL) {
+		if (groundStationSensorWPData != NULL && groundStationSensorWPData->status == NAV_STATUS_OPEN) {
 			float posX, posY;
 			convertGNSSToXYCordinates(groundStationSensorWPData->latitude, groundStationSensorWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
 			fcStatusData.positionXRefMission = posX;
 			fcStatusData.positionYRefMission = posY;
-			//Limit the velocity to cruise speed set , min is set to 0.5 M/s
-			fcStatusData.positionVelMission = constrainToRangeF(fabs(groundStationSensorWPData->velocity), POSITION_MISSION_CRUISE_SPEED_MIN, positionCruiseSpeed);
+			fcStatusData.positionVelMission = getWayPointVelocity(groundStationSensorWPData);
 			return 1;
 		}
 	}
 	return 0;
+}
+
+__ATTR_ITCM_TEXT
+void updateCurrentNavWPStatus(uint8_t status) {
+	if (positionMissionWPIndx >= 0 && positionMissionWPIndx < positionMissionWPCount) {
+		GroundStationSensorWPData *groundStationSensorWPData = getGroundStationSensorWPData(positionMissionWPIndx);
+		if (groundStationSensorWPData != NULL) {
+			groundStationSensorWPData->status = status;
+		}
+	}
 }
 
 void groundStationMissionCallBack(uint8_t action) {
@@ -136,8 +156,13 @@ void handleNavMission(float dt) {
 			groundStationSensorWPData.waypointIndex = 0;
 			groundStationSensorWPData.latitude = fcStatusData.positionLatHome;
 			groundStationSensorWPData.longitude = fcStatusData.positionLongHome;
+			groundStationSensorWPData.status = NAV_STATUS_OPEN;
+			GroundStationSensorOPData setRTHVelocityOperation;
 			//RTH will be at a percentage of cruise speed
-			groundStationSensorWPData.velocity = positionRTHSpeed;
+			setRTHVelocityOperation.value = positionRTHSpeed;
+			setRTHVelocityOperation.operation = NAV_OPERATION_SET_VEL;
+			groundStationSensorWPData.operations[0] = setRTHVelocityOperation;
+			groundStationSensorWPData.operations[0].status = NAV_STATUS_OPEN;
 			setGroundStationSensorWPData(groundStationSensorWPData);
 			groundStationMissionCallBack(NAV_ACTION_START_MISSION);
 			positionMissionWasRTHModeActive = 1;
@@ -154,6 +179,7 @@ void handleNavMission(float dt) {
 	updateWPCompletionStatus(dt);
 	updatePositionReference();
 	if (positionMissionWPComplete) {
+		updateCurrentNavWPStatus(NAV_STATUS_OPEN);
 		positionMissionWPIndx++;
 		resetNavWPStates();
 		uint8_t hasMoreWP = loadWayPoints();
@@ -167,6 +193,8 @@ void handleNavMission(float dt) {
 				fcStatusData.isFailSafeModeActive = 0;
 			}
 		}
+	}else{
+		updateCurrentNavWPStatus(NAV_STATUS_WIP);
 	}
 }
 
@@ -234,7 +262,7 @@ void updateWPCompletionStatus(float dt) {
 	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
 	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
 	float distSq = dx * dx + dy * dy;
-	positionMissionWPDistanceFiltered +=  POSITION_MISSION_WP_DISTANCE_LPF_ALPHA * (distSq - positionMissionWPDistanceFiltered);
+	positionMissionWPDistanceFiltered += POSITION_MISSION_WP_DISTANCE_LPF_ALPHA * (distSq - positionMissionWPDistanceFiltered);
 
 	// Squared compare: no sqrt needed
 	uint8_t insideRadius = (positionMissionWPDistanceFiltered <= POSITION_MISSION_WP_COMPLETE_RADIUS_SQ);
@@ -255,5 +283,4 @@ void updateWPCompletionStatus(float dt) {
 	uint8_t dwellTimeout = (positionMissionWPCompleteDt >= POSITION_MISSION_WP_DWELL_TIMEOUT);
 	positionMissionWPComplete = (insideRadius && (lowGroundSpeed || dwellTimeout)) ? 1 : 0;
 }
-
 

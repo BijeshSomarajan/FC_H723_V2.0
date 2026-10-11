@@ -3,9 +3,11 @@
 #include "MathUtil.h"
 
 float wrapAngleTo360Scale(float angle) {
-    while (angle >= 360.0f) angle -= 360.0f;
-    while (angle < 0.0f) angle += 360.0f;
-    return angle;
+	while (angle >= 360.0f)
+		angle -= 360.0f;
+	while (angle < 0.0f)
+		angle += 360.0f;
+	return angle;
 }
 
 void bubbleSortF(float *arr, int n) {
@@ -35,7 +37,6 @@ void bubbleSortDecF(float *arr, int n) {
 	}
 }
 
-
 /**
  * @brief Fast S-Curve utility without powf()
  * @param input: Normalized input (0.0 to 1.0)
@@ -43,20 +44,19 @@ void bubbleSortDecF(float *arr, int n) {
  */
 __ATTR_ITCM_TEXT
 float generateSCurve(float input, float sharpness) {
-    input = constrainToRangeF(input, 0.0f, 1.0f);
-    sharpness = constrainToRangeF(sharpness, 0.0f, 1.0f);
+	input = constrainToRangeF(input, 0.0f, 1.0f);
+	sharpness = constrainToRangeF(sharpness, 0.0f, 1.0f);
 
-    // 1. Calculate the Cubic Smoothstep (The "S" shape)
-    // Formula: 3x^2 - 2x^3
-    float x2 = input * input;
-    float smooth = x2 * (3.0f - 2.0f * input);
+	// 1. Calculate the Cubic Smoothstep (The "S" shape)
+	// Formula: 3x^2 - 2x^3
+	float x2 = input * input;
+	float smooth = x2 * (3.0f - 2.0f * input);
 
-    // 2. Linearly interpolate between the linear input and the smooth output
-    // This allows the "sharpness" parameter to mix the curve intensity
-    // Result = input + sharpness * (smooth - input)
-    return input + sharpness * (smooth - input);
+	// 2. Linearly interpolate between the linear input and the smooth output
+	// This allows the "sharpness" parameter to mix the curve intensity
+	// Result = input + sharpness * (smooth - input)
+	return input + sharpness * (smooth - input);
 }
-
 
 /**
  * @brief Applies a quadratic (y^2/S) curve to an input with an integrated noise gate.
@@ -67,22 +67,36 @@ float generateSCurve(float input, float sharpness) {
  * @return float    The shaped value (d2). Always returns positive or zero.
  */
 float applyQuadraticShaper(float input, float divisor, float deadzone) {
-    float absInput = fabsf(input);
+	float absInput = fabsf(input);
 
-    // 1. Noise Gate (The "Anti-Rumble" check)
-    if (absInput < deadzone) {
-        return 0.0f;
-    }
+	// 1. Noise Gate (The "Anti-Rumble" check)
+	if (absInput < deadzone) {
+		return 0.0f;
+	}
 
-    // 2. The requested d2 logic: (y * y) / S
-    // We use a safety check to prevent division by zero
-    float sSafe = fmaxf(divisor, 0.0001f);
-    float d2 = (input * input) / sSafe;
+	// 2. The requested d2 logic: (y * y) / S
+	// We use a safety check to prevent division by zero
+	float sSafe = fmaxf(divisor, 0.0001f);
+	float d2 = (input * input) / sSafe;
 
-    return d2;
+	return d2;
 }
 
-
-float convertPascalToHectoPascal(float pascal){
+float convertPascalToHectoPascal(float pascal) {
 	return pascal * 0.01f;
+}
+
+uint16_t readU16BE(const uint8_t *p) {
+	return ((uint16_t) p[0] << 8) | (uint16_t) p[1];
+}
+
+uint32_t readU32BE(const uint8_t *p) {
+	return ((uint32_t) p[0] << 24) | ((uint32_t) p[1] << 16) | ((uint32_t) p[2] << 8) | (uint32_t) p[3];
+}
+
+int32_t readI32BE(const uint8_t *p) {
+	uint32_t bits = readU32BE(p);
+	int32_t value;
+	memcpy(&value, &bits, sizeof(value));
+	return value;
 }
