@@ -3,11 +3,12 @@
 #include <math.h>
 #include <sys/_stdint.h>
 
-#include "../../../control/ControlData.h"
+#include "../../../FCConfig.h"
+#include "../../../memory/Memory.h"
 #include "../../../status/FCStatus.h"
 #include "../../../util/MathUtil.h"
 #include "../../position/common/PositionCommon.h"
-#include "../../../FCConfig.h"
+#include "LandingContactHelper.h"
 
 AltCommandState altCommandState = ALT_COMMAND_STATE_IDLE;
 
@@ -159,6 +160,7 @@ void resetAltCommandStates(void) {
 	altCommandPhaseStartThrottle = 0.0f;
 	altCommandPhaseStartAltitude = 0.0f;
 	altCommandSettleTimer = 0.0f;
+	landingContactReset();
 }
 
 __ATTR_ITCM_TEXT
@@ -187,7 +189,20 @@ void manageAltCommand(float dt) {
 				altCommandActive = 1;
 			}
 		} else if (altCommandType == ALT_COMMAND_TYPE_LANDING) {
-			if (fcStatusData.currentThrottle > altCommandLiftOffThrottle) {
+			uint8_t touchedDown = landingContactUpdate(dt, positionCordinateData.zAcceleration, positionCordinateData.zVelocity, fcStatusData.currentThrottle, altCommandLiftOffThrottle, 1);
+			if (touchedDown) {
+				if (fcStatusData.currentThrottle <= ALT_COMMAND_THROTTLE_ZERO_TOLERANCE) {
+					altCommandActive = 0;
+					altCommandMode = 0;
+					altCommandComplete = 1;
+					altCommandState = ALT_COMMAND_STATE_IDLE;
+					landingContactReset();
+				} else {
+					altCommandActive = 1;
+					adjustPreLiftOffBaseThrottle(dt, 0);
+					altCommandPhaseStartThrottle = fcStatusData.currentThrottle;
+				}
+			} else if (fcStatusData.currentThrottle > altCommandLiftOffThrottle) {
 				if (isVelocityLimitReached() || isPhaseThrottleLimitReached() || isPhaseDistanceLimitReached()) {
 					altCommandActive = 0;
 					altCommandState = ALT_COMMAND_STATE_SETTLING;
