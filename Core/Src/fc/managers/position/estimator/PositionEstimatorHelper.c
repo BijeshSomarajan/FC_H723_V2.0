@@ -36,11 +36,9 @@ void resetPVEstimation(uint8_t axis, uint8_t keepBias) {
 /* Instantaneous motion stress, 0..1 (acceleration + speed^2)          */
 /* ------------------------------------------------------------------ */
 __ATTR_ITCM_TEXT
-float calculateMotionScale(float ax, float ay, float groundSpeed) {
+float calculateMotionScale(float ax, float ay) {
 	float accXY = fastSqrtf(ax * ax + ay * ay);
 	float scale = constrainToRangeF(accXY / POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH, 0.0f, 1.0f);
-	const float vRef2 = POS_ESTIMATOR_DYNAMIC_Z_SPEED_REF * POS_ESTIMATOR_DYNAMIC_Z_SPEED_REF;
-	scale = fmaxf(scale, constrainToRangeF((groundSpeed * groundSpeed) / vRef2, 0.0f, 1.0f));
 	return scale;
 }
 
@@ -221,7 +219,7 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 	float venturiBias = 0.0f;
 	float dynamicRPSL;
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
-	rawScale = calculateMotionScale(imuData.axEarthLinear, imuData.ayEarthLinear, getGroundSpeed());
+	rawScale = calculateMotionScale(positionCordinateData.xAcceleration, positionCordinateData.yAcceleration);
 #endif
 
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1

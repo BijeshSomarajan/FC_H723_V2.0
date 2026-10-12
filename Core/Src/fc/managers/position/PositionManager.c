@@ -1,5 +1,9 @@
 #include "PositionManager.h"
+
+#include <math.h>
 #include <sys/_stdint.h>
+
+#include "../../calibration/Calibration.h"
 #include "../../control/ControlData.h"
 #include "../../control/position/PositionControl.h"
 #include "../../dsp/LowPassFilter.h"
@@ -8,6 +12,7 @@
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
+#include "../../sensors/groundStation/GroundStationSensor.h"
 #include "../../sensors/position/GNSS.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
@@ -20,7 +25,6 @@
 #include "helpers/PositionManagerHelper.h"
 #include "helpers/PositionManagerHomeAquisitionHelper.h"
 #include "helpers/PositionMissionHelper.h"
-#include "../../sensors/groundStation/GroundStationSensor.h"
 
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
 LOWPASSFILTER positionMgrVelXLPF, positionMgrVelYLPF, positionMgrVelZLPF;
@@ -40,6 +44,8 @@ float positionMgrPosHoldRatePIDGain;
 float positionMgrBrakeVx, positionMgrBrakeVy, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy;
 void managePositionTask(void);
 void groundStationMissionCallBack(uint8_t action);
+
+float positionMgrBrakeDecel = POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX;
 
 uint8_t initPositionManager(void) {
 	logString("[Position Manager] Init > Start\n");
@@ -77,6 +83,12 @@ uint8_t initPositionManager(void) {
 		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY, POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
 
 		initPositionMissionHelper();
+
+		positionMgrBrakeDecel = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_BRAKE_DECEL_ADDR));
+		if (positionMgrBrakeDecel > POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX) {
+			positionMgrBrakeDecel = POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX;
+		}
+
 	} else {
 		logString("[Position Manager] EKF Init > Failed\n");
 	}
@@ -143,15 +155,15 @@ void resetBrakingStates() {
 __ATTR_ITCM_TEXT
 void doBraking(float dt) {
 	positionMgrPosHoldElapseDtSum += dt;
-	float step = POSITION_MGR_POS_HOLD_BRAKE_DECEL * dt; /* new define, 1.0f */
+	float step = positionMgrBrakeDecel * dt; /* new define, 1.0f */
 	positionMgrBrakeVx -= constrainToRangeF(positionMgrBrakeVx, -step, step);
 	positionMgrBrakeVy -= constrainToRangeF(positionMgrBrakeVy, -step, step);
 
 	/* earth-frame decel the ramp is currently commanding, sign opposes motion */
 	float sgnx = (positionMgrBrakeVx > 0.0f) ? 1.0f : ((positionMgrBrakeVx < 0.0f) ? -1.0f : 0.0f);
 	float sgny = (positionMgrBrakeVy > 0.0f) ? 1.0f : ((positionMgrBrakeVy < 0.0f) ? -1.0f : 0.0f);
-	positionMgrBrakeAccFFx = -sgnx * POSITION_MGR_POS_HOLD_BRAKE_DECEL;
-	positionMgrBrakeAccFFy = -sgny * POSITION_MGR_POS_HOLD_BRAKE_DECEL;
+	positionMgrBrakeAccFFx = -sgnx * positionMgrBrakeDecel;
+	positionMgrBrakeAccFFy = -sgny * positionMgrBrakeDecel;
 
 	float vxCmd = constrainToRangeF(positionMgrBrakeVx, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);
 	float vyCmd = constrainToRangeF(positionMgrBrakeVy, -POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY, POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY);

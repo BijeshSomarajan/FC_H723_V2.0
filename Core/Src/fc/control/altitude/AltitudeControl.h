@@ -79,7 +79,7 @@ uint8_t initAltitudeControl(void);
 void resetAltitudeControl(uint8_t hard);
 void resetAltitudeControlMaster(void);
 void resetAltitudeControlRate(void);
-void setExpectedAltitudeVelocity(float dt, float expectedVel);
+void setExpectedAltitudeVelocity(float expectedVel);
 void resetAltitudeRIControl(void);
 void setAltitudeRIControl(float value);
 

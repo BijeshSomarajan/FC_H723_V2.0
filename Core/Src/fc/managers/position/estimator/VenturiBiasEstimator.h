@@ -46,15 +46,13 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
 /* Output clamp [m]. Safety ceiling on claimed baro error. Raise only with
  * high-speed data showing the artifact exceeds it, never to fix a dip. */
 #define VENTURI_EST_BIAS_VALUE_MAX              1.0f
-/* Output LPF cutoff [Hz], tau = 1/(2*pi*f). Should match the pneumatic settling
- * of the real artifact. Tune from end-to-end logs (artifact vs BP), since EKF
- * BP fusion adds its own lag. */
-#define VENTURI_EST_BIAS_LPF_FREQ               25.0f
 /* bias[m] = speed^2 * GAIN. The calibrated core.
  * Measured: 0.32 m artifact at 3.6 m/s model speed -> 0.025.
  * Dips at stops -> too high. Rises at stops -> too low.
  * Re-measure after any airframe/port/canopy change or ACCEL/DRAG gain change. */
-#define VENTURI_EST_BIAS_GAIN_DEFAULT     0.036f
+#define VENTURI_EST_BIAS_GAIN       0.036f
+#define VENTURI_EST_BIAS_TAU_RISE   0.15f   // s
+#define VENTURI_EST_BIAS_TAU_FALL   0.5f    // s, set from measured artifact decay after a stop
 
 uint8_t initVenturiBiasEstimator(void);
 float getVenturiBiasEstimate(float dt, float speed);
