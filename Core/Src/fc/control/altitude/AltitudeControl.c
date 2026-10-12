@@ -52,7 +52,6 @@ uint8_t initAltitudeControl() {
 	return 1;
 }
 
-
 void resetAltitudeControlMaster(void) {
 	pidReset(&altPID);
 }
@@ -106,10 +105,9 @@ void controlAltitudeAltWithGains(float dt, float expectedAltitude, float current
 	pidUpdateWithGains(&altPID, currentAltitude, expectedAltitude, dt, altControlGains.masterPGain, 0.0f, 0.0f);
 }
 
-
 __ATTR_ITCM_TEXT
-void setExpectedAltitudeVelocity(float dt, float expectedVel) {
-	altPID.pid =constrainToRangeF(expectedVel, -altMasterPLimit, altMasterPLimit);
+void setExpectedAltitudeVelocity(float expectedVel) {
+	altPID.pid = constrainToRangeF(expectedVel, -altMasterPLimit, altMasterPLimit);
 }
 
 #if ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED == 1

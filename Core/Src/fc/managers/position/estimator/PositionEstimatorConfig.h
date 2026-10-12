@@ -407,7 +407,7 @@
  *
  * This is intentionally extremely weak for normal altitude estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE           12000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE           50000.0f
 
 /* Maximum dynamically calculated GNSS-Z position variance, m^2.
  *
@@ -415,7 +415,7 @@
  *
  * The cap prevents the dynamic variance from growing without bound.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MAX            25000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MAX            100000.0f
 
 /* Base GNSS-Z velocity variance, (m/s)^2.
  *
@@ -424,20 +424,20 @@
  * Deliberately extremely weak because GNSS vertical velocity is much less
  * useful here than horizontal GNSS velocity.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE            6000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE            2500.0f //6000.0f
 
 /* Maximum dynamically calculated GNSS-Z velocity variance, (m/s)^2.
  *
  * sqrt(30000) ~= 173.2 m/s 1-sigma.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            12000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            90000.0f//12000.0f
 
 /* GNSS vertical-position accuracy scaling.
  *
  * vAcc is the receiver-reported vertical 1-sigma accuracy.
  * The large scale/base values deliberately keep GNSS-Z weak during normal use.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_SCALE        100.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_SCALE        40000.0f
 
 /* Minimum receiver-reported vertical accuracy used by the dynamic R formula. */
 #define POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_MIN          0.5f

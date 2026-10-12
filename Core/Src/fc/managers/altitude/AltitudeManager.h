@@ -28,7 +28,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_ALT_SPEED_GAIN_MAX  1.0f //meter per second
 #define ALT_MGR_ALT_PRE_LIFTOFF_SPEED_FACTOR 4.0f
 
-#define ALT_MGR_THROTTLE_CONTROL_LPF_FREQUENCY 25.0f //The frequency at which the overall throttle is measured to create the baseline.
+#define ALT_MGR_THROTTLE_CONTROL_LPF_FREQUENCY 60.0f //The frequency at which the overall throttle is measured to create the baseline.
 
 
 /* --------------------------------------------------------------------------
@@ -90,27 +90,8 @@ typedef enum {
 	ALT_HOLD_STATE_IDLE = 0, ALT_HOLD_STATE_BRAKING, ALT_HOLD_STATE_LOCKED
 } ALTITUDE_MGR_STATE;
 
-#define ALTITUDE_MGR_ALT_HOLD_BRAKE_MIN_SPEED   0.2f
+#define ALTITUDE_MGR_ALT_HOLD_BRAKE_MIN_SPEED   0.1f
 #define ALTITUDE_MGR_ALT_HOLD_BRAKE_REF_LPF_FREQ   0.65f
 #define ALTITUDE_MGR_ALT_HOLD_BRAKE_MAX_PERIOD   15.0f
-
-//Uses only the Alt Vel loop , Alt ref will be updated continously , This works well , dont turn it off
-#define ALT_CONTROL_SKIP_ALT_REF_FOR_NON_NAV_MODE   0
-
-//Gain Adjustment
-#define ALT_MGR_ALT_CONTROL_SETTING_MASTER_P_GAIN  1.0f
-#define ALT_MGR_ALT_CONTROL_SETTING_MP_TAU         0.01f
-
-#define ALT_MGR_ALT_CONTROL_SETTING_RATE_P_GAIN    1.0f
-#define ALT_MGR_ALT_CONTROL_SETTING_RP_TAU         0.01f
-
-#define ALT_MGR_ALT_CONTROL_SETTING_RATE_I_GAIN    1.0f
-#define ALT_MGR_ALT_CONTROL_SETTING_RI_TAU         0.01f
-
-#define ALT_MGR_ALT_CONTROL_SETTING_RATE_D_GAIN    1.0f
-#define ALT_MGR_ALT_CONTROL_SETTING_RD_TAU         0.01f
-
-#define ALT_MGR_ALT_CONTROL_SETTING_DOB_GAIN       1.0f
-#define ALT_MGR_ALT_CONTROL_SETTING_DOB_TAU        0.01f
 
 #endif

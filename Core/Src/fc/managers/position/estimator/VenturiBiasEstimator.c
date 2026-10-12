@@ -15,16 +15,9 @@
 #include "PositionEstimatorHelper.h"
 
 VENTURI_ESTIMATE_DATA venturiEstimateData;
-float venturiBiasGain = VENTURI_EST_BIAS_GAIN_DEFAULT;
+float venturiBiasGain = VENTURI_EST_BIAS_GAIN;
 
 uint8_t initVenturiBiasEstimator(void) {
-	venturiBiasGain = get1KXScaledCalibrationValue(CALIB_PROP_VENTURI_ALT_GAIN_ADDR);
-	if (venturiBiasGain <= 0.0f) {
-		venturiBiasGain = VENTURI_EST_BIAS_GAIN_DEFAULT;
-	}
-	char debugBuf[64];
-	sprintf(debugBuf, "[Venturi Estimator] Gain=%.3f, Initialized\n", venturiBiasGain);
-	logString(debugBuf);
 	resetVenturiBiasEstimator();
 	return 1;
 }

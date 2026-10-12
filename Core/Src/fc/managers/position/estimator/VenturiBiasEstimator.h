@@ -50,9 +50,9 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
  * Measured: 0.32 m artifact at 3.6 m/s model speed -> 0.025.
  * Dips at stops -> too high. Rises at stops -> too low.
  * Re-measure after any airframe/port/canopy change or ACCEL/DRAG gain change. */
-#define VENTURI_EST_BIAS_GAIN_DEFAULT     0.036f
+#define VENTURI_EST_BIAS_GAIN       0.036f
 #define VENTURI_EST_BIAS_TAU_RISE   0.15f   // s
-#define VENTURI_EST_BIAS_TAU_FALL   1.2f    // s, set from measured artifact decay after a stop
+#define VENTURI_EST_BIAS_TAU_FALL   0.5f    // s, set from measured artifact decay after a stop
 
 uint8_t initVenturiBiasEstimator(void);
 float getVenturiBiasEstimate(float dt, float speed);
