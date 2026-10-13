@@ -14,8 +14,9 @@
 #define LANDING_CONTACT_VZ_MAX               0.20f   // m/s, |vz| below this = stalled
 #define LANDING_CONTACT_DWELL_SPIKE_S        0.10f   // gate must hold this long if a spike was seen [s]
 #define LANDING_CONTACT_DWELL_SLOW_S         0.35f   // gate must hold this long with no spike [s]
+#define LANDING_CONTACT_MIN_ACTIVE_S         1.0f // s, no latch until landing has been active this long
 
-void landingContactReset(void) ;
+void landingContactReset(void);
 uint8_t landingContactUpdate(float dt, float azLinear, float vz, float throttlePercent, float liftOffThrottlePercent, uint8_t landingActive);
 
 #endif /* SRC_FC_MANAGERS_ALTITUDE_HELPERS_LANDINGCONTACTHELPER_H_ */

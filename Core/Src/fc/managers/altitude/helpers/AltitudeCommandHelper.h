@@ -4,68 +4,39 @@
 #include <stdint.h>
 
 // ---------------------------------------------------------------------------
-// Velocity limits (exceeding them pauses the command in SETTLING until the drone slows down)
+// Takeoff completion
 // ---------------------------------------------------------------------------
-// Low limits: apply when the remaining altitude error is within ALT_COMMAND_FAR_DISTANCE
-#define ALT_COMMAND_MAX_CLIMB_VELOCITY             0.5f   // m/s
-#define ALT_COMMAND_MAX_DESCENT_VELOCITY           0.5f   // m/s
-
-// Far limits: beyond FAR_DISTANCE the limit grows with the remaining error, up to the FAR caps
-#define ALT_COMMAND_FAR_DISTANCE                   3.0f   // m, error at/below which the low limits apply
-#define ALT_COMMAND_FAR_VELOCITY_GAIN              0.2f   // 1/s: extra limit (m/s) per metre of error beyond FAR_DISTANCE
-#define ALT_COMMAND_FAR_MAX_CLIMB_VELOCITY         0.5f   // m/s cap (reached at 4.0 m of error)
-#define ALT_COMMAND_FAR_MAX_DESCENT_VELOCITY       0.5f   // m/s cap (reached at 5.0 m of error)
-
-// Velocity below which a paused (SETTLING) command resumes adjusting
-#define ALT_COMMAND_TARGET_VELOCITY_TOLERANCE                0.1f  // m/s
+#define ALT_COMMAND_TARGET_ALTITUDE_TOLERANCE              0.1f   // m, takeoff completes within this of the target
 
 // ---------------------------------------------------------------------------
-// Target tolerance and base throttle rate
+// Landing: PID-stepped descent (altitudeRef moves down in steps, PID holds each step)
 // ---------------------------------------------------------------------------
-#define ALT_COMMAND_TARGET_ALTITUDE_TOLERANCE              0.1f  // m, command completes within this of the target
-#define ALT_COMMAND_POST_LIFTOFF_BASE_THROTTLE_RATE        30.0f  // throttle units/s, max rate (used at/above RATE_FULL_ERROR; fixed for landing)
+#define ALT_COMMAND_DISTANCE_STEP                          2.0f   // m, step size / height below which the throttle phases take over
+
+// ---------------------------------------------------------------------------
+// Base throttle reduction above lift-off throttle (landing)
+// ---------------------------------------------------------------------------
+#define ALT_COMMAND_POST_LIFTOFF_BASE_THROTTLE_RATE        30.0f  // throttle units/s, max rate (fixed for landing)
 #define ALT_COMMAND_MIN_BASE_THROTTLE_RATE                 (ALT_COMMAND_POST_LIFTOFF_BASE_THROTTLE_RATE * 0.25f) // throttle units/s, fine correction near target
 #define ALT_COMMAND_RATE_FULL_ERROR                        0.75f  // m of error at/above which the max rate is used
 
 // ---------------------------------------------------------------------------
-// Phase throttle limits: max throttle change in one ADJUSTING phase before pausing in SETTLING
-// ---------------------------------------------------------------------------
-#define ALT_COMMAND_MAX_PHASE_THROTTLE_DELTA            100.0f  // throttle units, normal altitude commands
-#define ALT_COMMAND_THROTTLE_ZERO_TOLERANCE             0.01f   // throttle units, landing completes at/below this
-
-// ---------------------------------------------------------------------------
 // Linear throttle ramps below lift-off throttle
 // ---------------------------------------------------------------------------
-#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_INCREASE_RAMP_TIME              0.7f   // s, throttle 0 -> lift-off throttle
-#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME              0.7f   // s, lift-off throttle -> 0 (separate so it can be tuned independently)
-
-#define ALT_COMMAND_MAX_PHASE_DISTANCE   2.0f   // m, max travel in one ADJUSTING phase before pausing for the PID
-#define ALT_COMMAND_SETTLE_TIMEOUT       15.0f   // s, max time in SETTLING before resuming regardless of velocity
-
-typedef enum {
-	ALT_COMMAND_STATE_IDLE = 0, ALT_COMMAND_STATE_ADJUSTING, ALT_COMMAND_STATE_SETTLING
-} AltCommandState;
+#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_INCREASE_RAMP_TIME  0.7f   // s, throttle 0 -> lift-off throttle
+#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME  0.7f   // s, lift-off throttle -> 0
+#define ALT_COMMAND_THROTTLE_ZERO_TOLERANCE                  0.01f  // throttle units, landing completes at/below this
 
 typedef enum {
 	ALT_COMMAND_TYPE_NORMAL = 0, ALT_COMMAND_TYPE_LANDING, ALT_COMMAND_TYPE_TAKEOFF
 } AltCommandType;
 
-extern AltCommandState altCommandState;
-
 void resetAltCommandStates(void);
 void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType type);
 void abortAltCommand(void);
 void manageAltCommand(float dt);
-uint8_t isAltCommandActive(void);
 uint8_t isAltCommandMode(void);
 uint8_t isAltCommandComplete(void);
-uint8_t isAltCommandThrottleRefreshRequired();
+uint8_t isAltCommandThrottleUpdateRequired(void);
 
-#define ALT_COMMAND_TAKEOFF_VELOCITY            0.5f   // m/s, commanded climb rate
-#define ALT_COMMAND_VELOCITY_RAMP_TIME          0.4f   // s, setpoint ramps 0 -> full, avoids an integrator kick at lift-off
-#define ALT_COMMAND_VELOCITY_APPROACH_GAIN      1.0f   // 1/s, setpoint tapers as gain * altitude error near the target
-
-uint8_t isAltCommandVelocityMode(void);
-float getAltCommandVelocitySetpoint(void);
 #endif /* ALT_COMMAND_HELPER_H */
-

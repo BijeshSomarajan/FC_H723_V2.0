@@ -234,29 +234,6 @@ void calculateTiltCompThrottle(float dt) {
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
 
-__ATTR_ITCM_TEXT
-void checkForAltCommands() {
-	if (fcStatusData.isLandingModeActive) {
-		wasTakeOffModeActive = 0;
-		if (!wasLandingModeActive && fcStatusData.isFlying) {
-			wasLandingModeActive = 1;
-			abortAltCommand();
-			startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome, ALT_COMMAND_TYPE_LANDING);
-		}
-	} else if (fcStatusData.isTakeOffModeActive) {
-		wasLandingModeActive = 0;
-		if (!wasTakeOffModeActive && !fcStatusData.isFlying) {
-			wasTakeOffModeActive = 1;
-			abortAltCommand();
-			startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + altMgrTakeOffCommandAlt, ALT_COMMAND_TYPE_TAKEOFF);
-		}
-	} else {
-		wasLandingModeActive = 0;
-		wasTakeOffModeActive = 0;
-		abortAltCommand();
-	}
-}
-
 
 __ATTR_ITCM_TEXT
 void applyAltitudeControls(float dt) {
@@ -300,11 +277,37 @@ void applyAltitudeControls(float dt) {
 	}
 }
 
+
+__ATTR_ITCM_TEXT
+void updateAltCommand() {
+	if (fcStatusData.isLandingModeActive) {
+		wasTakeOffModeActive = 0;
+		if (!wasLandingModeActive && fcStatusData.isFlying) {
+			wasLandingModeActive = 1;
+			abortAltCommand();
+			startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - 5.0f, ALT_COMMAND_TYPE_LANDING);
+		}
+	} else if (fcStatusData.isTakeOffModeActive) {
+		wasLandingModeActive = 0;
+		if (!wasTakeOffModeActive && !fcStatusData.isFlying) {
+			wasTakeOffModeActive = 1;
+			abortAltCommand();
+			startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + altMgrTakeOffCommandAlt, ALT_COMMAND_TYPE_TAKEOFF);
+		}
+	} else {
+		wasLandingModeActive = 0;
+		wasTakeOffModeActive = 0;
+		abortAltCommand();
+	}
+}
+
+
 __ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
-	checkForAltCommands();
+	updateAltCommand();
 	updateHoverThrottleEstimate(dt);
-	if (!rcData.throttleCentered || isAltCommandThrottleRefreshRequired()) {
+
+	if (!rcData.throttleCentered || isAltCommandThrottleUpdateRequired()) {
 		fcStatusData.currentThrottle = altMgrThrottleControlLPF.output;
 		altMgrPreviousThrottle = fcStatusData.currentThrottle;
 
@@ -320,36 +323,20 @@ void manageAltitude(float dt) {
 		altMgrVelDtAccumulation = 0;
 		altMgrAltDtAccumulation = 0;
 
-		resetAltCommandStates();
 		updateFlyingStatus(dt);
 
 		fcStatusData.altitudeRef = positionCordinateData.zPosition;
-	} else if (isAltCommandMode() && isAltCommandActive()) {
-		fcStatusData.currentThrottle = altMgrThrottleControlLPF.output;
-		altMgrPreviousThrottle = fcStatusData.currentThrottle;
 
-		controlData.altitudeControl = 0.0f;
-		resetAltitudeDOBControl();
-		resetAltitudeControl(1);
-		manageAltCommand(dt);
-
-		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
-		controlData.tiltCompThDelta = 0;
-		altMgrCurrentTiltCompThDelta = 0.0f;
-
-		altMgrVelDtAccumulation = 0;
-		altMgrAltDtAccumulation = 0;
-
-		updateFlyingStatus(dt);
-		fcStatusData.altitudeRef = positionCordinateData.zPosition;
-	} else {
-		if (isAltCommandMode()) {
-			manageAltCommand(dt);
+		if (!isAltCommandMode()) {
+			resetAltCommandStates();
 		}
+	} else {
 		applyAltitudeControls(dt);
 		calculateTiltCompThrottle(dt);
 	}
-
+	if (isAltCommandMode()) {
+		manageAltCommand(dt);
+	}
 	if (!fcStatusData.isFlying) {
 		updateAltitudeHomeReference();
 		resetAltitudeControl(1);
@@ -358,7 +345,6 @@ void manageAltitude(float dt) {
 		altMgrVelDtAccumulation = 0;
 		altMgrAltDtAccumulation = 0;
 	}
-
 	// High-rate mixer equation now perfectly protected against stale values
 	controlData.throttleControlBase = fcStatusData.currentThrottle + controlData.altitudeControl;
 	controlData.throttleControl = controlData.throttleControlBase + controlData.altitudeDOBControl + controlData.tiltCompThDelta;
@@ -368,7 +354,6 @@ void manageAltitude(float dt) {
 	fcStatusData.throttlePercent = fcStatusData.currentThrottle / MAX_PERMISSIBLE_THROTTLE_DELTA;
 	lowPassFilterUpdate(&altMgrThrottleControlLPF, controlData.throttleControl, dt);
 }
-
 
 __ATTR_ITCM_TEXT
 void manageAltitudeTask(void) {
@@ -477,7 +462,6 @@ void resetAltMgrStates() {
 
 	resetAltCommandStates();
 }
-
 
 void resetAltitudeManager(void) {
 	resetAltitudeControl(1);

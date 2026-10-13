@@ -1,8 +1,8 @@
 #include "AltitudeCommandHelper.h"
 
 #include <math.h>
-#include <sys/_stdint.h>
 
+#include "../../../control/ControlData.h"
 #include "../../../FCConfig.h"
 #include "../../../memory/Memory.h"
 #include "../../../status/FCStatus.h"
@@ -11,90 +11,18 @@
 #include "../AltitudeManager.h"
 #include "LandingContactHelper.h"
 
-AltCommandState altCommandState = ALT_COMMAND_STATE_IDLE;
-
 uint8_t altCommandMode = 0;
-uint8_t altCommandActive = 0;
 uint8_t altCommandComplete = 0;
-
 AltCommandType altCommandType = ALT_COMMAND_TYPE_NORMAL;
 
 float altCommandTargetAltitude = 0.0f;
-float altCommandCurrentAltitude = 0.0f;
-float altCommandPhaseStartThrottle = 0.0f;
-float altCommandLiftOffThrottle = 0;
-float altCommandPhaseStartAltitude = 0.0f;
-float altCommandSettleTimer = 0.0f;
-
+float altCommandLiftOffThrottle = 0.0f;
 uint8_t altCommandThrottleRefreshRequired = 0;
-
-__ATTR_ITCM_TEXT
-float getAltitudeError(void) {
-	return altCommandTargetAltitude - positionCordinateData.zPosition;
-}
+uint8_t altCommandStepIssued = 0;
 
 __ATTR_ITCM_TEXT
 uint8_t isTargetAltitudeReached(void) {
-	return (fabsf(getAltitudeError()) <= ALT_COMMAND_TARGET_ALTITUDE_TOLERANCE);
-}
-
-__ATTR_ITCM_TEXT
-uint8_t isMovingUp(void) {
-	if (altCommandType == ALT_COMMAND_TYPE_LANDING) {
-		return 0;
-	}
-	return (getAltitudeError() >= 0.0f);   // live sign, flips automatically on overshoot
-}
-
-__ATTR_ITCM_TEXT
-static float getVelocityLimit(float lowLimit, float farLimit) {
-	float extra = fabsf(getAltitudeError()) - ALT_COMMAND_FAR_DISTANCE;
-	if (extra <= 0.0f) {
-		return lowLimit;
-	}
-	return fminf(lowLimit + (ALT_COMMAND_FAR_VELOCITY_GAIN * extra), farLimit);
-}
-
-__ATTR_ITCM_TEXT
-uint8_t isVelocityLimitReached(void) {
-	float zVelocity = positionCordinateData.zVelocity;
-	if (isMovingUp()) {
-		return (zVelocity >= getVelocityLimit(ALT_COMMAND_MAX_CLIMB_VELOCITY, ALT_COMMAND_FAR_MAX_CLIMB_VELOCITY));
-	}
-	return (zVelocity <= -getVelocityLimit(ALT_COMMAND_MAX_DESCENT_VELOCITY, ALT_COMMAND_FAR_MAX_DESCENT_VELOCITY));
-}
-
-__ATTR_ITCM_TEXT
-uint8_t isPhaseDistanceLimitReached(void) {
-	return (fabsf(positionCordinateData.zPosition - altCommandPhaseStartAltitude) >= ALT_COMMAND_MAX_PHASE_DISTANCE);
-}
-
-__ATTR_ITCM_TEXT
-uint8_t isVelocitySettled(void) {
-	return (fabsf(positionCordinateData.zVelocity) <= ALT_COMMAND_TARGET_VELOCITY_TOLERANCE);
-}
-
-__ATTR_ITCM_TEXT
-uint8_t isPhaseThrottleLimitReached(void) {
-	float limit = ALT_COMMAND_MAX_PHASE_THROTTLE_DELTA;
-	float throttleDelta = fabsf(fcStatusData.currentThrottle - altCommandPhaseStartThrottle);
-	return (throttleDelta >= limit);
-}
-
-__ATTR_ITCM_TEXT
-void adjustPostLiftOffBaseThrottle(float dt) {
-	float rate = ALT_COMMAND_POST_LIFTOFF_BASE_THROTTLE_RATE * (fabsf(getAltitudeError()) / ALT_COMMAND_RATE_FULL_ERROR);
-	rate = constrainToRangeF(rate, ALT_COMMAND_MIN_BASE_THROTTLE_RATE, ALT_COMMAND_POST_LIFTOFF_BASE_THROTTLE_RATE);
-	if (altCommandType == ALT_COMMAND_TYPE_LANDING) {
-		rate = ALT_COMMAND_POST_LIFTOFF_BASE_THROTTLE_RATE;
-	}
-	float step = rate * dt;
-	if (isMovingUp()) {
-		fcStatusData.currentThrottle += step;
-	} else {
-		fcStatusData.currentThrottle -= step;
-	}
-	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, altCommandLiftOffThrottle - 1, MAX_PERMISSIBLE_THROTTLE_DELTA);
+	return (fabsf(altCommandTargetAltitude - positionCordinateData.zPosition) <= ALT_COMMAND_TARGET_ALTITUDE_TOLERANCE);
 }
 
 __ATTR_ITCM_TEXT
@@ -102,34 +30,26 @@ void adjustPreLiftOffBaseThrottle(float dt, uint8_t increasing) {
 	if (increasing) {
 		float rampRate = altCommandLiftOffThrottle / ALT_COMMAND_PRE_LIFTOFF_THROTTLE_INCREASE_RAMP_TIME;
 		fcStatusData.currentThrottle += rampRate * dt;
-		fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0.0f, altCommandLiftOffThrottle + 1);
 	} else {
 		float rampRate = altCommandLiftOffThrottle / ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME;
 		fcStatusData.currentThrottle -= rampRate * dt;
-		fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0.0f, altCommandLiftOffThrottle + 1);
 	}
+	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0.0f, altCommandLiftOffThrottle + 1);
 }
 
 void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType type) {
 	altCommandTargetAltitude = targetAltitude;
-	altCommandCurrentAltitude = currentAltitude;
 	altCommandMode = 1;
-	altCommandActive = 1;
 	altCommandComplete = 0;
 	altCommandType = type;
-	altCommandPhaseStartThrottle = fcStatusData.currentThrottle;
-	altCommandState = ALT_COMMAND_STATE_ADJUSTING;
 	altCommandLiftOffThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
-	altCommandPhaseStartAltitude = positionCordinateData.zPosition;
-	altCommandSettleTimer = 0.0f;
+	altCommandThrottleRefreshRequired = (type != ALT_COMMAND_TYPE_TAKEOFF);
+	altCommandStepIssued = 0;
+	landingContactReset();
 }
 
 void abortAltCommand(void) {
 	resetAltCommandStates();
-}
-
-uint8_t isAltCommandActive(void) {
-	return altCommandActive;
 }
 
 uint8_t isAltCommandMode(void) {
@@ -141,101 +61,66 @@ uint8_t isAltCommandComplete(void) {
 }
 
 void resetAltCommandStates(void) {
-	altCommandActive = 0;
 	altCommandMode = 0;
 	altCommandType = ALT_COMMAND_TYPE_NORMAL;
-	altCommandState = ALT_COMMAND_STATE_IDLE;
 	altCommandTargetAltitude = 0.0f;
-	altCommandCurrentAltitude = 0.0f;
-	altCommandPhaseStartThrottle = 0.0f;
-	altCommandPhaseStartAltitude = 0.0f;
-	altCommandSettleTimer = 0.0f;
-	landingContactReset();
 }
 
-uint8_t isAltCommandThrottleRefreshRequired() {
-	if (altCommandThrottleRefreshRequired == 1) {
-		altCommandThrottleRefreshRequired = 0;
-		return 1;
+__ATTR_ITCM_TEXT
+uint8_t isAltCommandThrottleUpdateRequired() {
+	uint8_t required = altCommandThrottleRefreshRequired;
+	altCommandThrottleRefreshRequired = 0;
+	return required;
+}
+
+__ATTR_ITCM_TEXT
+void handleTakeOff(float dt) {
+	if (fcStatusData.currentThrottle < altCommandLiftOffThrottle) {
+		adjustPreLiftOffBaseThrottle(dt, 1);
+	} else if (isTargetAltitudeReached()) {
+		altCommandMode = 0;
+		altCommandComplete = 1;
+		altCommandThrottleRefreshRequired = 1;
 	} else {
-		return 0;
+		fcStatusData.altitudeRef = altCommandTargetAltitude;
+		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_LOCKED;
+	}
+}
+
+__ATTR_ITCM_TEXT
+void handleStepAltChange(float dt) {
+	uint8_t altCommandTouchedDown = landingContactUpdate(dt, positionCordinateData.zAcceleration, positionCordinateData.zVelocity, controlData.throttleControl, altCommandLiftOffThrottle, 1);
+	if (altCommandTouchedDown || fcStatusData.currentThrottle < altCommandLiftOffThrottle) {
+		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
+		if (fcStatusData.currentThrottle > ALT_COMMAND_THROTTLE_ZERO_TOLERANCE) {
+			adjustPreLiftOffBaseThrottle(dt, 0);
+		} else {
+			altCommandMode = 0;
+			altCommandComplete = 1;
+		}
+	} else if (fcStatusData.altitudeHoldState == ALT_HOLD_STATE_LOCKED) {
+		if (!altCommandStepIssued) {
+			fcStatusData.altitudeRef += constrainToRangeF(altCommandTargetAltitude - fcStatusData.altitudeRef, -ALT_COMMAND_DISTANCE_STEP, ALT_COMMAND_DISTANCE_STEP);
+			altCommandStepIssued = 1;
+		} else if (fabsf(positionCordinateData.zPosition - fcStatusData.altitudeRef) <= ALT_COMMAND_TARGET_ALTITUDE_TOLERANCE) {
+			if (isTargetAltitudeReached()) {
+				altCommandMode = 0;
+				altCommandComplete = 1;
+			} else {
+				altCommandStepIssued = 0;
+			}
+			altCommandThrottleRefreshRequired = 1;
+		}
 	}
 }
 
 __ATTR_ITCM_TEXT
 void manageAltCommand(float dt) {
-	if (!altCommandMode || (dt <= 0.0f)) {
-		return;
-	}
-	switch (altCommandState) {
-	case ALT_COMMAND_STATE_ADJUSTING:
+	if (altCommandMode && (dt > 0.0f)) {
 		if (altCommandType == ALT_COMMAND_TYPE_TAKEOFF) {
-			if (fcStatusData.currentThrottle < altCommandLiftOffThrottle) {
-				altCommandActive = 1;
-				adjustPreLiftOffBaseThrottle(dt, 1);            // existing linear ramp
-				altCommandPhaseStartThrottle = fcStatusData.currentThrottle;
-			} else if (isTargetAltitudeReached()) {
-				altCommandActive = 0;
-				altCommandMode = 0;
-				altCommandComplete = 1;
-				altCommandThrottleRefreshRequired = 1;
-				altCommandState = ALT_COMMAND_STATE_IDLE;
-			} else {
-				altCommandActive = 0;                           // PID runs; the caller applies the setpoint
-				fcStatusData.altitudeRef = altCommandTargetAltitude;
-				fcStatusData.altitudeHoldState = ALT_HOLD_STATE_LOCKED;
-			}
-		} else if (altCommandType == ALT_COMMAND_TYPE_LANDING) {
-			if (fcStatusData.currentThrottle > altCommandLiftOffThrottle) {
-				if (isVelocityLimitReached() || isPhaseThrottleLimitReached() || isPhaseDistanceLimitReached()) {
-					altCommandActive = 0;
-					altCommandState = ALT_COMMAND_STATE_SETTLING;
-				} else {
-					adjustPostLiftOffBaseThrottle(dt);
-					altCommandActive = 1;
-				}
-			} else if (fcStatusData.currentThrottle > ALT_COMMAND_THROTTLE_ZERO_TOLERANCE) {
-				altCommandActive = 1;
-				adjustPreLiftOffBaseThrottle(dt, 0);
-				altCommandPhaseStartThrottle = fcStatusData.currentThrottle;
-			} else {
-				altCommandActive = 0;
-				altCommandMode = 0;
-				altCommandComplete = 1;
-				altCommandState = ALT_COMMAND_STATE_IDLE;
-			}
+			handleTakeOff(dt);
 		} else {
-			if (isTargetAltitudeReached()) {
-				altCommandActive = 0;
-				altCommandMode = 0;
-				altCommandComplete = 1;
-				altCommandState = ALT_COMMAND_STATE_IDLE;
-			} else if (isVelocityLimitReached() || isPhaseThrottleLimitReached() || isPhaseDistanceLimitReached()) {
-				altCommandActive = 0;
-				altCommandState = ALT_COMMAND_STATE_SETTLING;
-			} else {
-				adjustPostLiftOffBaseThrottle(dt);
-				altCommandActive = 1;
-			}
+			handleStepAltChange(dt);
 		}
-		break;
-	case ALT_COMMAND_STATE_SETTLING:
-		altCommandSettleTimer += dt;
-		if (isVelocitySettled() || (altCommandSettleTimer >= ALT_COMMAND_SETTLE_TIMEOUT)) {
-			altCommandSettleTimer = 0.0f;   // reset on exit, so it is 0 on every entry to SETTLING
-			altCommandPhaseStartThrottle = fcStatusData.currentThrottle;
-			altCommandPhaseStartAltitude = positionCordinateData.zPosition;
-			altCommandActive = 1;
-			altCommandState = ALT_COMMAND_STATE_ADJUSTING;
-		} else {
-			altCommandActive = 0;
-		}
-		break;
-	case ALT_COMMAND_STATE_IDLE:
-	default:
-		altCommandActive = 0;
-		altCommandMode = 0;
-		altCommandState = ALT_COMMAND_STATE_IDLE;
-		break;
 	}
 }

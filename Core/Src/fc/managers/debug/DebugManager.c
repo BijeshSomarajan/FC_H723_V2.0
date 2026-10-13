@@ -202,9 +202,8 @@ void debugTelemetry() {
 	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
 
-extern AltCommandState altCommandState;
 void debufFCStatus() {
-	sprintf(buf, "%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(), isAltCommandActive(), altCommandState, positionCordinateData.zPosition, positionCordinateData.zVelocity,
+	sprintf(buf, "%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(),  positionCordinateData.zPosition, positionCordinateData.zVelocity,
 			controlData.throttleControl, fcStatusData.throttlePercent, fcStatusData.altitudeSLHome, rcData.throttleCentered);
 	logString(buf);
 }
