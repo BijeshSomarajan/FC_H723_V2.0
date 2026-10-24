@@ -202,18 +202,17 @@ void debugTelemetry() {
 	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
 }
 
-extern AltCommandState altCommandState;
 void debufFCStatus() {
-	sprintf(buf, "%d,%d,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(), isAltCommandActive(), altCommandState, positionCordinateData.zPosition, positionCordinateData.zVelocity,
+	sprintf(buf, "%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(),  positionCordinateData.zPosition, positionCordinateData.zVelocity,
 			controlData.throttleControl, fcStatusData.throttlePercent, fcStatusData.altitudeSLHome, rcData.throttleCentered);
 	logString(buf);
 }
 
 void debugHeading() {
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading * 10;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.mx * 10;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.my * 10;
-	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.mz * 10;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 1000;
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
