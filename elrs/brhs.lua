@@ -82,6 +82,7 @@ local aAlertLandModes = {
     ["T"] = "/SOUNDS/en/brhs/land/takeoff.wav",
 	["L"] = "/SOUNDS/en/brhs/land/land.wav",
     ["F"] = "/SOUNDS/en/brhs/land/fly.wav",
+	["G"] = "/SOUNDS/en/brhs/land/touchDwn.wav",
 }
 
 local aAlertMissionModes = {
