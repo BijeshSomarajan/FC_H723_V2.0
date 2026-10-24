@@ -9,7 +9,7 @@ typedef struct _POSITION_CORDINATE_DATA POSITION_CORDINATE_DATA;
 struct _POSITION_CORDINATE_DATA {
 
 	float xPositionRaw, yPositionRaw,zPositionRawSL,zPositionRawTerrain;
-	float xPosition, yPosition, zPosition;
+	float xPosition, yPosition, zPosition, zPositionBias;
 
 	float xVelocity, yVelocity, zVelocity;
 

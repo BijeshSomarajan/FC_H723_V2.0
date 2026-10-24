@@ -108,7 +108,9 @@ void prepareFCStatus() {
 
 	// Landing/Flying
 	fcStatusBuf[5] = '-';
-	if(isAltCommandComplete()){
+	if(fcStatusData.hasTouchedDown){
+		fcStatusBuf[6] = 'G';
+	}else if(isAltCommandComplete()){
 		fcStatusBuf[6] = 'C';
 	}else if (fcStatusData.isLandingModeActive && isAltCommandMode()) {
 		fcStatusBuf[6] = 'L';

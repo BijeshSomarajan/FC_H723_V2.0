@@ -1,9 +1,11 @@
 #include "AltitudeCommandHelper.h"
 
 #include <math.h>
+#include <sys/_stdint.h>
 
 #include "../../../control/ControlData.h"
 #include "../../../FCConfig.h"
+#include "../../../logger/Logger.h"
 #include "../../../memory/Memory.h"
 #include "../../../status/FCStatus.h"
 #include "../../../util/MathUtil.h"
@@ -19,6 +21,7 @@ float altCommandTargetAltitude = 0.0f;
 float altCommandLiftOffThrottle = 0.0f;
 uint8_t altCommandThrottleRefreshRequired = 0;
 uint8_t altCommandStepIssued = 0;
+float altCommandStepTimer = 0;
 
 __ATTR_ITCM_TEXT
 uint8_t isTargetAltitudeReached(void) {
@@ -35,6 +38,7 @@ void adjustPreLiftOffBaseThrottle(float dt, uint8_t increasing) {
 		fcStatusData.currentThrottle -= rampRate * dt;
 	}
 	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0.0f, altCommandLiftOffThrottle + 1);
+	altCommandThrottleRefreshRequired = 1;
 }
 
 void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType type) {
@@ -45,6 +49,8 @@ void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType
 	altCommandLiftOffThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
 	altCommandThrottleRefreshRequired = (type != ALT_COMMAND_TYPE_TAKEOFF);
 	altCommandStepIssued = 0;
+	fcStatusData.hasTouchedDown = 0;
+	altCommandStepTimer = 0;
 	landingContactReset();
 }
 
@@ -62,8 +68,10 @@ uint8_t isAltCommandComplete(void) {
 
 void resetAltCommandStates(void) {
 	altCommandMode = 0;
-	altCommandType = ALT_COMMAND_TYPE_NORMAL;
+	altCommandType = ALT_COMMAND_TYPE_NONE;
 	altCommandTargetAltitude = 0.0f;
+	altCommandThrottleRefreshRequired = 0;
+	altCommandStepIssued = 0;
 }
 
 __ATTR_ITCM_TEXT
@@ -89,9 +97,7 @@ void handleTakeOff(float dt) {
 
 __ATTR_ITCM_TEXT
 void handleStepAltChange(float dt) {
-	uint8_t altCommandTouchedDown = landingContactUpdate(dt, positionCordinateData.zAcceleration, positionCordinateData.zVelocity, controlData.throttleControl, altCommandLiftOffThrottle, 1);
-	if (altCommandTouchedDown || fcStatusData.currentThrottle < altCommandLiftOffThrottle) {
-		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
+	if (altCommandType == ALT_COMMAND_TYPE_LANDING && fcStatusData.currentThrottle < altCommandLiftOffThrottle) {		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
 		if (fcStatusData.currentThrottle > ALT_COMMAND_THROTTLE_ZERO_TOLERANCE) {
 			adjustPreLiftOffBaseThrottle(dt, 0);
 		} else {
@@ -100,16 +106,23 @@ void handleStepAltChange(float dt) {
 		}
 	} else if (fcStatusData.altitudeHoldState == ALT_HOLD_STATE_LOCKED) {
 		if (!altCommandStepIssued) {
-			fcStatusData.altitudeRef += constrainToRangeF(altCommandTargetAltitude - fcStatusData.altitudeRef, -ALT_COMMAND_DISTANCE_STEP, ALT_COMMAND_DISTANCE_STEP);
+			float remainingDistance = fabsf(altCommandTargetAltitude - fcStatusData.altitudeRef);
+			float step = constrainToRangeF(remainingDistance * ALT_COMMAND_DISTANCE_STEP_GAIN, ALT_COMMAND_DISTANCE_STEP_MIN, ALT_COMMAND_DISTANCE_STEP_MAX);
+			fcStatusData.altitudeRef += constrainToRangeF(altCommandTargetAltitude - fcStatusData.altitudeRef, -step, step);
 			altCommandStepIssued = 1;
-		} else if (fabsf(positionCordinateData.zPosition - fcStatusData.altitudeRef) <= ALT_COMMAND_TARGET_ALTITUDE_TOLERANCE) {
-			if (isTargetAltitudeReached()) {
-				altCommandMode = 0;
-				altCommandComplete = 1;
-			} else {
-				altCommandStepIssued = 0;
+			altCommandStepTimer = 0.0f;
+		} else {
+			altCommandStepTimer += dt;
+			uint8_t arrived = (fabsf(positionCordinateData.zPosition - fcStatusData.altitudeRef) <= ALT_COMMAND_TARGET_ALTITUDE_TOLERANCE);
+			if (arrived || (altCommandStepTimer >= ALT_COMMAND_STEP_TIMEOUT)) {
+				if (isTargetAltitudeReached()) {
+					altCommandMode = 0;
+					altCommandComplete = 1;
+				} else {
+					altCommandStepIssued = 0;
+				}
+				altCommandThrottleRefreshRequired = 1;                 // nudge (rebase) on arrival or timeout
 			}
-			altCommandThrottleRefreshRequired = 1;
 		}
 	}
 }
@@ -119,7 +132,7 @@ void manageAltCommand(float dt) {
 	if (altCommandMode && (dt > 0.0f)) {
 		if (altCommandType == ALT_COMMAND_TYPE_TAKEOFF) {
 			handleTakeOff(dt);
-		} else {
+		} else if (altCommandType != ALT_COMMAND_TYPE_NONE) {
 			handleStepAltChange(dt);
 		}
 	}

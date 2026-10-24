@@ -20,8 +20,8 @@ const float H_P_GNSS[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 const float H_V_GNSS[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
 
 float positionEstPrevRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX;
-static float positionEstCruiseScale = 0.0f;
-static float positionEstMotionScaleFilt = 0.0f;
+float positionEstCruiseScale = 0.0f;
+float positionEstAccelerationScaleFilt = 0.0f;
 
 /*--------------------------------------- Utilities and inner functions ----------------------------------------------------*/
 
@@ -173,12 +173,7 @@ float getEstimatedZRV(float sAcc, float cruiseScale) {
 	if (sAcc < POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN) {
 		sAcc = POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN;
 	}
-#if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
-	float rvBase = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE - cruiseScale * (POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE - POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_CRUISE);
-	float dynamicRv = rvBase + (POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE * (sAcc * sAcc));
-#else
 	float dynamicRv = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE + (POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE * (sAcc * sAcc));
-#endif
 	if (dynamicRv > POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX) {
 		dynamicRv = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX;
 	}
@@ -215,28 +210,32 @@ __ATTR_ITCM_TEXT
 void updateZPositionSL(float offset, float zPos, float dt) {
 	positionCordinateData.positionZSLUpdateDt = dt;
 	positionCordinateData.zPositionRawSL = zPos;
-	float rawScale = 0.0f;
+	float motionScale = 0.0f;
 	float venturiBias = 0.0f;
-	float dynamicRPSL;
+
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
-	rawScale = calculateMotionScale(positionCordinateData.xAcceleration, positionCordinateData.yAcceleration);
+	/* Clamp before filtering so the filter state can never wind up above 1 */
+	float accelerationScale = constrainToRangeF(calculateMotionScale(positionCordinateData.xAcceleration, positionCordinateData.yAcceleration), 0.0f, 1.0f);
+	/* Asymmetric low-pass: react quickly to rising motion, relax slowly */
+	float tau = (accelerationScale > positionEstAccelerationScaleFilt) ? POS_ESTIMATOR_MOTION_SCALE_TAU_RISE : POS_ESTIMATOR_MOTION_SCALE_TAU_FALL;
+	positionEstAccelerationScaleFilt += (dt / (tau + dt)) * (accelerationScale - positionEstAccelerationScaleFilt);
+	motionScale = positionEstAccelerationScaleFilt;
 #endif
 
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
+	/* Cruise scale has its own dynamics, so combine after the filter (max, not sum) */
 	calculateCruiseScale(dt);
-	rawScale = fmaxf(rawScale, getCruiseScale());   // max, not sum
+	motionScale = fmaxf(motionScale, getCruiseScale());
 #endif
 
-	float tau = (rawScale > positionEstMotionScaleFilt) ? POS_ESTIMATOR_MOTION_SCLALE_TAU_RISE : POS_ESTIMATOR_MOTION_SCALE_TAU_FALL;
-	positionEstMotionScaleFilt += (dt / (tau + dt)) * (rawScale - positionEstMotionScaleFilt);
-	float motionScale = constrainToRangeF(positionEstMotionScaleFilt, 0.0f, 1.0f);
+	motionScale = constrainToRangeF(motionScale, 0.0f, 1.0f);
 
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
 	venturiBias = getVenturiBiasEstimate(dt, getGroundSpeed());
 #endif
 
-	dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
-	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, offset + zPos - venturiBias, dynamicRPSL, H_BARO);
+	float dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
+	positionEKFMeasurementUpdate(&positionEkf,POS_EKF_Z_AXIS, offset + zPos - venturiBias, dynamicRPSL, H_BARO_WITH_BIAS);
 }
 
 __ATTR_ITCM_TEXT

@@ -11,8 +11,10 @@
 // ---------------------------------------------------------------------------
 // Landing: PID-stepped descent (altitudeRef moves down in steps, PID holds each step)
 // ---------------------------------------------------------------------------
-#define ALT_COMMAND_DISTANCE_STEP                          2.0f   // m, step size / height below which the throttle phases take over
-
+#define ALT_COMMAND_DISTANCE_STEP_MAX    2.0f
+#define ALT_COMMAND_DISTANCE_STEP_MIN    0.25f
+#define ALT_COMMAND_DISTANCE_STEP_GAIN   0.3f
+#define ALT_COMMAND_STEP_TIMEOUT         10.0f
 // ---------------------------------------------------------------------------
 // Base throttle reduction above lift-off throttle (landing)
 // ---------------------------------------------------------------------------
@@ -23,12 +25,12 @@
 // ---------------------------------------------------------------------------
 // Linear throttle ramps below lift-off throttle
 // ---------------------------------------------------------------------------
-#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_INCREASE_RAMP_TIME  0.7f   // s, throttle 0 -> lift-off throttle
-#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME  0.7f   // s, lift-off throttle -> 0
+#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_INCREASE_RAMP_TIME  0.5f   // s, throttle 0 -> lift-off throttle
+#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME  0.3f   // s, lift-off throttle -> 0
 #define ALT_COMMAND_THROTTLE_ZERO_TOLERANCE                  0.01f  // throttle units, landing completes at/below this
 
 typedef enum {
-	ALT_COMMAND_TYPE_NORMAL = 0, ALT_COMMAND_TYPE_LANDING, ALT_COMMAND_TYPE_TAKEOFF
+	ALT_COMMAND_TYPE_NONE = 0, ALT_COMMAND_TYPE_NORMAL, ALT_COMMAND_TYPE_LANDING, ALT_COMMAND_TYPE_TAKEOFF
 } AltCommandType;
 
 void resetAltCommandStates(void);

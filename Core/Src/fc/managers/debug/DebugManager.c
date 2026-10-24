@@ -210,9 +210,9 @@ void debufFCStatus() {
 
 void debugHeading() {
 	DEBUG_DATA_BUFFER[0] = sensorAttitudeData.heading * 10;
-	DEBUG_DATA_BUFFER[1] = sensorAttitudeData.mx * 10;
-	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.my * 10;
-	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.mz * 10;
+	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 100;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 1000;
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
 }
 
