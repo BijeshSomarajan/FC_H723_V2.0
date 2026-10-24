@@ -557,22 +557,20 @@
 #define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
 #if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
 #define POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH  3.0f
-#define POS_ESTIMATOR_MOTION_SCLALE_TAU_RISE   0.01f   // fast attack
+#define POS_ESTIMATOR_MOTION_SCALE_TAU_RISE   0.01f   // fast attack
 #define POS_ESTIMATOR_MOTION_SCALE_TAU_FALL    2.0f    // slow release, 0.7-1.5s typical; set from measured error persistence
 #endif
 
-#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED           0
+#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED          1
 #if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
 /* Below this horizontal speed, use the hover-side Z profile. */
-#define POS_ESTIMATOR_Z_CRUISE_SPEED_LO                2.0f   // m/s
+#define POS_ESTIMATOR_Z_CRUISE_SPEED_LO                1.0f   // m/s
 /* Above this horizontal speed, use the full cruise-side Z profile. */
 #define POS_ESTIMATOR_Z_CRUISE_SPEED_HI                15.0f  // m/s
 /* Time constant for entering the cruise profile. */
 #define POS_ESTIMATOR_Z_CRUISE_TAU_RISE                0.3f   // s
 /* Time constant for returning toward the hover profile.*/
 #define POS_ESTIMATOR_Z_CRUISE_TAU_FALL                1.2f   // s
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_CRUISE    1.0f   // (m/s)^2
-
 #endif
 
 #endif

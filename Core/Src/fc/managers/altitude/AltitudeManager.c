@@ -109,7 +109,6 @@ void updateFlyingStatus(float dt) {
 	if (!fcStatusData.isFlying && fcStatusData.throttlePercent >= fcStatusData.liftOffThrottlePercent) {
 		fcStatusData.isFlying = 1;
 		altMgrLowThDtAccumulation = 0;
-		//Final Reset
 		fcStatusData.altitudeRef = positionCordinateData.zPosition;
 		controlData.tiltCompThDelta = 0;
 		altMgrCurrentTiltCompThDelta = 0.0f;
@@ -234,7 +233,6 @@ void calculateTiltCompThrottle(float dt) {
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
 
-
 __ATTR_ITCM_TEXT
 void applyAltitudeControls(float dt) {
 	altMgrVelDtAccumulation += dt;
@@ -277,6 +275,20 @@ void applyAltitudeControls(float dt) {
 	}
 }
 
+__ATTR_ITCM_TEXT
+void resetAltControlGains() {
+	altControlGains.dobGain = ALT_MGR_ALT_CONTROL_SETTING_DOB_GAIN;
+}
+
+__ATTR_ITCM_TEXT
+void updateAltControlGains(float dt) {
+	if (altControlGains.dobGain < 1.0f) {
+		altControlGains.dobGain += (dt / ALT_MGR_ALT_CONTROL_SETTING_DOB_TAU) * (1.0f - altControlGains.dobGain);
+	}
+	if (altControlGains.dobGain > 1.0f) {
+		altControlGains.dobGain = 1.0f;
+	}
+}
 
 __ATTR_ITCM_TEXT
 void updateAltCommand() {
@@ -285,7 +297,7 @@ void updateAltCommand() {
 		if (!wasLandingModeActive && fcStatusData.isFlying) {
 			wasLandingModeActive = 1;
 			abortAltCommand();
-			startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - 5.0f, ALT_COMMAND_TYPE_LANDING);
+			startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - 3.0f, ALT_COMMAND_TYPE_LANDING);
 		}
 	} else if (fcStatusData.isTakeOffModeActive) {
 		wasLandingModeActive = 0;
@@ -300,7 +312,6 @@ void updateAltCommand() {
 		abortAltCommand();
 	}
 }
-
 
 __ATTR_ITCM_TEXT
 void manageAltitude(float dt) {
@@ -330,13 +341,18 @@ void manageAltitude(float dt) {
 		if (!isAltCommandMode()) {
 			resetAltCommandStates();
 		}
+		resetAltControlGains();
 	} else {
+		updateAltControlGains(dt);
 		applyAltitudeControls(dt);
 		calculateTiltCompThrottle(dt);
 	}
+
 	if (isAltCommandMode()) {
 		manageAltCommand(dt);
+		updateFlyingStatus(dt);
 	}
+
 	if (!fcStatusData.isFlying) {
 		updateAltitudeHomeReference();
 		resetAltitudeControl(1);
