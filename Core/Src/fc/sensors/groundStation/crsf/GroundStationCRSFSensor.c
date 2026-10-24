@@ -7,11 +7,7 @@
 #include "../../rc/devices/crsf/CRSFNav.h"
 #include "../GroundStationSensor.h"
 
-#define GroundStationSensorCRSFWPMax 32
-
-GroundStationSensorWPData groundStationSensorCRSFWPs[GroundStationSensorCRSFWPMax];
-uint8_t groundStationSensorCRSFWPCount = 0;
-
+GroundStationSensorMissionData groundStationSensorMissionData;
 GroundStationMissionCallback groundStationMissionCb;
 
 void _groundStationSensorCRSFMissionCb(uint8_t missionCommand) {
@@ -40,15 +36,24 @@ void _groundStationSensorCRSFWPCb(uint8_t wpCommand, CRSFNavWaypointPayload_t wp
 		break;
 	}
 	case CRSF_NAV_ACTION_ADD_WAYPOINT: {
-		if (wp.waypointIndex == 0) {
+		if (wp.waypointIndex == 0U) {
 			clearGroundStationSensorWPData();
 		}
-		GroundStationSensorWPData groundStationSensorWPData;
-		groundStationSensorWPData.waypointIndex = groundStationSensorCRSFWPCount;
+		groundStationSensorMissionData.waypointCount++;
+		GroundStationSensorWPData groundStationSensorWPData = groundStationSensorMissionData.groundStationSensorCRSFWPs[groundStationSensorMissionData.waypointCount];
 		groundStationSensorWPData.latitude = (double) wp.latitude * 1e-7;
 		groundStationSensorWPData.longitude = (double) wp.longitude * 1e-7;
-		groundStationSensorWPData.velocity = (float) wp.velocity * 1e-1;
-		setGroundStationSensorWPData(groundStationSensorWPData);
+		groundStationSensorWPData.status = NAV_STATUS_OPEN;
+		groundStationSensorWPData.operationCount = 0;
+		groundStationSensorWPData.currentOperationIndex = 0;
+		for (uint8_t i = 0; i < NAV_MAX_OPERATIONS; i++) {
+			if (groundStationSensorWPData.operations[i].operation != 0) {
+				groundStationSensorWPData.operations[i].operation = wp.operations[i].operation;
+				groundStationSensorWPData.operations[i].value = (float) wp.operations[i].value * 1e-1;
+				groundStationSensorWPData.operations[i].status = NAV_STATUS_OPEN;
+				groundStationSensorWPData.operationCount++;
+			}
+		}
 		break;
 	}
 	default:
@@ -56,24 +61,15 @@ void _groundStationSensorCRSFWPCb(uint8_t wpCommand, CRSFNavWaypointPayload_t wp
 	}
 }
 
-void setGroundStationSensorWPData(GroundStationSensorWPData groundStationSensorWPData) {
-	if (groundStationSensorWPData.waypointIndex < GroundStationSensorCRSFWPMax) {
-		groundStationSensorCRSFWPs[groundStationSensorWPData.waypointIndex] = groundStationSensorWPData;
-		groundStationSensorCRSFWPCount++;
-	}
-}
-
 void clearGroundStationSensorWPData(void) {
-	groundStationSensorCRSFWPCount = 0;
-}
-
-uint8_t getGroundStationSensorWPDataCount() {
-	return groundStationSensorCRSFWPCount;
+	groundStationSensorMissionData.waypointCount = 0;
+	groundStationSensorMissionData.currentWaypointIndex = 0;
+	groundStationSensorMissionData.status = NAV_STATUS_INVALID;
 }
 
 GroundStationSensorWPData* getGroundStationSensorWPData(uint8_t index) {
-	if (index < groundStationSensorCRSFWPCount) {
-		return &groundStationSensorCRSFWPs[index];
+	if (index < groundStationSensorMissionData.waypointCount) {
+		return &groundStationSensorMissionData.groundStationSensorCRSFWPs[index];
 	} else {
 		return NULL;
 	}
@@ -93,11 +89,7 @@ uint8_t initGroundStationSensor(GroundStationMissionCallback missionCb) {
 	}
 	return status;
 #else
-	logString("[GroundStation Sensor] : CRSF > Unavilable\n");
+	logString("[GroundStation Sensor] : CRSF > Unavailable\n");
 	return 1;
 #endif
-}
-
-void resetGroundStationSensor() {
-	groundStationSensorCRSFWPCount = 0;
 }

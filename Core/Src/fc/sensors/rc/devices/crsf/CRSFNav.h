@@ -4,9 +4,13 @@
 #include <sys/_stdint.h>
 
 #define CRSF_MSP_NAV_FRAME_TYPE  0x7C
+#define CRSF_NAV_MAX_OPERATIONS 8
 
 typedef enum {
-	CRSF_NAV_ACTION_CLEAR_WAYPOINTS = 1, CRSF_NAV_ACTION_ADD_WAYPOINT, CRSF_NAV_ACTION_START_MISSION, CRSF_NAV_ACTION_ABORT_MISSION
+	CRSF_NAV_ACTION_CLEAR_WAYPOINTS = 1,
+	CRSF_NAV_ACTION_ADD_WAYPOINT,
+	CRSF_NAV_ACTION_START_MISSION,
+	CRSF_NAV_ACTION_ABORT_MISSION
 } CRSFNavAction_t;
 
 typedef struct {
@@ -15,14 +19,20 @@ typedef struct {
 } CRSFNavCommand_t;
 
 typedef struct {
+	int32_t value;
+	uint8_t operation;
+} CRSFNavWaypointOperationPayload_t;
+
+typedef struct {
 	uint16_t waypointIndex;
 	int32_t latitude;      // 1e-7 degrees
 	int32_t longitude;     // 1e-7 degrees
-	uint16_t velocity;     // 1e-1 m/s
+	CRSFNavWaypointOperationPayload_t operations[CRSF_NAV_MAX_OPERATIONS];
 } CRSFNavWaypointPayload_t;
 
 typedef void (*CRSFNavMissionCallback_t)(uint8_t missionCommand);
-typedef void (*CRSFNavWayPointCallback_t)(uint8_t wpCommand, CRSFNavWaypointPayload_t wp);
+typedef void (*CRSFNavWayPointCallback_t)(uint8_t wpCommand,
+		CRSFNavWaypointPayload_t wp);
 
 void registerCRSFNavMissionCB(CRSFNavMissionCallback_t callback);
 void registerCRSFNavWayPointCB(CRSFNavWayPointCallback_t callback);

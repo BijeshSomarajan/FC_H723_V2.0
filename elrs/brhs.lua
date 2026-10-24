@@ -45,7 +45,26 @@ local aAlertCritLinkInterval  = 300   -- 3 seconds repeat interval (Critical Lin
 
 -- VCP USB Params
 local vcpUSBLastSend = 0
-local NAV_WP_PAYLOAD_SIZE = 16
+local NAV_WP_PAYLOAD_SIZE = 54   -- 3 hdr + 1 action + 2 idx + 4 lat + 4 lon + 8 ops * 5
+
+-- Must match CRSF_NAV_MAX_OPERATIONS on the receiver. The operations array is
+-- fixed size on the wire; unused slots are zero filled (operation = 0).
+local NAV_MAX_OPERATIONS = 8
+
+-- Operation codes, keyed by the (lower-case) name used in the serial CSV.
+--   decimals = number of decimals kept when the value is converted to the
+--              int32_t sent on the wire (1 -> 0.1 units: 5.0 -> 50)
+--   skipZero = "Key=0" means "not requested", so the slot is not sent
+local NAV_OPERATIONS = {
+    takeoff = { code = 1, decimals = 1, skipZero = false  },
+    land    = { code = 2, decimals = 1, skipZero = false  },
+    alt     = { code = 3, decimals = 1, skipZero = false },
+    vel     = { code = 4, decimals = 1, skipZero = false },
+    heading = { code = 5, decimals = 1, skipZero = false },
+    rth     = { code = 6, decimals = 1, skipZero = false  },
+    hover   = { code = 7, decimals = 1, skipZero = false  },
+    custom  = { code = 8, decimals = 1, skipZero = false }
+}
 local CRSF_MSP_NAV_COMMAND = 0x7C
 local mspRxBuffer = ""
 local mspSequence = 0
@@ -493,7 +512,7 @@ end
 -- Build MSP NAV payload from parsed command
 --
 -- WP CSV format:
---   action,index,latitude,longitude,velocity
+--   action,index,latitude,longitude,Key=Value,...  (e.g. Vel=5.0,Alt=10.0,Hover=11.0)
 --
 -- Velocity from the app is xx.x m/s.
 -- FC representation is uint16_t in units of 0.1 m/s:
@@ -509,10 +528,73 @@ end
 --   Byte 5-6   WP index
 --   Byte 7-10  Latitude
 --   Byte 11-14 Longitude
---   Byte 15-16 Velocity uint16_t
+--   Byte 15-54 8 x { int32 value BE, uint8 operation }
 -- ==========================================================================
 
-local function buildNavMSPPayload(action, index, latStr, lonStr, velocity)
+-- Convert a decimal string ("5.0", "-12.35") into a scaled integer string
+-- ("50", "-123") without any floating point maths. Extra decimals are
+-- truncated. Returns nil if malformed or outside int32_t range.
+local function decimalToScaledString(str, decimals)
+
+    local sign, ip, fp = string.match(str, "^%s*(-?)(%d*)%.?(%d*)%s*$")
+
+    if sign == nil or (ip == "" and fp == "") then
+        return nil
+    end
+
+    fp = string.sub(fp .. string.rep("0", decimals), 1, decimals)
+
+    local digits = (string.gsub(ip .. fp, "^0+", ""))
+
+    if digits == "" then
+        digits = "0"
+    end
+
+    if #digits > 10 or (#digits == 10 and digits > "2147483647") then
+        return nil
+    end
+
+    return sign .. digits
+end
+
+
+-- Parse "Key=Value" fields (from startIdx onward) into an operations list:
+-- { {code=<op>, valueStr=<scaled int string>}, ... } in the order received.
+-- Returns nil if any field is malformed or the key is unknown.
+local function parseOperations(fields, startIdx)
+
+    local ops = {}
+
+    for i = startIdx, #fields do
+
+        local key, val = string.match(fields[i], "^%s*(%a[%w_]*)%s*=%s*(-?[%d%.]+)%s*$")
+
+        if key == nil then
+            return nil
+        end
+
+        local def = NAV_OPERATIONS[string.lower(key)]
+
+        if def == nil then
+            return nil
+        end
+
+        local scaled = decimalToScaledString(val, def.decimals)
+
+        if scaled == nil then
+            return nil
+        end
+
+        if not (def.skipZero and tonumber(val) == 0) then
+            ops[#ops + 1] = { code = def.code, valueStr = scaled }
+        end
+    end
+
+    return ops
+end
+
+
+local function buildNavMSPPayload(action, index, latStr, lonStr, ops)
     local payload = {
         0xC8,        -- Destination (FC)
         0xEA,        -- Origin (Radio)
@@ -523,8 +605,20 @@ local function buildNavMSPPayload(action, index, latStr, lonStr, velocity)
         packUint16BE(payload, 5, index)
         packDecStrInt32BE(payload, 7, latStr)
         packDecStrInt32BE(payload, 11, lonStr)
-        -- Velocity is already converted to 0.1 m/s units
-        packUint16BE(payload, 15, velocity)
+        -- Fixed array of NAV_MAX_OPERATIONS slots, 5 bytes each:
+        --   int32_t value (BE), uint8_t operation. Unused slots are zero.
+        for i = 1, NAV_MAX_OPERATIONS do
+            local pos = 15 + (i - 1) * 5
+            local op = ops[i]
+
+            if op then
+                packDecStrInt32BE(payload, pos, op.valueStr)
+                payload[pos + 4] = op.code
+            else
+                payload[pos], payload[pos + 1], payload[pos + 2],
+                payload[pos + 3], payload[pos + 4] = 0, 0, 0, 0, 0
+            end
+        end
     end
     mspSequence = (mspSequence + 1) % 256
     return payload
@@ -607,19 +701,19 @@ local function receiveDataFromVCPAndSendToFC()
         -- Action 2: Send waypoint
         --
         -- Expected CSV:
-        -- 2,index,latitude,longitude,velocity
+        -- 2,index,latitude,longitude,Vel=5.0,Alt=10.0,Land=0.0,TakeOff=0.0,Hover=11.0
         ----------------------------------------------------------------------
 
         elseif action == 2 then
 
-            if #fields ~= 5 then
+            if #fields < 4 then
                 goto continue
             end
 
             local index = tonumber(fields[2])
             local latStr =  string.match(fields[3], "^%s*(-?%d+)%s*$")
             local lonStr =  string.match(fields[4], "^%s*(-?%d+)%s*$")
-            local velocity = tonumber(fields[5])
+            local ops = parseOperations(fields, 5)
 
 
             ------------------------------------------------------------------
@@ -629,17 +723,17 @@ local function receiveDataFromVCPAndSendToFC()
             if (index == nil) or
                (latStr == nil) or
                (lonStr == nil) or
-               (velocity == nil) or
+               (ops == nil) or
                (index < 0) or
                (index ~= math.floor(index)) or
-               (velocity < 0) or
-               (velocity > 6553.5) then
+               (#ops > NAV_MAX_OPERATIONS) or
+               (index > 65535) then
                 goto continue
             end
 
 
             ------------------------------------------------------------------
-            -- Convert velocity from xx.x m/s to uint16_t in 0.1 m/s units
+            -- Operation values are scaled to int32_t in 0.1 steps (parseOperations)
             --
             -- Examples:
             --   5.0  -> 50
@@ -647,7 +741,7 @@ local function receiveDataFromVCPAndSendToFC()
             --   12.3 -> 123
             ------------------------------------------------------------------
 
-            velocity = math.floor(velocity)
+            -- (Values were already scaled in parseOperations)
 
             ------------------------------------------------------------------
             -- Build and send payload
@@ -659,7 +753,7 @@ local function receiveDataFromVCPAndSendToFC()
                     index,
                     latStr,
                     lonStr,
-                    velocity
+                    ops
                 )
 
             if crossfireTelemetryPush(CRSF_MSP_NAV_COMMAND, payload) then
