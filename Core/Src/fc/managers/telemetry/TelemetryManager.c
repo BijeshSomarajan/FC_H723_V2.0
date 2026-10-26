@@ -81,16 +81,16 @@ void prepareFCStatus() {
 	fcStatusBuf[1] = '-';
 	if (isFailSafeModeActive()) {
 		fcStatusBuf[2] = 'F';
-		if (fcStatusData.isNavMissionComplete) {
+		if (fcStatusData.isMissionComplete) {
 			fcStatusBuf[2] = 'C';
 		}
-	} else if (isNavRTHModeActive()) {
-		if (fcStatusData.isNavMissionComplete) {
+	} else if (isRTHModeActive()) {
+		if (fcStatusData.isMissionComplete) {
 			fcStatusBuf[2] = 'C';
 		} else {
 			fcStatusBuf[2] = 'R';
 		}
-	} else if (isNavCruiseModeActive()) {
+	} else if (isCruiseModeActive()) {
 		fcStatusBuf[2] = 'V'; //Cruise Mode
 	} else if (isNavModeActive()) {
 		fcStatusBuf[2] = 'N'; //Nav Mode
@@ -122,10 +122,10 @@ void prepareFCStatus() {
 
 	//Mission
 	fcStatusBuf[7] = '-';
-	if (isNavModeActive()  && !isNavRTHModeActive()) {
-		if (fcStatusData.isNavMissionComplete) {
+	if (isNavModeActive()  && !isRTHModeActive()) {
+		if (fcStatusData.isMissionComplete) {
 			fcStatusBuf[8] = 'C';
-		} else if (isNavMissionModeActive()){
+		} else if (isMissionModeActive()){
 			fcStatusBuf[8] = 'M';
 		}else{
 			fcStatusBuf[8] = 'N';
@@ -154,7 +154,6 @@ void sendOSDData() {
 	//rxBat,rxBatMax,alt,homeDistance,heading,headingRef,verticalSpeed,groundSpeed,satField,fm,pitch,roll,throttle,batteryAlertState
 	sprintf(osdBuf, "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%s,%.1f,%.1f,%lu,%d\n", batteryData.voltage, fcStatusData.batteryNomVolt, positionCordinateData.zPosition, homeDistance, sensorAttitudeData.heading, fcStatusData.headingHomeRef, expectedGroundSpeed, groundSpeed, satCountAndReliability,
 			fcStatusBuf, sensorAttitudeData.pitch, sensorAttitudeData.roll, (uint32_t) fcStatusData.currentThrottle, fcStatusData.batteryAlertState
-
 			);
 
 	uart8WriteDMA((uint8_t*) osdBuf, strlen(osdBuf));
@@ -167,7 +166,7 @@ void sendOSDData() {
 void telemetryUpdateTask() {
 	switch (currentTelemetryStep) {
 	case TELEMETRY_STEP_ALTITUDE:
-		if (isNavCruiseModeActive()) {
+		if (isCruiseModeActive()) {
 			expectedGroundSpeed = fastSqrtf(positionCommandData.targetXVel * positionCommandData.targetXVel + positionCommandData.targetYVel * positionCommandData.targetYVel);
 		} else {
 			expectedGroundSpeed = 0.0f;

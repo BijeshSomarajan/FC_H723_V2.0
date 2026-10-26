@@ -1,9 +1,9 @@
 #include "CRSF.h"
-#include "CRSFNav.h"
 #include "../../../../logger/Logger.h"
 #include "../../../../io/uart/UART.h"
 #include "../../../../dsp/CircularQueue.h"
 #include "../../../../memory/Memory.h"
+#include "CRSFTransceiver.h"
 
 // Internal state & channel storage
 static uint16_t crsfChannelValue[16] = { 1500 }; // Default to mid-point stick PWM
@@ -29,7 +29,7 @@ CRSF_CHANNELS channels;
 // Forward declaration of internal parser functions
 uint8_t updateCRSFData(uint8_t *dataBytes, uint16_t length);
 void processCRSFFrame(uint8_t frameType, const uint8_t *payload);
-void manageCRSFNavFrame(const uint8_t *payload);
+void manageCRSFMissionFrame(const uint8_t *payload);
 
 /**
  * @brief DMA RX ISR Callback - routes raw byte bursts directly into the circular queue
@@ -102,10 +102,8 @@ uint8_t crsf_calculate_crc(const uint8_t *data, uint8_t length) {
  */
 uint8_t updateCRSFData(uint8_t *dataBytes, uint16_t length) {
 	uint8_t frameComplete = 0;
-
 	for (uint16_t indx = 0; indx < length; indx++) {
 		uint8_t data = dataBytes[indx];
-
 		if (crsfFrameDataIndex == 0) {
 			// State 1: Look for Sync Byte (0xC8)
 			if (data == CRSF_SYNC_BYTE) {
@@ -126,20 +124,15 @@ uint8_t updateCRSFData(uint8_t *dataBytes, uint16_t length) {
 			// State 3: Collect Frame Type, Payload, and Checksum
 			crsfFrameData[crsfFrameDataIndex] = data;
 			crsfFrameDataIndex++;
-
 			// Total frame size expected = 1 (Addr) + 1 (Len) + crsfFrameLength
 			if (crsfFrameDataIndex == (crsfFrameLength + 2)) {
 				uint8_t rxCrc = data;
-
 				// CRC calculation covers Type up to the end of the Payload (Length - 1)
 				uint8_t calculatedCrc = crsf_calculate_crc(&crsfFrameData[2], crsfFrameLength - 1);
-
 				if (calculatedCrc == rxCrc) {
 					uint8_t frameType = crsfFrameData[2];
-
 					// Core structural change: Routes directly to our type-safe handler
 					processCRSFFrame(frameType, &crsfFrameData[3]);
-
 					if (frameType == CRSF_FRAME_RC_CHANNELS) {
 						frameComplete = 1;
 					}
@@ -188,12 +181,11 @@ void processCRSFFrame(uint8_t frameType, const uint8_t *payload) {
 		}
 		break;
 	}
-
-	case CRSF_MSP_NAV_FRAME_TYPE: {
-		manageCRSFNavFrame(payload);
+	case CRSF_MISSION_FRAME_TYPE: {
+		manageCRSFMissionFrame(payload);
 	    break;
 	}
-		// Placeholder for adding future frame types (e.g., Link Statistics 0x14)
+	// Placeholder for adding future frame types (e.g., Link Statistics 0x14)
 	default:
 		break;
 	}

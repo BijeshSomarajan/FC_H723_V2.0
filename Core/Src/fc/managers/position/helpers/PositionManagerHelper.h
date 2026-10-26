@@ -35,9 +35,9 @@ void alignEarthAccelToNED(float axIn, float ayIn, float azIn, float *axOut, floa
 void updatePositionReference(void);
 
 uint8_t isNavModeActive();
-uint8_t isNavCruiseModeActive();
-uint8_t isNavRTHModeActive();
-uint8_t isNavMissionModeActive();
+uint8_t isCruiseModeActive();
+uint8_t isRTHModeActive();
+uint8_t isMissionModeActive();
 uint8_t isFailSafeModeActive();
 uint8_t isPositionHomeSet();
 uint8_t isNavDataReliable();

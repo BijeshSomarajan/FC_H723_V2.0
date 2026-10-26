@@ -1,24 +1,22 @@
-#include "stm32h7xx_ll_utils.h"
-#include "stm32h7xx_ll_gpio.h"
-
 #include "FCManager.h"
+
 #include "../FCConfig.h"
 #include "../logger/Logger.h"
-#include "../managers/indicator/IndicatorManager.h"
-#include "../managers/attitude/AttitudeManager.h"
-#include "../managers/altitude/AltitudeManager.h"
-#include "../managers/battery/BatteryManager.h"
-#include "../managers/motor/MotorManager.h"
-#include "../managers/rc/RCManager.h"
+#include "../memory/Memory.h"
+#include "../status/FCStatus.h"
 #include "../timers/DelayTimer.h"
 #include "../timers/DeltaTimer.h"
-#include "./config/ConfigManager.h"
-#include "../memory/Memory.h"
 #include "../timers/Scheduler.h"
-#include "../timers/GPTimer.h"
-#include "../status/FCStatus.h"
+#include "altitude/AltitudeManager.h"
+#include "attitude/AttitudeManager.h"
+#include "battery/BatteryManager.h"
+#include "config/ConfigManager.h"
 #include "debug/DebugManager.h"
+#include "indicator/IndicatorManager.h"
+#include "mission/MissionManager.h"
+#include "motor/MotorManager.h"
 #include "position/PositionManager.h"
+#include "rc/RCManager.h"
 #include "telemetry/TelemetryManager.h"
 
 void dispatchManagers() {
@@ -54,7 +52,7 @@ uint8_t initManagers() {
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initIndicatorManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initIndicatorManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initIndicatorManager > Failed\n");
 		}
 	}
 
@@ -72,7 +70,7 @@ uint8_t initManagers() {
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initRCManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initRCManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initRCManager > Failed\n");
 		}
 	}
 
@@ -81,7 +79,16 @@ uint8_t initManagers() {
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initPositionManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initPositionManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initPositionManager > Failed\n");
+		}
+	}
+
+	if (status) {
+		status = initMissionManager();
+		if (status) {
+			logString("[FC Manager] >> initManagers >> initMissionManager > Success\n");
+		} else {
+			logString("[FC Manager] >> initManagers >> initMissionManager > Failed\n");
 		}
 	}
 
@@ -90,7 +97,7 @@ uint8_t initManagers() {
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initAttitudeManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initAttitudeManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initAttitudeManager > Failed\n");
 		}
 	}
 
@@ -99,7 +106,7 @@ uint8_t initManagers() {
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initAltitudeManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initAltitudeManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initAltitudeManager > Failed\n");
 		}
 	}
 
@@ -108,7 +115,7 @@ uint8_t initManagers() {
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initTelemetryManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initTelemetryManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initTelemetryManager > Failed\n");
 		}
 	}
 
@@ -118,7 +125,7 @@ uint8_t initManagers() {
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initDebugManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initDebugManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initDebugManager > Failed\n");
 		}
 	}
 #endif
@@ -128,7 +135,7 @@ uint8_t initManagers() {
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initOutputManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initOutputManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initOutputManager > Failed\n");
 		}
 	}
 
@@ -137,7 +144,7 @@ uint8_t initManagers() {
 		if (status) {
 			logString("[FC Manager] >> initManagers >> initBatteryManager > Success\n");
 		} else {
-			logString("[FC Manager] >> initManagers >> initBatteryManager > Failed\n"); // Corrected log message
+			logString("[FC Manager] >> initManagers >> initBatteryManager > Failed\n");
 		}
 	}
 

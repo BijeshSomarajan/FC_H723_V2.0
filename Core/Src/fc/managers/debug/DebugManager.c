@@ -64,7 +64,7 @@ void debugRC() {
 	DEBUG_DATA_BUFFER[7] = fcStatusData.isLandingModeActive;
 	DEBUG_DATA_BUFFER[8] = fcStatusData.isTerrainAltModeActive;
 	DEBUG_DATA_BUFFER[9] = fcStatusData.isNavModeActive;
-	DEBUG_DATA_BUFFER[10] = fcStatusData.isNavRTHModeActive;
+	DEBUG_DATA_BUFFER[10] = fcStatusData.isRTHModeActive;
 	DEBUG_DATA_BUFFER[11] = fcStatusData.isFailSafeModeActive;
 	DEBUG_DATA_BUFFER[12] = fcStatusData.isRCHealthy;
 	sendConfigData(DEBUG_DATA_BUFFER, 13, CMD_FC_DATA);
@@ -182,12 +182,12 @@ void debugAltGraph() {
 }
 
 void debugNavStates() {
-	DEBUG_DATA_BUFFER[0] = fcStatusData.isNavCruiseModeActive * 100;
+	DEBUG_DATA_BUFFER[0] = fcStatusData.isCruiseModeActive * 100;
 	DEBUG_DATA_BUFFER[1] = fcStatusData.isNavModeActive * 100;
-	DEBUG_DATA_BUFFER[2] = fcStatusData.isNavRTHModeActive * 100;
-	DEBUG_DATA_BUFFER[3] = fcStatusData.isNavMissionModeActive * 100;
+	DEBUG_DATA_BUFFER[2] = fcStatusData.isRTHModeActive * 100;
+	DEBUG_DATA_BUFFER[3] = fcStatusData.isMissionModeActive * 100;
 	DEBUG_DATA_BUFFER[4] = fcStatusData.isFailSafeModeActive * 100;
-	DEBUG_DATA_BUFFER[5] = fcStatusData.isNavMissionComplete * 100;
+	DEBUG_DATA_BUFFER[5] = fcStatusData.isMissionComplete * 100;
 	DEBUG_DATA_BUFFER[6] = positionCommandData.targetYVel * 10;
 	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
 }

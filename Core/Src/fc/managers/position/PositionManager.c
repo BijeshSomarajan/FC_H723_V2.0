@@ -12,19 +12,18 @@
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
-#include "../../sensors/groundStation/GroundStationSensor.h"
 #include "../../sensors/position/GNSS.h"
 #include "../../sensors/rc/RCSensor.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/DeltaTimer.h"
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
+#include "../mission/MissionManager.h"
 #include "estimator/PositionEstimator.h"
 #include "estimator/PositionEstimatorHelper.h"
 #include "estimator/VenturiBiasEstimator.h"
 #include "helpers/PositionManagerHelper.h"
 #include "helpers/PositionManagerHomeAquisitionHelper.h"
-#include "helpers/PositionMissionHelper.h"
 
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
 LOWPASSFILTER positionMgrVelXLPF, positionMgrVelYLPF, positionMgrVelZLPF;
@@ -43,8 +42,8 @@ float positionMgrPosHoldRatePIDGain;
 
 float positionMgrBrakeVx, positionMgrBrakeVy, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy;
 void managePositionTask(void);
-void groundStationMissionCallBack(uint8_t action);
 
+float positionCruiseSpeed = POSITION_MGR_CRUISE_SPEED_MIN;
 float positionMgrBrakeDecel = POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX;
 
 uint8_t initPositionManager(void) {
@@ -54,14 +53,6 @@ uint8_t initPositionManager(void) {
 		logString("[Position Manager] GNSS Init > Success\n");
 	} else {
 		logString("[Position Manager] GNSS Init > Failed!\n");
-		return 0;
-	}
-
-	status = initGroundStationSensor(groundStationMissionCallBack);
-	if (status) {
-		logString("[Position Manager] Ground station Init > Success\n");
-	} else {
-		logString("[Position Manager] Ground station Init > Failed!\n");
 		return 0;
 	}
 
@@ -82,11 +73,14 @@ uint8_t initPositionManager(void) {
 
 		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY, POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
 
-		initPositionMissionHelper();
-
 		positionMgrBrakeDecel = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_BRAKE_DECEL_ADDR));
 		if (positionMgrBrakeDecel > POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX) {
 			positionMgrBrakeDecel = POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX;
+		}
+
+		positionCruiseSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR));
+		if (positionCruiseSpeed > POSITION_MGR_CRUISE_SPEED_MAX) {
+			positionCruiseSpeed = POSITION_MGR_CRUISE_SPEED_MIN;
 		}
 
 	} else {
@@ -139,7 +133,7 @@ void resetPositionCommands() {
 	positionCommandData.rollCommand = 0.0f;
 	positionCommandData.targetXVel = 0.0f;
 	positionCommandData.targetYVel = 0.0f;
-	fcStatusData.isNavMissionComplete = 0;
+	fcStatusData.isMissionComplete = 0;
 	positionMgrPosHoldElapseDtSum = 0.0f;
 	resetPositionControl(1);
 }
@@ -182,7 +176,7 @@ void doBraking(float dt) {
 __ATTR_ITCM_TEXT
 void updatePositionRateCommand(float dt) {
 	if (isNavModeActive()) {
-		if (isNavCruiseModeActive() || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
+		if (isCruiseModeActive() || fcStatusData.postionHoldState == POS_HOLD_STATE_SETTLING || fcStatusData.postionHoldState == POS_HOLD_STATE_BRAKING || fcStatusData.postionHoldState == POS_HOLD_STATE_LOCKED) {
 			controlPositionRateWithGains(dt, 1.0f, 1.0f, 1.0f, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy);
 			float pitchCommand, rollCommand;
 			convertEarthToBodyCordinates(controlData.positionXControl, controlData.positionYControl, sensorAttitudeData.heading, &pitchCommand, &rollCommand);
@@ -196,6 +190,11 @@ void updatePositionRateCommand(float dt) {
 		positionMgrPosHoldRatePIDGain = 1.0f;
 		resetPositionCommands();
 	}
+}
+
+__ATTR_ITCM_TEXT
+float getMaxCruiseSpeed() {
+	return positionCruiseSpeed;
 }
 
 __ATTR_ITCM_TEXT
@@ -218,7 +217,7 @@ void manageCruiseCommand(float dt) {
 __ATTR_ITCM_TEXT
 void updatePositionCordinateCommand(float dt) {
 	if (!rcData.pitchCentered || !rcData.rollCentered) {
-		if (isNavCruiseModeActive()) {
+		if (isCruiseModeActive()) {
 			manageCruiseCommand(dt);
 		} else {
 			resetPositionCommands();
@@ -228,13 +227,13 @@ void updatePositionCordinateCommand(float dt) {
 		return;
 	}
 
-	if (!isNavRTHModeActive() && !isNavMissionModeActive()) {
-		resetNavMissionStates(); //Clears RTH states also.
-	} else if (!isNavRTHModeActive()) {
-		resetNavRTHStates();
+	if (!isRTHModeActive() && !isMissionModeActive()) {
+		resetMissionStates(1); //Clears RTH states also.
+	} else if (!isRTHModeActive()) {
+		resetRTHStates();
 	}
 
-	if (isNavModeActive() || isNavRTHModeActive() || isNavMissionModeActive()) {
+	if (isNavModeActive() || isRTHModeActive() || isMissionModeActive()) {
 		switch (fcStatusData.postionHoldState) {
 		case POS_HOLD_STATE_IDLE:
 			resetPositionCommands();
@@ -259,8 +258,8 @@ void updatePositionCordinateCommand(float dt) {
 			break;
 		case POS_HOLD_STATE_LOCKED:
 			resetBrakingStates();
-			if ((isNavRTHModeActive() || isNavMissionModeActive()) && !fcStatusData.isNavMissionComplete) {
-				handleNavMission(dt);
+			if ((isRTHModeActive() || isMissionModeActive()) && !fcStatusData.isMissionComplete) {
+				handleMission(dt);
 			} else {
 				controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
 			}
@@ -270,7 +269,7 @@ void updatePositionCordinateCommand(float dt) {
 		positionMgrPosHoldElapseDtSum = 0;
 		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		resetPositionCommands();
-		resetNavMissionStates();
+		resetMissionStates(1);
 	}
 }
 
@@ -399,7 +398,7 @@ void resetPositionManager(uint8_t hard) {
 	positionMgrPosHoldRatePIDGain = 1.0f;
 	fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 
-	resetNavMissionStates();
+	resetMissionStates(1);
 
 	fcStatusData.isFailSafeModeActive = 0;
 

@@ -117,7 +117,7 @@ void doAttitudeAngleControl(float dt) {
 		float expectedPitch = 0;
 		float expectedRoll = 0;
 		//Cruise mode translates the stick movements to velocity commands
-		if (isNavCruiseModeActive()) {
+		if (isCruiseModeActive()) {
 			expectedPitch = -positionCommandData.pitchCommand;
 			expectedRoll = positionCommandData.rollCommand;
 		} else {
