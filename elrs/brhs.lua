@@ -45,7 +45,7 @@ local aAlertCritLinkInterval  = 300   -- 3 seconds repeat interval (Critical Lin
 
 -- VCP USB Params
 local vcpUSBLastSend = 0
-local NAV_WP_PAYLOAD_SIZE = 54   -- 3 hdr + 1 action + 2 idx + 4 lat + 4 lon + 8 ops * 5
+local NAV_WP_PAYLOAD_SIZE = 56   -- 3 hdr + 1 action + 2 idx + 4 lat + 4 lon + 2 velocity + 8 ops * 5
 
 -- Must match CRSF_NAV_MAX_OPERATIONS on the receiver. The operations array is
 -- fixed size on the wire; unused slots are zero filled (operation = 0).
@@ -513,7 +513,7 @@ end
 -- Build MSP NAV payload from parsed command
 --
 -- WP CSV format:
---   action,index,latitude,longitude,Key=Value,...  (e.g. Vel=5.0,Alt=10.0,Hover=11.0)
+--   action,index,latitude,longitude,velocity,Key=Value,...  (e.g. 2,0,129716000,775946000,5.0,Alt=10.0,Hover=11.0)
 --
 -- Velocity from the app is xx.x m/s.
 -- FC representation is uint16_t in units of 0.1 m/s:
@@ -529,7 +529,8 @@ end
 --   Byte 5-6   WP index
 --   Byte 7-10  Latitude
 --   Byte 11-14 Longitude
---   Byte 15-54 8 x { int32 value BE, uint8 operation }
+--   Byte 15-16 Velocity (uint16 BE, units of 0.1 m/s)
+--   Byte 17-56 8 x { int32 value BE, uint8 operation }
 -- ==========================================================================
 
 -- Convert a decimal string ("5.0", "-12.35") into a scaled integer string
@@ -595,7 +596,7 @@ local function parseOperations(fields, startIdx)
 end
 
 
-local function buildNavMSPPayload(action, index, latStr, lonStr, ops)
+local function buildNavMSPPayload(action, index, latStr, lonStr, velocity, ops)
     local payload = {
         0xC8,        -- Destination (FC)
         0xEA,        -- Origin (Radio)
@@ -606,10 +607,11 @@ local function buildNavMSPPayload(action, index, latStr, lonStr, ops)
         packUint16BE(payload, 5, index)
         packDecStrInt32BE(payload, 7, latStr)
         packDecStrInt32BE(payload, 11, lonStr)
+        packUint16BE(payload, 15, velocity)
         -- Fixed array of NAV_MAX_OPERATIONS slots, 5 bytes each:
         --   int32_t value (BE), uint8_t operation. Unused slots are zero.
         for i = 1, NAV_MAX_OPERATIONS do
-            local pos = 15 + (i - 1) * 5
+            local pos = 17 + (i - 1) * 5
             local op = ops[i]
 
             if op then
@@ -702,7 +704,7 @@ local function receiveDataFromVCPAndSendToFC()
         -- Action 2: Send waypoint
         --
         -- Expected CSV:
-        -- 2,index,latitude,longitude,Vel=5.0,Alt=10.0,Land=0.0,TakeOff=0.0,Hover=11.0
+        -- 2,index,latitude,longitude,velocity,Alt=10.0,Land=0.0,TakeOff=0.0,Hover=11.0
         ----------------------------------------------------------------------
 
         elseif action == 2 then
@@ -714,7 +716,12 @@ local function receiveDataFromVCPAndSendToFC()
             local index = tonumber(fields[2])
             local latStr =  string.match(fields[3], "^%s*(-?%d+)%s*$")
             local lonStr =  string.match(fields[4], "^%s*(-?%d+)%s*$")
-            local ops = parseOperations(fields, 5)
+            local velocityStr = string.match(fields[5] or "", "^%s*(%d+%.?%d*)%s*$")
+            local velocity = velocityStr and tonumber(velocityStr) or nil
+            if velocity ~= nil then
+                velocity = math.floor(velocity * 10 + 0.5) -- m/s -> 0.1 m/s units
+            end
+            local ops = parseOperations(fields, 6)
 
 
             ------------------------------------------------------------------
@@ -724,6 +731,9 @@ local function receiveDataFromVCPAndSendToFC()
             if (index == nil) or
                (latStr == nil) or
                (lonStr == nil) or
+               (velocity == nil) or
+               (velocity < 0) or
+               (velocity > 65535) or
                (ops == nil) or
                (index < 0) or
                (index ~= math.floor(index)) or
@@ -734,7 +744,7 @@ local function receiveDataFromVCPAndSendToFC()
 
 
             ------------------------------------------------------------------
-            -- Operation values are scaled to int32_t in 0.1 steps (parseOperations)
+            -- Navigation operation values are scaled to int32_t in 0.1 steps (parseOperations)
             --
             -- Examples:
             --   5.0  -> 50
@@ -754,7 +764,8 @@ local function receiveDataFromVCPAndSendToFC()
                     index,
                     latStr,
                     lonStr,
-                    ops
+                     velocity,
+                     ops
                 )
 
             if crossfireTelemetryPush(CRSF_MSP_NAV_COMMAND, payload) then

@@ -3,15 +3,12 @@
 #include <math.h>
 #include <sys/_stdint.h>
 
-#include "../../../control/ControlData.h"
 #include "../../../FCConfig.h"
-#include "../../../logger/Logger.h"
 #include "../../../memory/Memory.h"
 #include "../../../status/FCStatus.h"
 #include "../../../util/MathUtil.h"
 #include "../../position/common/PositionCommon.h"
 #include "../AltitudeManager.h"
-#include "LandingContactHelper.h"
 
 uint8_t altCommandMode = 0;
 uint8_t altCommandComplete = 0;
@@ -22,6 +19,7 @@ float altCommandLiftOffThrottle = 0.0f;
 uint8_t altCommandThrottleRefreshRequired = 0;
 uint8_t altCommandStepIssued = 0;
 float altCommandStepTimer = 0;
+float targetAltForAltChangeCommand;
 
 __ATTR_ITCM_TEXT
 uint8_t isTargetAltitudeReached(void) {
@@ -49,9 +47,15 @@ void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType
 	altCommandLiftOffThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
 	altCommandThrottleRefreshRequired = (type != ALT_COMMAND_TYPE_TAKEOFF);
 	altCommandStepIssued = 0;
-	fcStatusData.hasTouchedDown = 0;
 	altCommandStepTimer = 0;
-	landingContactReset();
+}
+
+void setTargetAltForAltChangeCommand(float alt){
+	targetAltForAltChangeCommand = alt;
+}
+
+float getTargetAltForAltChangeCommand(void){
+	return targetAltForAltChangeCommand;
 }
 
 void abortAltCommand(void) {

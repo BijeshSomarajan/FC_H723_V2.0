@@ -14,6 +14,7 @@
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
 #include "../position/helpers/PositionManagerHelper.h"
+#include "../altitude/helpers/AltitudeCommandHelper.h"
 
 void _missionCallBack(uint8_t action);
 void resetWPStates();
@@ -33,64 +34,85 @@ float missionWPDistanceFiltered = 0;
 float missionVxCommand, missionVyCommand;
 uint8_t missionWasRTHModeActive = 0;
 uint8_t missionWasMissionModeActive = 0;
+float missionWaitCounter = 0;
 
-void startOperation() {
+void startOperation(float dt) {
 	if (currentMissionOperationData == NULL) {
 		return;
 	}
 	switch (currentMissionOperationData->operation) {
 	case MISSION_OPERATION_TAKEOFF:
-		//To initiate Take off
+		fcStatusData.isLandingModeActive = 0;
+		fcStatusData.isAltChangeModeActive = 0;
+		fcStatusData.isTakeOffModeActive = 1;
+		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
 	case MISSION_OPERATION_LAND:
-		//To initiate Landing
+		fcStatusData.isTakeOffModeActive = 0;
+		fcStatusData.isAltChangeModeActive = 0;
+		fcStatusData.isLandingModeActive = 1;
+		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
 	case MISSION_OPERATION_SET_ALT:
-		//To initiate alt setting
-		break;
-	case MISSION_OPERATION_SET_HEADING:
-		//To initiate heading set
+		fcStatusData.isTakeOffModeActive = 0;
+		fcStatusData.isLandingModeActive = 0;
+		setTargetAltForAltChangeCommand(currentMissionOperationData->value);
+		fcStatusData.isAltChangeModeActive = 1;
+		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
 	case MISSION_OPERATION_WAIT:
-		//To initiate wait
+		missionWaitCounter = 0;
+		currentMissionOperationData->status = MISSION_STATUS_WIP;
+		break;
+	case MISSION_OPERATION_SET_HEADING:
+		currentMissionOperationData->status = MISSION_STATUS_COMPLETE; //Not supported yet
 		break;
 	}
 }
 
-uint8_t checkOperation() {
-	uint8_t complete = 1;
+uint8_t checkOperation(float dt) {
+	uint8_t complete = 0;
 	if (currentMissionOperationData == NULL) {
-		return complete;
+		return 1;
 	}
 	switch (currentMissionOperationData->operation) {
 	case MISSION_OPERATION_TAKEOFF:
-		//To check Take off completion
+		if (isAltCommandComplete()) {
+			complete = 1;
+		}
 		break;
 	case MISSION_OPERATION_LAND:
-		//To check Landing completion
+		if (isAltCommandComplete()) {
+			complete = 1;
+		}
 		break;
 	case MISSION_OPERATION_SET_ALT:
-		//To check Alt completion
-		break;
-	case MISSION_OPERATION_SET_HEADING:
-		//To check set heading completion
+		if (isAltCommandComplete()) {
+			complete = 1;
+		}
 		break;
 	case MISSION_OPERATION_WAIT:
-		//To check wait completion
+		missionWaitCounter += dt;
+		if (missionWaitCounter > currentMissionOperationData->value) {
+			complete = 1;
+		}
+		break;
+	case MISSION_OPERATION_SET_HEADING:
+		complete = 1;
 		break;
 	}
 	return complete;
 }
 
-void handleOperation() {
+void handleOperation(float dt) {
 	if (currentMissionOperationData == NULL) {
 		return;
 	}
 	if (currentMissionOperationData->status == MISSION_STATUS_OPEN) {
 		currentMissionOperationData->status = MISSION_STATUS_WIP;
-		startOperation();
+		startOperation(dt);
 	} else if (currentMissionOperationData->status == MISSION_STATUS_WIP) {
-		if (checkOperation()) {
+		if (checkOperation(dt)) {
 			currentMissionOperationData->status = MISSION_STATUS_COMPLETE;
 		}
 	}
@@ -207,6 +229,91 @@ void doWPNavigation(float dt) {
 	}
 }
 
+/*----------------------- Debug ----------------------------*/
+
+static const char* missionStatusName(uint8_t s) {
+	switch (s) {
+	case MISSION_STATUS_INVALID:
+		return "INVALID";
+	case MISSION_STATUS_OPEN:
+		return "OPEN";
+	case MISSION_STATUS_WIP:
+		return "WIP";
+	case MISSION_STATUS_WIP_CONCLUDING:
+		return "CONCLUDING";
+	case MISSION_STATUS_COMPLETE:
+		return "COMPLETE";
+	default:
+		return "?";
+	}
+}
+
+static const char* missionOpName(uint8_t op) {
+	switch (op) {
+	case MISSION_OPERATION_TAKEOFF:
+		return "TAKEOFF";
+	case MISSION_OPERATION_LAND:
+		return "LAND";
+	case MISSION_OPERATION_SET_ALT:
+		return "SET_ALT";
+	case MISSION_OPERATION_SET_HEADING:
+		return "SET_HDG";
+	case MISSION_OPERATION_WAIT:
+		return "WAIT";
+	case MISSION_OPERATION_CUSTOM:
+		return "CUSTOM";
+	default:
+		return "?";
+	}
+}
+
+void dumpMissionData(void) {
+	char buf[112];
+	MissionData *m = getMissionData();
+	if (m == NULL) {
+		logString("[Mission Dump] NULL\n");
+		return;
+	}
+
+	snprintf(buf, sizeof(buf), "[Mission Dump] status=%s wpCount=%u curWP=%u\n", missionStatusName(m->status), (unsigned) m->waypointCount, (unsigned) m->currentWaypointIndex);
+	logString(buf);
+
+	// Clamp so corrupted counts can't walk past the arrays
+	uint8_t wpCount = (m->waypointCount > NAV_MAX_WAYPOINTS) ? NAV_MAX_WAYPOINTS : m->waypointCount;
+	if (wpCount != m->waypointCount) {
+		logString("[Mission Dump] WARNING: waypointCount out of range\n");
+	}
+
+	for (uint8_t i = 0; i < wpCount; i++) {
+		MissionWPData *wp = &m->waypoints[i];
+		char wpMark = (wp == currentMissionWPData) ? '*' : ' ';
+
+		// Fixed-point prints avoid needing float printf support in the libc build:
+		// lat/lon in 1e-7 deg, velocity in 0.1 m/s
+		long lat = (long) (wp->latitude * 1e7);
+		long lon = (long) (wp->longitude * 1e7);
+		long vel = (long) (wp->velocity * 10.0f);
+
+		snprintf(buf, sizeof(buf), "%c WP[%u] idx=%u st=%s ops=%u curOp=%u lat=%ld lon=%ld vel=%ld\n", wpMark, (unsigned) i, (unsigned) wp->waypointIndex, missionStatusName(wp->status), (unsigned) wp->operationCount, (unsigned) wp->currentOperationIndex, lat, lon, vel);
+		logString(buf);
+
+		uint8_t opCount = (wp->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : wp->operationCount;
+		if (opCount != wp->operationCount) {
+			logString("    WARNING: operationCount out of range\n");
+		}
+
+		for (uint8_t j = 0; j < opCount; j++) {
+			MissionOperationData *op = &wp->operations[j];
+			char opMark = (op == currentMissionOperationData) ? '*' : ' ';
+			long val = (long) (op->value * 10.0f);
+
+			snprintf(buf, sizeof(buf), "  %c OP[%u] %s(%u) st=%s val=%ld\n", opMark, (unsigned) j, missionOpName(op->operation), (unsigned) op->operation, missionStatusName(op->status), val);
+			logString(buf);
+		}
+	}
+}
+/*---------------------- Debug End -------------------------*/
+
 // Internal start: resets states and loads the first waypoint / operation
 // of whatever is currently in the mission buffer. Not blocked by RTH mode,
 // so startRTHMission() can use it.
@@ -308,7 +415,7 @@ void handleMission(float dt) {
 				doWPNavigation(dt);
 			}
 		} else {
-			handleOperation();
+			handleOperation(dt);
 		}
 	}
 
@@ -367,7 +474,8 @@ void _missionCallBack(uint8_t action) {
 		return;                                 // Failsafe or RTH cannot be cancelled.
 	}
 	if (action == MISSION_ACTION_START) {
-		startLoadedMission();
+		dumpMissionData();
+		//startLoadedMission();
 	} else if (action == MISSION_ACTION_ABORT) {
 		resetMissionStates(1);
 		fcStatusData.isMissionComplete = 0;

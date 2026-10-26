@@ -37,8 +37,12 @@ void resetAltCommandStates(void);
 void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType type);
 void abortAltCommand(void);
 void manageAltCommand(float dt);
+
 uint8_t isAltCommandMode(void);
 uint8_t isAltCommandComplete(void);
 uint8_t isAltCommandThrottleUpdateRequired(void);
+
+void setTargetAltForAltChangeCommand(float alt);
+float getTargetAltForAltChangeCommand(void);
 
 #endif /* ALT_COMMAND_HELPER_H */

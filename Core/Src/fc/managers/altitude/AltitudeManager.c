@@ -53,6 +53,8 @@ float altMgrAltSpeedGain = ALT_MGR_ALT_SPEED_GAIN_MAX; //Meter Per Sec
 
 uint8_t wasLandingModeActive = 0;
 uint8_t wasTakeOffModeActive = 0;
+uint8_t wasAltChangeModeActive = 0;
+
 float altMgrTakeOffCommandAlt = 2.0f; //mts
 
 void startAltitudeSensorsRead(void);
@@ -294,6 +296,7 @@ __ATTR_ITCM_TEXT
 void updateAltCommand() {
 	if (fcStatusData.isLandingModeActive) {
 		wasTakeOffModeActive = 0;
+		wasAltChangeModeActive = 0;
 		if (!wasLandingModeActive && fcStatusData.isFlying) {
 			wasLandingModeActive = 1;
 			abortAltCommand();
@@ -301,14 +304,24 @@ void updateAltCommand() {
 		}
 	} else if (fcStatusData.isTakeOffModeActive) {
 		wasLandingModeActive = 0;
+		wasAltChangeModeActive = 0;
 		if (!wasTakeOffModeActive && !fcStatusData.isFlying) {
 			wasTakeOffModeActive = 1;
 			abortAltCommand();
 			startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + altMgrTakeOffCommandAlt, ALT_COMMAND_TYPE_TAKEOFF);
 		}
+	} else if (fcStatusData.isAltChangeModeActive) {
+		wasLandingModeActive = 0;
+		wasTakeOffModeActive = 0;
+		if (!wasAltChangeModeActive && fcStatusData.isFlying) {
+			wasAltChangeModeActive = 1;
+			abortAltCommand();
+			startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + getTargetAltForAltChangeCommand(), ALT_COMMAND_TYPE_NORMAL);
+		}
 	} else {
 		wasLandingModeActive = 0;
 		wasTakeOffModeActive = 0;
+		wasAltChangeModeActive = 0;
 		abortAltCommand();
 	}
 }
@@ -475,6 +488,7 @@ void resetAltMgrStates() {
 
 	wasLandingModeActive = 0;
 	wasTakeOffModeActive = 0;
+	wasAltChangeModeActive = 0;
 
 	resetAltCommandStates();
 }
