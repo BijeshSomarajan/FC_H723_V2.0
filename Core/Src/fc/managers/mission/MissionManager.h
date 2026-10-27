@@ -2,6 +2,8 @@
 #define SRC_FC_MANAGERS_MISSION_MISSIONMANAGER_H_
 #include <stdint.h>
 
+#define MISSION_MGR_DATA_DUMP_ENABLED 1
+
 #define MISSION_MGR_SPEED_MIN                    0.5f
 #define MISSION_MGR_SPEED_MAX                    20.0f
 

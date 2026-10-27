@@ -49,22 +49,10 @@ local NAV_WP_PAYLOAD_SIZE = 56   -- 3 hdr + 1 action + 2 idx + 4 lat + 4 lon + 2
 
 -- Must match CRSF_NAV_MAX_OPERATIONS on the receiver. The operations array is
 -- fixed size on the wire; unused slots are zero filled (operation = 0).
+-- Operation codes are NOT validated here: the CSV key is sent as-is (one byte)
+-- and the FC decides what each code means.
 local NAV_MAX_OPERATIONS = 8
 
--- Operation codes, keyed by the (lower-case) name used in the serial CSV.
---   decimals = number of decimals kept when the value is converted to the
---              int32_t sent on the wire (1 -> 0.1 units: 5.0 -> 50)
---   skipZero = "Key=0" means "not requested", so the slot is not sent
-local NAV_OPERATIONS = {
-    takeoff = { code = 1, decimals = 1, skipZero = false  },
-    land    = { code = 2, decimals = 1, skipZero = false  },
-    alt     = { code = 3, decimals = 1, skipZero = false },
-    vel     = { code = 4, decimals = 1, skipZero = false },
-    heading = { code = 5, decimals = 1, skipZero = false },
-    rth     = { code = 6, decimals = 1, skipZero = false  },
-    hover   = { code = 7, decimals = 1, skipZero = false  },
-    custom  = { code = 8, decimals = 1, skipZero = false }
-}
 local CRSF_MSP_NAV_COMMAND = 0x7C
 local mspRxBuffer = ""
 local mspSequence = 0
@@ -88,7 +76,7 @@ local aAlertNavModes = {
     ["R"] = "/SOUNDS/en/brhs/nav/rth.wav",
     ["C"] = "/SOUNDS/en/brhs/nav/rthCom.wav",
     ["F"] = "/SOUNDS/en/brhs/nav/failSafe.wav",
-	["V"] = "/SOUNDS/en/brhs/nav/cruise.wav",
+    ["V"] = "/SOUNDS/en/brhs/nav/cruise.wav",
 }
 
 local aAlertAltModes = {
@@ -99,9 +87,9 @@ local aAlertAltModes = {
 local aAlertLandModes = {
     ["C"] = "/SOUNDS/en/brhs/land/altc.wav",
     ["T"] = "/SOUNDS/en/brhs/land/takeoff.wav",
-	["L"] = "/SOUNDS/en/brhs/land/land.wav",
+    ["L"] = "/SOUNDS/en/brhs/land/land.wav",
     ["F"] = "/SOUNDS/en/brhs/land/fly.wav",
-	["G"] = "/SOUNDS/en/brhs/land/touchDwn.wav",
+    ["G"] = "/SOUNDS/en/brhs/land/touchDwn.wav",
 }
 
 local aAlertMissionModes = {
@@ -374,7 +362,9 @@ local function sendTelemetryToVCP()
 
     local now = getTime()
 
-    if (now - vcpUSBLastSend) >= 100 then -- 100 ms
+    -- NOTE: getTime() ticks are 10 ms, so >= 100 means once per second.
+    -- Use >= 10 for 10 Hz.
+    if (now - vcpUSBLastSend) >= 100 then
 
         vcpUSBLastSend = now
 
@@ -513,7 +503,8 @@ end
 -- Build MSP NAV payload from parsed command
 --
 -- WP CSV format:
---   action,index,latitude,longitude,velocity,Key=Value,...  (e.g. 2,0,129716000,775946000,5.0,Alt=10.0,Hover=11.0)
+--   action,index,latitude,longitude,velocity,Code=Value,...
+--   e.g.  2,2,129410000,776110000,10.0,5=3.0
 --
 -- Velocity from the app is xx.x m/s.
 -- FC representation is uint16_t in units of 0.1 m/s:
@@ -521,6 +512,10 @@ end
 --   5.0 m/s  -> 50
 --   5.5 m/s  -> 55
 --   12.3 m/s -> 123
+--
+-- Operations are "Code=Value" where Code is a numeric operation code (sent
+-- as-is, one byte) and Value is a decimal scaled to int32_t in 0.1 steps
+-- (3.0 -> 30). The Lua side does not validate codes; the FC interprets them.
 --
 -- Payload:
 --   Byte 1-2   Destination / Origin
@@ -533,12 +528,12 @@ end
 --   Byte 17-56 8 x { int32 value BE, uint8 operation }
 -- ==========================================================================
 
--- Convert a decimal string ("5.0", "-12.35") into a scaled integer string
--- ("50", "-123") without any floating point maths. Extra decimals are
--- truncated. Returns nil if malformed or outside int32_t range.
+-- Convert a decimal string ("5.0", "-12.35", "+3") into a scaled integer
+-- string ("50", "-123", "30") without any floating point maths. Extra
+-- decimals are truncated. Returns nil if malformed or outside int32_t range.
 local function decimalToScaledString(str, decimals)
 
-    local sign, ip, fp = string.match(str, "^%s*(-?)(%d*)%.?(%d*)%s*$")
+    local sign, ip, fp = string.match(str, "^%s*([%+%-]?)(%d*)%.?(%d*)%s*$")
 
     if sign == nil or (ip == "" and fp == "") then
         return nil
@@ -556,39 +551,33 @@ local function decimalToScaledString(str, decimals)
         return nil
     end
 
-    return sign .. digits
+    return (sign == "-" and "-" or "") .. digits
 end
 
 
--- Parse "Key=Value" fields (from startIdx onward) into an operations list:
--- { {code=<op>, valueStr=<scaled int string>}, ... } in the order received.
--- Returns nil if any field is malformed or the key is unknown.
+-- Parse "Code=Value" fields (from startIdx onward). Liberal: the key is any
+-- integer op code, the value any decimal. Malformed fields are skipped,
+-- fields beyond NAV_MAX_OPERATIONS are ignored. The FC decides what each
+-- code means.
 local function parseOperations(fields, startIdx)
 
     local ops = {}
 
     for i = startIdx, #fields do
 
-        local key, val = string.match(fields[i], "^%s*(%a[%w_]*)%s*=%s*(-?[%d%.]+)%s*$")
-
-        if key == nil then
-            return nil
+        if #ops >= NAV_MAX_OPERATIONS then
+            break
         end
 
-        local def = NAV_OPERATIONS[string.lower(key)]
+        local key, val = string.match(fields[i], "^%s*(%d+)%s*=%s*([%+%-]?[%d%.]+)%s*$")
 
-        if def == nil then
-            return nil
-        end
+        if key ~= nil then
 
-        local scaled = decimalToScaledString(val, def.decimals)
+            local scaled = decimalToScaledString(val, 1)  -- 0.1 units: 3.0 -> 30
 
-        if scaled == nil then
-            return nil
-        end
-
-        if not (def.skipZero and tonumber(val) == 0) then
-            ops[#ops + 1] = { code = def.code, valueStr = scaled }
+            if scaled ~= nil then
+                ops[#ops + 1] = { code = tonumber(key) % 256, valueStr = scaled }
+            end
         end
     end
 
@@ -686,7 +675,7 @@ local function receiveDataFromVCPAndSendToFC()
 
 
         ----------------------------------------------------------------------
-        -- Action 1: Mission command without WP data
+        -- Action 1/3/4: Mission command without WP data
         ----------------------------------------------------------------------
 
         if action == 1 or action == 3 or action == 4 then
@@ -704,69 +693,45 @@ local function receiveDataFromVCPAndSendToFC()
         -- Action 2: Send waypoint
         --
         -- Expected CSV:
-        -- 2,index,latitude,longitude,velocity,Alt=10.0,Land=0.0,TakeOff=0.0,Hover=11.0
+        -- 2,index,latitude,longitude,velocity,Code=Value,Code=Value,...
+        -- e.g. 2, 2, 129410000, 776110000, 10.0, 5=3.0
         ----------------------------------------------------------------------
 
         elseif action == 2 then
 
-            if #fields < 4 then
+            local index  = tonumber(fields[2])
+            local latStr = fields[3] and string.match(fields[3], "^%s*(-?%d+)%s*$")
+            local lonStr = fields[4] and string.match(fields[4], "^%s*(-?%d+)%s*$")
+
+            -- Index and position are the only hard requirements: without
+            -- them there is no waypoint to send.
+            if index == nil or latStr == nil or lonStr == nil then
+                playTone(100, 300, 0, PLAY_NOW)
                 goto continue
             end
 
-            local index = tonumber(fields[2])
-            local latStr =  string.match(fields[3], "^%s*(-?%d+)%s*$")
-            local lonStr =  string.match(fields[4], "^%s*(-?%d+)%s*$")
-            local velocityStr = string.match(fields[5] or "", "^%s*(%d+%.?%d*)%s*$")
-            local velocity = velocityStr and tonumber(velocityStr) or nil
-            if velocity ~= nil then
-                velocity = math.floor(velocity * 10 + 0.5) -- m/s -> 0.1 m/s units
-            end
-            local ops = parseOperations(fields, 6)
+            index = math.floor(index) % 0x10000
 
+            -- Velocity (m/s -> 0.1 m/s). If field 5 is actually an op,
+            -- treat velocity as 0 and start ops there.
+            local velocity = 0
+            local opsStart = 6
+            local vField = fields[5] or ""
 
-            ------------------------------------------------------------------
-            -- Validate waypoint data
-            ------------------------------------------------------------------
-
-            if (index == nil) or
-               (latStr == nil) or
-               (lonStr == nil) or
-               (velocity == nil) or
-               (velocity < 0) or
-               (velocity > 65535) or
-               (ops == nil) or
-               (index < 0) or
-               (index ~= math.floor(index)) or
-               (#ops > NAV_MAX_OPERATIONS) or
-               (index > 65535) then
-                goto continue
+            if string.find(vField, "=", 1, true) then
+                opsStart = 5
+            else
+                local v = tonumber(vField)
+                if v ~= nil then
+                    velocity = math.floor(v * 10 + 0.5)
+                    if velocity < 0 then velocity = 0 end
+                    if velocity > 65535 then velocity = 65535 end
+                end
             end
 
+            local ops = parseOperations(fields, opsStart)
 
-            ------------------------------------------------------------------
-            -- Navigation operation values are scaled to int32_t in 0.1 steps (parseOperations)
-            --
-            -- Examples:
-            --   5.0  -> 50
-            --   5.5  -> 55
-            --   12.3 -> 123
-            ------------------------------------------------------------------
-
-            -- (Values were already scaled in parseOperations)
-
-            ------------------------------------------------------------------
-            -- Build and send payload
-            ------------------------------------------------------------------
-
-            local payload =
-                buildNavMSPPayload(
-                    action,
-                    index,
-                    latStr,
-                    lonStr,
-                     velocity,
-                     ops
-                )
+            local payload = buildNavMSPPayload(action, index, latStr, lonStr, velocity, ops)
 
             if crossfireTelemetryPush(CRSF_MSP_NAV_COMMAND, payload) then
                 playTone(2000, 100, 0, PLAY_NOW)
@@ -823,22 +788,22 @@ local function run(event)
 
     -- Baro frame
     alt = getValue("Alt") or 0
-	expectedGroundSpeed = getValue("VSpd") or 0
-    
-	--Attitude Frame
+    expectedGroundSpeed = getValue("VSpd") or 0
+
+    -- Attitude Frame
     pitch = getValue("Ptch") or getValue("Pitch") or 0
     roll = getValue("Roll") or getValue("Rol") or 0
     heading = getValue("Yaw") or 0
-	heading =  (heading * 57.2957795) --Convert to degrees
-	
-   	--GPS frame
+    heading = (heading * 57.2957795) -- Convert to degrees
+
+    -- GPS frame
     groundSpeed = getValue("GSpd") or 0
-	homeDistance = getFirstValue("galt","Galt", "GAlt", "Alts") or 0 --Some tx does not support this property , you need to map this --
-	headingRef = getValue("Hdg") or 0
-	satField = getValue("Sats") or 0
-    
-	--Flight mode frame
-	fm = getValue("FM") or "---"
+    homeDistance = getFirstValue("galt", "Galt", "GAlt", "Alts") or 0 -- Some tx does not support this property, you need to map this
+    headingRef = getValue("Hdg") or 0
+    satField = getValue("Sats") or 0
+
+    -- Flight mode frame
+    fm = getValue("FM") or "---"
 
     --------------------------------------------------------------------------
     -- GPS Coordinates
@@ -866,7 +831,7 @@ local function run(event)
         headingRef = headingRef + 655.36
     end
 
-  
+
     -- Match the 6th-bit shifting structure from firmware
     gnssReliable = satField >= 64
     nSat = satField % 64
@@ -888,16 +853,16 @@ local function run(event)
     --------------------------------------------------------------------------
     -- Row 2 ( Vertical speed and Altitude )
     --------------------------------------------------------------------------
-	
-	lcd.drawText(2, 12, "AL:", 0)
+
+    lcd.drawText(2, 12, "AL:", 0)
     lcd.drawText(
-	    18,
+        18,
         12,
         string.format("%.1fm", alt / 10),
         BOLD
     )
-	
-	lcd.drawText(66, 12, "TS:", 0)
+
+    lcd.drawText(66, 12, "TS:", 0)
     lcd.drawText(
         82,
         12,
@@ -918,23 +883,23 @@ local function run(event)
         22,
         string.format(
             "%.1fm",
-            homeDistance/10          
+            homeDistance / 10
         ),
         BOLD
     )
-	
-	lcd.drawText(66, 22, "CS:", 0)
+
+    lcd.drawText(66, 22, "CS:", 0)
     lcd.drawText(
         82,
         22,
         string.format("%.1fms", groundSpeed / 10),
         BOLD
     )
-	
+
     --------------------------------------------------------------------------
     -- Row 4 , Heading Ref and Current heading
     --------------------------------------------------------------------------
-   
+
     lcd.drawText(2, 32, "HH:", 0)
     lcd.drawText(
         18,

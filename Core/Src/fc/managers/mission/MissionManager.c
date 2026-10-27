@@ -229,6 +229,7 @@ void doWPNavigation(float dt) {
 	}
 }
 
+#if MISSION_MGR_DATA_DUMP_ENABLED == 1
 /*----------------------- Debug ----------------------------*/
 
 static const char* missionStatusName(uint8_t s) {
@@ -292,9 +293,9 @@ void dumpMissionData(void) {
 		// lat/lon in 1e-7 deg, velocity in 0.1 m/s
 		long lat = (long) (wp->latitude * 1e7);
 		long lon = (long) (wp->longitude * 1e7);
-		long vel = (long) (wp->velocity * 10.0f);
+		float vel = (wp->velocity);
 
-		snprintf(buf, sizeof(buf), "%c WP[%u] idx=%u st=%s ops=%u curOp=%u lat=%ld lon=%ld vel=%ld\n", wpMark, (unsigned) i, (unsigned) wp->waypointIndex, missionStatusName(wp->status), (unsigned) wp->operationCount, (unsigned) wp->currentOperationIndex, lat, lon, vel);
+		snprintf(buf, sizeof(buf), "%c WP[%u] idx=%u st=%s ops=%u curOp=%u lat=%ld lon=%ld vel=%.2f\n", wpMark, (unsigned) i, (unsigned) wp->waypointIndex, missionStatusName(wp->status), (unsigned) wp->operationCount, (unsigned) wp->currentOperationIndex, lat, lon, vel);
 		logString(buf);
 
 		uint8_t opCount = (wp->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : wp->operationCount;
@@ -305,14 +306,15 @@ void dumpMissionData(void) {
 		for (uint8_t j = 0; j < opCount; j++) {
 			MissionOperationData *op = &wp->operations[j];
 			char opMark = (op == currentMissionOperationData) ? '*' : ' ';
-			long val = (long) (op->value * 10.0f);
+			float val = (op->value);
 
-			snprintf(buf, sizeof(buf), "  %c OP[%u] %s(%u) st=%s val=%ld\n", opMark, (unsigned) j, missionOpName(op->operation), (unsigned) op->operation, missionStatusName(op->status), val);
+			snprintf(buf, sizeof(buf), "  %c OP[%u] %s(%u) st=%s val=%.2f\n", opMark, (unsigned) j, missionOpName(op->operation), (unsigned) op->operation, missionStatusName(op->status), val);
 			logString(buf);
 		}
 	}
 }
 /*---------------------- Debug End -------------------------*/
+#endif
 
 // Internal start: resets states and loads the first waypoint / operation
 // of whatever is currently in the mission buffer. Not blocked by RTH mode,
@@ -474,8 +476,10 @@ void _missionCallBack(uint8_t action) {
 		return;                                 // Failsafe or RTH cannot be cancelled.
 	}
 	if (action == MISSION_ACTION_START) {
+		startLoadedMission();
+#if MISSION_MGR_DATA_DUMP_ENABLED == 1
 		dumpMissionData();
-		//startLoadedMission();
+#endif
 	} else if (action == MISSION_ACTION_ABORT) {
 		resetMissionStates(1);
 		fcStatusData.isMissionComplete = 0;
