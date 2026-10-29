@@ -19,9 +19,11 @@ local aAlertLastAlt = nil
 local aAlertLastLand = nil
 local aAlertLastMission = nil
 local aAlertLastGnss = nil
+local aAlertLastWpDone = nil
+local aAlertLastOpSeq = nil
 local aAlertNextBatAlert = 0
 local aAlertNextLinkAlert = 0  -- Timer tracking state for link quality alerts
-
+local WP_REACHED_SOUND = "/SOUNDS/en/brhs/mission/wpReach.wav"
 
 -- ==========================================================================
 -- ALERT CONFIGURATION SETTINGS
@@ -98,6 +100,13 @@ local aAlertMissionModes = {
     ["C"] = "/SOUNDS/en/brhs/mission/miCom.wav",
 }
 
+local aAlertOpDoneModes = {
+    ["T"] = "/SOUNDS/en/brhs/mission/opTkoff.wav",
+    ["L"] = "/SOUNDS/en/brhs/mission/opLand.wav",
+    ["A"] = "/SOUNDS/en/brhs/mission/opAlt.wav",
+    ["W"] = "/SOUNDS/en/brhs/mission/opWait.wav",
+}
+
 
 -- ==========================================================================
 -- Constant lookup table for compass directions
@@ -120,6 +129,34 @@ local function getCompassDirection(angle)
 end
 
 
+local function doMissionProgressAlert(cleanFm)
+    -- chars 6-7: waypoints reached, 8: op-done sequence, 9: last op type
+    if #cleanFm < 9 then return end
+
+    local wpDone = tonumber(string.sub(cleanFm, 6, 7))
+    local opSeq  = tonumber(string.sub(cleanFm, 8, 8))
+    local opType = string.sub(cleanFm, 9, 9)
+    if wpDone == nil or opSeq == nil then return end
+
+    -- First valid frame: adopt the current state silently
+    if aAlertLastWpDone == nil then aAlertLastWpDone = wpDone end
+    if aAlertLastOpSeq == nil then aAlertLastOpSeq = opSeq end
+
+    -- A count below the last one means a new mission started
+    if wpDone > aAlertLastWpDone then
+        playFile(WP_REACHED_SOUND)
+        playNumber(wpDone, 0)
+    end
+    aAlertLastWpDone = wpDone
+
+    if opSeq ~= aAlertLastOpSeq then
+        if opType ~= "0" and aAlertOpDoneModes[opType] then
+            playFile(aAlertOpDoneModes[opType])
+        end
+        aAlertLastOpSeq = opSeq
+    end
+end
+
 -- ==========================================================================
 -- Flight Mode Audio Alert
 -- ==========================================================================
@@ -131,7 +168,7 @@ local function doFMAlert()
 
     -- Only process individual flight mode states if telemetry returns a
     -- valid 5-character block
-    if #cleanFm == 5 then
+    if #cleanFm >= 5 then
 
         local currentStart   = string.sub(cleanFm, 1, 1)
         local currentNav     = string.sub(cleanFm, 2, 2)
@@ -205,6 +242,8 @@ local function doFMAlert()
 
             aAlertLastMission = currentMission
         end
+		
+		doMissionProgressAlert(cleanFm)
     end
 end
 

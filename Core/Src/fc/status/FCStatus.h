@@ -30,7 +30,7 @@ struct _FC_STATUS_DATA {
 	uint8_t postionHoldState;
 	uint8_t altitudeHoldState;
 
-	uint8_t isMissionComplete;
+	uint8_t isMissionComplete,isMissionCompleteLatch;
 
 	//Flight reference values
 	float headingRef, headingHomeRef, headingDelta;

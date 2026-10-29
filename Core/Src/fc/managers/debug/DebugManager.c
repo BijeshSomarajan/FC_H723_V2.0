@@ -163,16 +163,6 @@ void debufFFT() {
 
 }
 
-extern VENTURI_ESTIMATE_DATA venturiEstimateData;
-extern PID altPID;
-extern PID altRatePID;
-extern PID altAccPID;
-void debugAltStr() {
-	sprintf(buf, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAltitudeData.altitudeSLFiltered * 100, sensorAltitudeData.altitudeTerrain * 100, venturiEstimateData.venturiBias * 100,
-			positionCordinateData.zPosition * 100, positionCordinateData.zVelocity * 100, positionCordinateData.zAcceleration * 100, altPID.pid * 100, altRatePID.pid * 100, altAccPID.pid, controlData.tiltCompThDelta, controlData.altitudeDOBControl, controlData.throttleControl);
-	logString(buf);
-}
-
 void debugAltGraph() {
 	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeSLFiltered * 1000;
 	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 1000;
@@ -203,8 +193,8 @@ void debugTelemetry() {
 }
 
 void debufFCStatus() {
-	sprintf(buf, "%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(),  positionCordinateData.zPosition, positionCordinateData.zVelocity,
-			controlData.throttleControl, fcStatusData.throttlePercent, fcStatusData.altitudeSLHome, rcData.throttleCentered);
+	sprintf(buf, "%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(), positionCordinateData.zPosition, positionCordinateData.zVelocity, controlData.throttleControl, fcStatusData.throttlePercent,
+			fcStatusData.altitudeSLHome, rcData.throttleCentered);
 	logString(buf);
 }
 
@@ -214,6 +204,15 @@ void debugHeading() {
 	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 100;
 	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 1000;
 	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+}
+
+extern VENTURI_ESTIMATE_DATA venturiEstimateData;
+extern PID altPID;
+extern PID altRatePID;
+void debugAltStr() {
+	sprintf(buf, "%d,%d,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f\n", rcData.pitchCentered, rcData.rollCentered, sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAltitudeData.altitudeSLFiltered * 100, venturiEstimateData.venturiBias * 100,
+			positionCordinateData.zPosition * 100, positionCordinateData.zVelocity * 100, altPID.pid * 100, altRatePID.pid * 100, controlData.tiltCompThDelta, controlData.altitudeControl, controlData.altitudeDOBControl, controlData.throttleControl);
+	logString(buf);
 }
 
 float nowMs = 0;
@@ -239,5 +238,6 @@ void debugTask() {
 	//debugNav();
 	//debugNavStates();
 	//debugTelemetry();
-	debugHeading();
+	//debugHeading();
+	debugAltStr();
 }

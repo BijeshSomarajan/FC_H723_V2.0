@@ -12,6 +12,7 @@
 
 uint8_t altCommandMode = 0;
 uint8_t altCommandComplete = 0;
+uint8_t altCommandSkipped = 0;
 AltCommandType altCommandType = ALT_COMMAND_TYPE_NORMAL;
 
 float altCommandTargetAltitude = 0.0f;
@@ -43,6 +44,7 @@ void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType
 	altCommandTargetAltitude = targetAltitude;
 	altCommandMode = 1;
 	altCommandComplete = 0;
+	altCommandSkipped = 0;
 	altCommandType = type;
 	altCommandLiftOffThrottle = fcStatusData.liftOffThrottlePercent * MAX_PERMISSIBLE_THROTTLE_DELTA;
 	altCommandThrottleRefreshRequired = (type != ALT_COMMAND_TYPE_TAKEOFF);
@@ -58,6 +60,12 @@ float getTargetAltForAltChangeCommand(void){
 	return targetAltForAltChangeCommand;
 }
 
+void skipAltCommand(void) {
+	resetAltCommandStates();
+	altCommandSkipped = 1;
+}
+
+
 void abortAltCommand(void) {
 	resetAltCommandStates();
 }
@@ -70,12 +78,18 @@ uint8_t isAltCommandComplete(void) {
 	return altCommandComplete;
 }
 
+uint8_t isAltCommandSkipped(void) {
+	return altCommandSkipped;
+}
+
+
 void resetAltCommandStates(void) {
 	altCommandMode = 0;
 	altCommandType = ALT_COMMAND_TYPE_NONE;
 	altCommandTargetAltitude = 0.0f;
 	altCommandThrottleRefreshRequired = 0;
 	altCommandStepIssued = 0;
+	altCommandSkipped = 0;
 }
 
 __ATTR_ITCM_TEXT

@@ -297,26 +297,38 @@ void updateAltCommand() {
 	if (fcStatusData.isLandingModeActive) {
 		wasTakeOffModeActive = 0;
 		wasAltChangeModeActive = 0;
-		if (!wasLandingModeActive && fcStatusData.isFlying) {
-			wasLandingModeActive = 1;
-			abortAltCommand();
-			startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - 3.0f, ALT_COMMAND_TYPE_LANDING);
+		if (!wasLandingModeActive) {
+			if (fcStatusData.isFlying) {
+				wasLandingModeActive = 1;
+				abortAltCommand();
+				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - 3.0f, ALT_COMMAND_TYPE_LANDING);
+			} else {
+				skipAltCommand();
+			}
 		}
 	} else if (fcStatusData.isTakeOffModeActive) {
 		wasLandingModeActive = 0;
 		wasAltChangeModeActive = 0;
-		if (!wasTakeOffModeActive && !fcStatusData.isFlying) {
-			wasTakeOffModeActive = 1;
-			abortAltCommand();
-			startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + altMgrTakeOffCommandAlt, ALT_COMMAND_TYPE_TAKEOFF);
+		if (!wasTakeOffModeActive) {
+			if (!fcStatusData.isFlying) {
+				wasTakeOffModeActive = 1;
+				abortAltCommand();
+				startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + altMgrTakeOffCommandAlt, ALT_COMMAND_TYPE_TAKEOFF);
+			} else {
+				skipAltCommand();
+			}
 		}
 	} else if (fcStatusData.isAltChangeModeActive) {
 		wasLandingModeActive = 0;
 		wasTakeOffModeActive = 0;
-		if (!wasAltChangeModeActive && fcStatusData.isFlying) {
-			wasAltChangeModeActive = 1;
-			abortAltCommand();
-			startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + getTargetAltForAltChangeCommand(), ALT_COMMAND_TYPE_NORMAL);
+		if (!wasAltChangeModeActive) {
+			if (fcStatusData.isFlying) {
+				wasAltChangeModeActive = 1;
+				abortAltCommand();
+				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome + getTargetAltForAltChangeCommand(), ALT_COMMAND_TYPE_NORMAL);
+			} else {
+				skipAltCommand();
+			}
 		}
 	} else {
 		wasLandingModeActive = 0;

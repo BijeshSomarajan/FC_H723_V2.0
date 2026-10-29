@@ -252,6 +252,9 @@ void updatePositionCordinateCommand(float dt) {
 			if ((positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD && getGroundSpeed() <= 2.0f * POSITION_MGR_POS_HOLD_BRAKE_MIN_GROUND_SPEED) || positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT) {
 				updatePositionReference();
 				resetPositionControl(1);
+				if ((isRTHModeActive() || isMissionModeActive()) && !fcStatusData.isMissionComplete) {
+					missionPositionRelock();
+				}
 				positionMgrPosHoldElapseDtSum = 0.0f;
 				fcStatusData.postionHoldState = POS_HOLD_STATE_LOCKED;
 			}

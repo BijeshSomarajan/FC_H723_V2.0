@@ -13,7 +13,7 @@
 // ---------------------------------------------------------------------------
 #define ALT_COMMAND_DISTANCE_STEP_MAX    2.0f
 #define ALT_COMMAND_DISTANCE_STEP_MIN    0.25f
-#define ALT_COMMAND_DISTANCE_STEP_GAIN   0.3f
+#define ALT_COMMAND_DISTANCE_STEP_GAIN   0.2f
 #define ALT_COMMAND_STEP_TIMEOUT         10.0f
 // ---------------------------------------------------------------------------
 // Base throttle reduction above lift-off throttle (landing)
@@ -36,10 +36,12 @@ typedef enum {
 void resetAltCommandStates(void);
 void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType type);
 void abortAltCommand(void);
+void skipAltCommand(void);
 void manageAltCommand(float dt);
 
 uint8_t isAltCommandMode(void);
 uint8_t isAltCommandComplete(void);
+uint8_t isAltCommandSkipped(void);
 uint8_t isAltCommandThrottleUpdateRequired(void);
 
 void setTargetAltForAltChangeCommand(float alt);
