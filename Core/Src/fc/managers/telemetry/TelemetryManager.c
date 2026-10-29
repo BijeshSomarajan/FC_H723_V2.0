@@ -103,10 +103,25 @@ char tmOpTypeChar(uint8_t op) {
 	return opChar;
 }
 
+void tmAnnounceOps(MissionWPData *wp, uint8_t from, uint8_t to) {
+	char c = 0;
+	for (uint8_t i = from; i < to && i < NAV_MAX_OPERATIONS; i++) {
+		char t = tmOpTypeChar(wp->operations[i].operation);
+		if (t == 'T' || t == 'L' || t == 'A' || t == 'W') {   // announceable types only
+			c = t;
+		}
+	}
+	if (c) {
+		tmOpChar = c;
+		tmOpSeq = (tmOpSeq + 1) % 10;
+	}
+}
+
 void updateMissionProgress(void) {
 	uint8_t rthContext = (isRTHModeActive() || isFailSafeModeActive()) ? 1 : 0;
 	uint8_t missionActive = fcStatusData.isMissionModeActive ? 1 : 0;
-// New mission: count from zero
+
+	// New mission: count from zero
 	if (missionActive && !tmMissionWasActive) {
 		tmWpDone = 0;
 		tmOpSeq = 0;
@@ -116,29 +131,38 @@ void updateMissionProgress(void) {
 		tmCompleteKind = 0;
 	}
 
-// Completion event: MissionManager sets the latch, it is consumed here
+	// Completion event: MissionManager sets the latch, it is consumed here
 	if (fcStatusData.isMissionCompleteLatch) {
 		fcStatusData.isMissionCompleteLatch = 0;
 		if (rthContext || tmRthContext) {
 			tmCompleteKind = 2;
 		} else if (tmMissionWasActive) {
 			tmCompleteKind = 1;
-			tmWpDone = tmWpTotal;         // the final waypoint is never seen advancing
+			// the final waypoint's last ops finish in one cycle and are never sampled
+			MissionData *m = currentMissionData;
+			if (m != NULL && tmLastWpIdx < NAV_MAX_WAYPOINTS && m->waypointCount <= NAV_MAX_WAYPOINTS) {
+				MissionWPData *last = &m->waypoints[tmLastWpIdx];
+				uint8_t lastCount = (last->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : last->operationCount;
+				tmAnnounceOps(last, tmLastOpsDone, lastCount);
+				tmLastOpsDone = lastCount;
+			}
+			tmWpDone = tmWpTotal;
 		}
 	}
 
-// Progress while a mission is running
+	// Progress while a mission is running
 	if (missionActive) {
 		MissionData *m = currentMissionData;      // read once, then bounds-check
 		MissionWPData *wp = currentMissionWPData;
 		if (m != NULL && wp != NULL && m->waypointCount <= NAV_MAX_WAYPOINTS) {
 			uint8_t wpIdx = m->currentWaypointIndex;
-			uint8_t opCount = wp->operationCount;
-			if (opCount > NAV_MAX_OPERATIONS) {
-				opCount = NAV_MAX_OPERATIONS;
-			}
 			tmWpTotal = m->waypointCount;
-			if (wpIdx > tmLastWpIdx) {
+
+			if (wpIdx > tmLastWpIdx && wpIdx < NAV_MAX_WAYPOINTS) {
+				// advanced: whatever the old waypoint had left must have finished
+				MissionWPData *old = &m->waypoints[tmLastWpIdx];
+				uint8_t oldCount = (old->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : old->operationCount;
+				tmAnnounceOps(old, tmLastOpsDone, oldCount);
 				tmWpDone = wpIdx;
 				tmLastWpIdx = wpIdx;
 				tmLastOpsDone = 0;
@@ -146,30 +170,25 @@ void updateMissionProgress(void) {
 				tmLastWpIdx = wpIdx;
 				tmLastOpsDone = 0;
 			}
-			uint8_t opsDone = wp->currentOperationIndex;
-			if (wp->status == MISSION_STATUS_WIP_CONCLUDING || wp->status == MISSION_STATUS_COMPLETE) {
-				opsDone = opCount;                 // navigating to the waypoint: all ops finished
+
+			uint8_t opCount = (wp->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : wp->operationCount;
+			uint8_t opsDone = 0;
+			if (wp->status == MISSION_STATUS_WIP_OP) {
+				opsDone = wp->currentOperationIndex;
+			} else if (wp->status == MISSION_STATUS_COMPLETE) {
+				opsDone = opCount;
 			}
 			if (opsDone > opCount) {
 				opsDone = opCount;
 			}
 			if (opsDone > tmLastOpsDone) {
-				char c = 0;
-				for (uint8_t i = tmLastOpsDone; i < opsDone; i++) {
-					char t = tmOpTypeChar(wp->operations[i].operation);
-					if (t) {
-						c = t;
-					}
-				}
-				if (c) {
-					tmOpChar = c;
-					tmOpSeq = (tmOpSeq + 1) % 10;
-				}
+				tmAnnounceOps(wp, tmLastOpsDone, opsDone);
+				tmLastOpsDone = opsDone;
 			}
-			tmLastOpsDone = opsDone;
 		}
 	}
-// How long the "complete" display lives
+
+	// How long the "complete" display lives
 	if (tmCompleteKind == 1 && ((!isNavModeActive() && !rthContext) || (rthContext && !tmRthContext))) {
 		tmCompleteKind = 0;
 	}
@@ -179,7 +198,6 @@ void updateMissionProgress(void) {
 	tmRthContext = rthContext;
 	tmMissionWasActive = missionActive;
 }
-
 void prepareFCStatus() {
 	// [0] start state
 	if (fcStatusData.hasCrashed) {
@@ -260,7 +278,7 @@ void sendOSDData() {
 //rxBat,rxBatMax,alt,homeDistance,heading,headingRef,verticalSpeed,groundSpeed,satField,fm,pitch,roll,throttle,batteryAlertState
 	sprintf(osdBuf, "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%s,%.1f,%.1f,%lu,%d\n", batteryData.voltage, fcStatusData.batteryNomVolt, positionCordinateData.zPosition, homeDistance, sensorAttitudeData.heading, fcStatusData.headingHomeRef, expectedGroundSpeed, groundSpeed, satCountAndReliability,
 			fcStatusBuf, sensorAttitudeData.pitch, sensorAttitudeData.roll, (uint32_t) fcStatusData.currentThrottle, fcStatusData.batteryAlertState);
-    logString(osdBuf);
+	logString(osdBuf);
 	uart8WriteDMA((uint8_t*) osdBuf, strlen(osdBuf));
 }
 

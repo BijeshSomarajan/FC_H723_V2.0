@@ -228,7 +228,7 @@ void updatePositionCordinateCommand(float dt) {
 	}
 
 	if (!isRTHModeActive() && !isMissionModeActive()) {
-		resetMissionStates(1); //Clears RTH states also.
+		resetMissionStates(1);
 	} else if (!isRTHModeActive()) {
 		resetRTHStates();
 	}

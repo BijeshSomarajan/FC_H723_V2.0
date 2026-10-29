@@ -18,8 +18,6 @@
 #define POSITION_MISSION_WP_COMPLETE_MAX_GROUND_SPEED     0.5f
 #define POSITION_MISSION_WP_DISTANCE_LPF_ALPHA            0.65f   //LPF applied on the distance.
 
-#define POSITION_MISSION_OP_SETTLE_TIMEOUT  2.0f   // s: max wait for the aircraft to settle before the first op
-
 uint8_t initMissionManager(void);
 void startRTHMission(void);
 void handleMission(float dt);

@@ -17,38 +17,20 @@
 #include "../position/helpers/PositionManagerHelper.h"
 #include "../altitude/helpers/AltitudeCommandHelper.h"
 
-// ---------------------------------------------------------------------------
-// Flight trace. Logged on transitions only (start / next step / complete),
-// never from per-cycle paths. Integers only (no %f, so it prints on newlib-nano):
-//   *100 values are float * 100 truncated to a long, e.g. 3.0 -> 300
-// Set MISSION_MGR_TRACE_ENABLED to 0 (header or build flag) to compile it out.
-// ---------------------------------------------------------------------------
-#ifndef MISSION_MGR_TRACE_ENABLED
-#define MISSION_MGR_TRACE_ENABLED 1
-#endif
-
-#if MISSION_MGR_TRACE_ENABLED == 1
-#define MISSION_TRACE(...) do { char _mmBuf[96]; snprintf(_mmBuf, sizeof(_mmBuf), __VA_ARGS__); logString(_mmBuf); } while (0)
-#else
-#define MISSION_TRACE(...) ((void)0)
-#endif
-
-#define MM_X100(v) ((long)((v) * 100.0f))
-
 void _missionCallBack(uint8_t action);
 void resetWPStates();
 uint8_t loadCurrentMissionWPData();
 uint8_t loadNextMissionWPData();
 uint8_t loadCurrentMissionOperationData();
 uint8_t loadNextMissionOperationData();
+void updatePositionReferenceToPresent();
+void stopMissionIfRunning(void);
+void updatePositionReferenceToWPRef();
 
 MissionData *currentMissionData = NULL;
-
 MissionWPData *currentMissionWPData = NULL;
 MissionOperationData *currentMissionOperationData = NULL;
-
 MissionData rthMissionData;
-
 float missionRTHSpeed = MISSION_MGR_SPEED_MIN;
 float missionCruiseSpeed = MISSION_MGR_SPEED_MIN;
 float missionWPCompleteDt = 0;
@@ -57,21 +39,13 @@ float missionVxCommand, missionVyCommand;
 uint8_t missionWasRTHModeActive = 0;
 uint8_t missionWasMissionModeActive = 0;
 float missionWaitCounter = 0;
-
 float missionPosHoldX = 0, missionPosHoldY = 0;
-uint8_t missionPosHoldActive = 0;
-uint8_t missionPosSettled = 0;
-float missionPosSettleDt = 0;
 
 __ATTR_ITCM_TEXT
 void startOperation(float dt) {
 	if (currentMissionOperationData == NULL) {
 		return;
 	}
-	// altC / altS = alt-command complete / skipped flags at the moment the op starts.
-	// If either is 1 here, they are stale and the op will finish instantly.
-	MISSION_TRACE("[MM] OP start wp=%u op=%u code=%u val*100=%ld altC=%u altS=%u\n", (unsigned ) currentMissionData->currentWaypointIndex, (unsigned ) currentMissionWPData->currentOperationIndex, (unsigned ) currentMissionOperationData->operation, MM_X100(currentMissionOperationData->value),
-			(unsigned ) isAltCommandComplete(), (unsigned ) isAltCommandSkipped());
 	switch (currentMissionOperationData->operation) {
 	case MISSION_OPERATION_TAKEOFF:
 		fcStatusData.isLandingModeActive = 0;
@@ -98,11 +72,9 @@ void startOperation(float dt) {
 		break;
 	case MISSION_OPERATION_SET_HEADING:
 		currentMissionOperationData->status = MISSION_STATUS_COMPLETE; //Not supported yet
-		MISSION_TRACE("[MM] OP skipped (heading not supported)\n");
 		break;
 	default:
 		currentMissionOperationData->status = MISSION_STATUS_COMPLETE;  // unknown: skip
-		MISSION_TRACE("[MM] OP skipped (unknown code=%u)\n", (unsigned ) currentMissionOperationData->operation);
 		break;
 	}
 }
@@ -146,23 +118,7 @@ uint8_t checkOperation(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void handleOperation(float dt) {
-	if (currentMissionOperationData == NULL) {
-		return;
-	}
-	if (currentMissionOperationData->status == MISSION_STATUS_OPEN) {
-		startOperation(dt);
-	} else if (currentMissionOperationData->status == MISSION_STATUS_WIP) {
-		if (checkOperation(dt)) {
-			currentMissionOperationData->status = MISSION_STATUS_COMPLETE;
-			MISSION_TRACE("[MM] OP done wp=%u op=%u code=%u altC=%u altS=%u wait*100=%ld\n", (unsigned ) currentMissionData->currentWaypointIndex, (unsigned ) currentMissionWPData->currentOperationIndex, (unsigned ) currentMissionOperationData->operation, (unsigned ) isAltCommandComplete(),
-					(unsigned ) isAltCommandSkipped(), MM_X100(missionWaitCounter));
-		}
-	}
-}
-
-__ATTR_ITCM_TEXT
-void updateNavVelocityCommand(float dt) {
+void updateNavCommand(float dt) {
 	// ---------------------------------------------------------------
 	// Position error to waypoint
 	// ---------------------------------------------------------------
@@ -217,7 +173,7 @@ void updateNavVelocityCommand(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-uint8_t updateNavCompletionStatus(float dt) {
+uint8_t checkNavCompletion(float dt) {
 	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
 	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
 	float distSq = dx * dx + dy * dy;
@@ -244,7 +200,7 @@ uint8_t updateNavCompletionStatus(float dt) {
 }
 
 __ATTR_ITCM_TEXT
-void loadWPNavCollaterals() {
+void loadNavCordinates() {
 	resetWPStates();
 	float posX, posY;
 	convertGNSSToXYCordinates(currentMissionWPData->latitude, currentMissionWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
@@ -255,22 +211,123 @@ void loadWPNavCollaterals() {
 	float dy = posY - positionCordinateData.yPosition;
 	missionWPDistanceFiltered = dx * dx + dy * dy;   // seed with the real distance
 	missionWPCompleteDt = 0;
-	MISSION_TRACE("[MM] WP nav start wp=%u tgtX*100=%ld tgtY*100=%ld dist*100=%ld vel*100=%ld (wpVel*100=%ld cruise*100=%ld)\n", (unsigned ) currentMissionData->currentWaypointIndex, MM_X100(posX), MM_X100(posY), MM_X100(fastSqrtf(missionWPDistanceFiltered)),
-			MM_X100(fcStatusData.positionVelMission), MM_X100(currentMissionWPData->velocity), MM_X100(missionCruiseSpeed));
 }
 
 __ATTR_ITCM_TEXT
-void doWPNavigation(float dt) {
-	if (currentMissionWPData->status != MISSION_STATUS_WIP_CONCLUDING) {
-		loadWPNavCollaterals();
-		currentMissionWPData->status = MISSION_STATUS_WIP_CONCLUDING;
+uint8_t doWPNavigation(float dt) {
+	uint8_t navCompletionStatus = 0;
+	if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
+		if (currentMissionWPData->status == MISSION_STATUS_WIP) {
+			loadNavCordinates();
+			missionVxCommand = positionCordinateData.xVelocity;
+			missionVyCommand = positionCordinateData.yVelocity;
+			currentMissionWPData->status = MISSION_STATUS_WIP_NAV;
+		}
+		updateNavCommand(dt);
+		if (checkNavCompletion(dt)) {
+			navCompletionStatus = 1;
+		}
+	} else {
+		navCompletionStatus = 1;     // cannot navigate (not flying / no home): assert complete
 	}
-	updateNavVelocityCommand(dt);
-	uint8_t navComplete = updateNavCompletionStatus(dt);
-	if (navComplete) {
-		currentMissionWPData->status = MISSION_STATUS_COMPLETE;
-		MISSION_TRACE("[MM] WP reached wp=%u gs*100=%ld dwell*100=%ld\n", (unsigned ) currentMissionData->currentWaypointIndex, MM_X100(getGroundSpeed()), MM_X100(missionWPCompleteDt));
+	return navCompletionStatus;
+}
+
+__ATTR_ITCM_TEXT
+uint8_t handleWPOperation(float dt) {
+	uint8_t operationComplete = 0;
+	if (currentMissionOperationData == NULL) {
+		operationComplete = 1;
+	} else if (currentMissionOperationData->status == MISSION_STATUS_OPEN) {
+		startOperation(dt);
+	} else if (currentMissionOperationData->status == MISSION_STATUS_WIP) {
+		operationComplete = checkOperation(dt);
+	} else {
+		operationComplete = 1;
 	}
+	return operationComplete;
+}
+
+__ATTR_ITCM_TEXT
+uint8_t doWPOperations(float dt) {
+	uint8_t operationsComplete = 0;
+	if (currentMissionOperationData == NULL) {
+		operationsComplete = 1;
+	} else if (handleWPOperation(dt)) {
+		currentMissionOperationData->status = MISSION_STATUS_COMPLETE;
+		if (!loadNextMissionOperationData()) {
+			operationsComplete = 1;
+		}
+	}
+	return operationsComplete;
+}
+
+__ATTR_ITCM_TEXT
+void handleWPCompletion(float dt) {
+	if (!loadNextMissionWPData()) {
+		currentMissionData->status = MISSION_STATUS_COMPLETE;
+		fcStatusData.isMissionComplete = 1;
+		fcStatusData.isMissionCompleteLatch = 1;
+		fcStatusData.isMissionModeActive = 0;
+		updatePositionReferenceToWPRef();
+		if (fcStatusData.isFailSafeModeActive) {
+			fcStatusData.isLandingModeActive = 1;
+			fcStatusData.isFailSafeModeActive = 0;
+		}
+	}
+}
+
+__ATTR_ITCM_TEXT
+void handleMission(float dt) {
+	//Mode selection and switch over
+	if (isRTHModeActive()) {
+		missionWasMissionModeActive = 0;
+		fcStatusData.isMissionModeActive = 0;
+		if (!missionWasRTHModeActive) {
+			startRTHMission();
+			missionWasRTHModeActive = 1;
+		}
+	} else {
+		if (missionWasRTHModeActive) {
+			stopMissionIfRunning();             // RTH switched off
+		}
+		missionWasRTHModeActive = 0;
+		if (isMissionModeActive()) {
+			missionWasMissionModeActive = 1;
+		}
+	}
+	//Validation Phase
+	if (currentMissionData == NULL || currentMissionWPData == NULL) {
+		fcStatusData.isMissionComplete = 1;
+		fcStatusData.isMissionCompleteLatch = 1;
+		return;
+	}
+	if (currentMissionData->status != MISSION_STATUS_WIP) {
+		return;                                 // idle, aborted or complete: run nothing
+	}
+
+	//Navigation and Operation execution
+	if (currentMissionWPData->status == MISSION_STATUS_COMPLETE) {
+		handleWPCompletion(dt);
+	} else if (currentMissionWPData->status == MISSION_STATUS_WIP || currentMissionWPData->status == MISSION_STATUS_WIP_NAV) {
+		if (doWPNavigation(dt)) {
+			missionPosHoldX = positionCordinateData.xPosition;
+			missionPosHoldY = positionCordinateData.yPosition;
+			currentMissionWPData->status = MISSION_STATUS_WIP_OP;
+		}
+	} else if (currentMissionWPData->status == MISSION_STATUS_WIP_OP) {
+		if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
+			controlPositionCordinatesWithGains(dt, missionPosHoldX, missionPosHoldY, 1.0f);
+		}
+		if (currentMissionWPData->operationCount > 0) {
+			if (doWPOperations(dt)) {
+				currentMissionWPData->status = MISSION_STATUS_COMPLETE;
+			}
+		} else {
+			currentMissionWPData->status = MISSION_STATUS_COMPLETE;
+		}
+	}
+
 }
 
 // Internal start: resets states and loads the first waypoint / operation
@@ -281,31 +338,18 @@ uint8_t startLoadedMission(void) {
 	if (currentMissionData == NULL) {
 		currentMissionWPData = NULL;
 		currentMissionOperationData = NULL;
-		MISSION_TRACE("[MM] LOAD failed: no mission data\n");
 		return 0;
 	}
 	if (!loadCurrentMissionWPData()) {
 		currentMissionData->status = MISSION_STATUS_INVALID;
 		currentMissionWPData = NULL;
 		currentMissionOperationData = NULL;
-		MISSION_TRACE("[MM] LOAD failed: no waypoints (count=%u)\n", (unsigned ) currentMissionData->waypointCount);
 		return 0;
 	}
-	loadCurrentMissionOperationData();
+
 	fcStatusData.isMissionComplete = 0;
 	currentMissionData->status = MISSION_STATUS_WIP;
-	MISSION_TRACE("[MM] LOAD ok rth=%u wps=%u wp0ops=%u\n", (unsigned ) (currentMissionData == &rthMissionData), (unsigned ) currentMissionData->waypointCount, (unsigned ) currentMissionWPData->operationCount);
 	return 1;
-}
-
-// Stops a running mission directly (not through _missionCallBack, which
-// ignores commands while RTH is active).
-void stopMissionIfRunning(void) {
-	if (currentMissionData != NULL && currentMissionData->status == MISSION_STATUS_WIP) {
-		MISSION_TRACE("[MM] STOP running mission (wp=%u)\n", (unsigned ) currentMissionData->currentWaypointIndex);
-		resetMissionStates(1);
-		fcStatusData.isMissionComplete = 0;
-	}
 }
 
 void startRTHMission() {
@@ -321,161 +365,20 @@ void startRTHMission() {
 		missionWPData->operationCount = 0;
 		missionWPData->currentOperationIndex = 0;
 		currentMissionData = &rthMissionData;
-		MISSION_TRACE("[MM] RTH start spd*100=%ld failsafe=%u\n", MM_X100(missionRTHSpeed), (unsigned ) fcStatusData.isFailSafeModeActive);
 		startLoadedMission();
 	} else {
-		MISSION_TRACE("[MM] RTH not started , not flying\n");
+		resetMissionStates(1);
+		fcStatusData.isMissionComplete = 1;     // set after the reset, which clears it
 	}
 }
 
-__ATTR_ITCM_TEXT
-void updatePositionReferenceToWPRef() {
-	fcStatusData.positionXRef = fcStatusData.positionXRefMission;
-	fcStatusData.positionYRef = fcStatusData.positionYRefMission;
-}
-
-__ATTR_ITCM_TEXT
-void updatePositionReferenceToPresent() {
-	fcStatusData.positionXRef = positionCordinateData.xPosition;
-	fcStatusData.positionYRef = positionCordinateData.yPosition;
-}
-
-// Anchor at wherever the aircraft is right now
-__ATTR_ITCM_TEXT
-void beginMissionPositionHold(void) {
-	missionPosHoldX = positionCordinateData.xPosition;
-	missionPosHoldY = positionCordinateData.yPosition;
-	missionPosSettleDt = 0;
-	missionPosSettled = 0;
-	missionPosHoldActive = 1;
-	MISSION_TRACE("[MM] HOLD begin wp=%u x*100=%ld y*100=%ld gs*100=%ld\n", (unsigned ) currentMissionData->currentWaypointIndex, MM_X100(missionPosHoldX), MM_X100(missionPosHoldY), MM_X100(getGroundSpeed()));
-}
-
-// Leaving the op phase: seed the nav velocity command with the real
-// velocity so doWPNavigation() doesn't start from a stale value
-__ATTR_ITCM_TEXT
-void endMissionPositionHold(void) {
-	missionVxCommand = positionCordinateData.xVelocity;
-	missionVyCommand = positionCordinateData.yVelocity;
-	missionPosHoldActive = 0;
-	MISSION_TRACE("[MM] HOLD end, all ops done, navigating wp=%u seed vx*100=%ld vy*100=%ld\n", (unsigned ) currentMissionData->currentWaypointIndex, MM_X100(missionVxCommand), MM_X100(missionVyCommand));
-}
-
-__ATTR_ITCM_TEXT
-void missionPositionRelock(void) {
-	missionPosHoldActive = 0;
-	missionVxCommand = positionCordinateData.xVelocity;
-	missionVyCommand = positionCordinateData.yVelocity;
-	MISSION_TRACE("[MM] RELOCK after stick override seed vx*100=%ld vy*100=%ld\n", MM_X100(missionVxCommand), MM_X100(missionVyCommand));
-}
-
-__ATTR_ITCM_TEXT
-void handleMission(float dt) {
-	if (isRTHModeActive()) {
-		missionWasMissionModeActive = 0;
-		fcStatusData.isMissionModeActive = 0;
-		if (!missionWasRTHModeActive) {
-			startRTHMission();
-			missionWasRTHModeActive = 1;
-		}
-	} else {
-		if (missionWasRTHModeActive) {
-			MISSION_TRACE("[MM] RTH off\n");
-			stopMissionIfRunning();             // RTH switched off
-		}
-		missionWasRTHModeActive = 0;
-		if (isMissionModeActive()) {
-			missionWasMissionModeActive = 1;
-		}
+// Stops a running mission directly (not through _missionCallBack, which
+// ignores commands while RTH is active).
+void stopMissionIfRunning(void) {
+	if (currentMissionData != NULL && currentMissionData->status == MISSION_STATUS_WIP) {
+		resetMissionStates(1);
+		fcStatusData.isMissionComplete = 0;
 	}
-	if (currentMissionData == NULL || currentMissionWPData == NULL) {
-		if (!fcStatusData.isMissionComplete) {
-			MISSION_TRACE("[MM] no mission data, marking complete\n");
-		}
-		fcStatusData.isMissionComplete = 1;
-		fcStatusData.isMissionCompleteLatch = 1;
-		return;
-	}
-	if (currentMissionData->status != MISSION_STATUS_WIP) {
-		return;                                 // idle, aborted or complete: run nothing
-	}
-
-	if (currentMissionWPData->status == MISSION_STATUS_COMPLETE) {
-		if (!loadNextMissionWPData()) {
-			currentMissionData->status = MISSION_STATUS_COMPLETE;
-			fcStatusData.isMissionComplete = 1;
-			fcStatusData.isMissionCompleteLatch = 1;
-			fcStatusData.isMissionModeActive = 0;
-			updatePositionReferenceToWPRef();
-			MISSION_TRACE("[MM] MISSION complete rth=%u failsafe=%u\n", (unsigned ) (currentMissionData == &rthMissionData), (unsigned ) fcStatusData.isFailSafeModeActive);
-			if (fcStatusData.isFailSafeModeActive) {
-				fcStatusData.isLandingModeActive = 1;
-				fcStatusData.isFailSafeModeActive = 0;
-				MISSION_TRACE("[MM] failsafe landing started\n");
-			}
-			return;
-		}
-		loadCurrentMissionOperationData();
-		MISSION_TRACE("[MM] WP advance -> wp=%u/%u ops=%u\n", (unsigned ) (currentMissionData->currentWaypointIndex + 1), (unsigned ) currentMissionData->waypointCount, (unsigned ) currentMissionWPData->operationCount);
-	}
-
-	if (currentMissionWPData->operationCount == 0) {
-		doWPNavigation(dt);
-	} else if (currentMissionOperationData != NULL) {
-		if (currentMissionOperationData->status == MISSION_STATUS_COMPLETE && !loadNextMissionOperationData()) {
-			if (missionPosHoldActive) {
-				endMissionPositionHold();
-			}
-			if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
-				doWPNavigation(dt);
-			} else {
-				currentMissionWPData->status = MISSION_STATUS_COMPLETE;
-				MISSION_TRACE("[MM] WP reached , Marking compete as it is not flying\n");
-			}
-		} else {
-			if (!missionPosHoldActive) {
-				beginMissionPositionHold();
-			}
-			controlPositionCordinatesWithGains(dt, missionPosHoldX, missionPosHoldY, 1.0f);
-			// Settle gate: only before the first op of this phase
-			if (!missionPosSettled) {
-				missionPosSettleDt += dt;
-				uint8_t settleBySpeed = (getGroundSpeed() <= POSITION_MISSION_WP_COMPLETE_MAX_GROUND_SPEED);
-				uint8_t settleByTimeout = (missionPosSettleDt >= POSITION_MISSION_OP_SETTLE_TIMEOUT);
-				if (settleBySpeed || settleByTimeout) {
-					missionPosSettled = 1;
-					MISSION_TRACE("[MM] SETTLE done by %s t*100=%ld gs*100=%ld\n", settleBySpeed ? "speed" : "timeout", MM_X100(missionPosSettleDt), MM_X100(getGroundSpeed()));
-				}
-			}
-			if (missionPosSettled) {
-				handleOperation(dt);
-			}
-		}
-	}
-}
-
-uint8_t loadCurrentMissionWPData() {
-	if (currentMissionData != NULL) {
-		if (currentMissionData->currentWaypointIndex < currentMissionData->waypointCount) {
-			currentMissionWPData = &currentMissionData->waypoints[currentMissionData->currentWaypointIndex];
-			currentMissionWPData->status = MISSION_STATUS_WIP;
-			return 1;
-		}
-	}
-	return 0;
-}
-
-uint8_t loadNextMissionWPData() {
-	if (currentMissionData != NULL) {
-		uint8_t nextWPIndx = currentMissionData->currentWaypointIndex + 1;
-		if (nextWPIndx < currentMissionData->waypointCount) {
-			currentMissionData->currentWaypointIndex++;
-			currentMissionWPData = &currentMissionData->waypoints[currentMissionData->currentWaypointIndex];
-			currentMissionWPData->status = MISSION_STATUS_WIP;
-			return 1;
-		}
-	}
-	return 0;
 }
 
 __ATTR_ITCM_TEXT
@@ -489,13 +392,40 @@ uint8_t loadCurrentMissionOperationData() {
 }
 
 __ATTR_ITCM_TEXT
+uint8_t loadCurrentMissionWPData() {
+	if (currentMissionData != NULL) {
+		if (currentMissionData->currentWaypointIndex < currentMissionData->waypointCount) {
+			currentMissionWPData = &currentMissionData->waypoints[currentMissionData->currentWaypointIndex];
+			currentMissionWPData->status = MISSION_STATUS_WIP;
+			loadCurrentMissionOperationData();
+			return 1;
+		}
+	}
+	return 0;
+}
+
+__ATTR_ITCM_TEXT
+uint8_t loadNextMissionWPData() {
+	if (currentMissionData != NULL) {
+		uint8_t nextWPIndx = currentMissionData->currentWaypointIndex + 1;
+		if (nextWPIndx < currentMissionData->waypointCount) {
+			currentMissionData->currentWaypointIndex++;
+			currentMissionWPData = &currentMissionData->waypoints[currentMissionData->currentWaypointIndex];
+			currentMissionWPData->status = MISSION_STATUS_WIP;
+			loadCurrentMissionOperationData();
+			return 1;
+		}
+	}
+	return 0;
+}
+
+__ATTR_ITCM_TEXT
 uint8_t loadNextMissionOperationData() {
 	if (currentMissionWPData != NULL) {
 		uint8_t nextOperationIndx = currentMissionWPData->currentOperationIndex + 1;
 		if (nextOperationIndx < currentMissionWPData->operationCount) {
 			currentMissionWPData->currentOperationIndex++;
 			currentMissionOperationData = &currentMissionWPData->operations[currentMissionWPData->currentOperationIndex];
-			MISSION_TRACE("[MM] OP next wp=%u op=%u/%u\n", (unsigned ) currentMissionData->currentWaypointIndex, (unsigned ) (currentMissionWPData->currentOperationIndex + 1), (unsigned ) currentMissionWPData->operationCount);
 			return 1;
 		}
 	}
@@ -504,17 +434,9 @@ uint8_t loadNextMissionOperationData() {
 
 void _missionCallBack(uint8_t action) {
 	if (action == MISSION_ACTION_START) {
-		if (fcStatusData.isMissionModeActive || isRTHModeActive()) {
-			MISSION_TRACE("[MM] CMD start ignored (active=%u rth=%u)\n", (unsigned ) fcStatusData.isMissionModeActive, (unsigned ) isRTHModeActive());
-			return;     // already running, or RTH owns the mission
-		}
-		currentMissionData = getMissionData();
-		if (startLoadedMission()) {
-			fcStatusData.isMissionModeActive = 1;
-			MISSION_TRACE("[MM] CMD start accepted\n");
-		} else {
-			fcStatusData.isMissionModeActive = 0;
-			MISSION_TRACE("[MM] CMD start rejected\n");
+		if (!fcStatusData.isMissionModeActive && !isRTHModeActive()) {   // not already running, RTH does not own the mission
+			currentMissionData = getMissionData();
+			fcStatusData.isMissionModeActive = startLoadedMission() ? 1 : 0;
 		}
 	} else if (action == MISSION_ACTION_ABORT) {
 		if (!isRTHModeActive() && fcStatusData.isMissionModeActive) { //Block reset while in RTH mode.
@@ -523,9 +445,6 @@ void _missionCallBack(uint8_t action) {
 			fcStatusData.isMissionCompleteLatch = 0;
 			fcStatusData.isMissionModeActive = 0;
 			updatePositionReferenceToPresent();
-			MISSION_TRACE("[MM] CMD abort done, holding x*100=%ld y*100=%ld\n", MM_X100(positionCordinateData.xPosition), MM_X100(positionCordinateData.yPosition));
-		} else {
-			MISSION_TRACE("[MM] CMD abort ignored (active=%u rth=%u)\n", (unsigned ) fcStatusData.isMissionModeActive, (unsigned ) isRTHModeActive());
 		}
 	}
 }
@@ -560,6 +479,7 @@ uint8_t initMissionManager(void) {
 
 __ATTR_ITCM_TEXT
 void resetRTHStates() {
+	rthMissionData.status = MISSION_STATUS_INVALID;
 	missionWasRTHModeActive = 0;
 }
 
@@ -574,7 +494,7 @@ void resetMissionModeStates() {
 	missionWasMissionModeActive = 0;
 }
 
-// NOTE: no trace here. The position manager calls this every cycle while idle.
+// Note: the position manager calls this every cycle while idle.
 __ATTR_ITCM_TEXT
 void resetMissionStates(uint8_t abort) {
 	MissionData *missionData = getMissionData();
@@ -602,7 +522,25 @@ void resetMissionStates(uint8_t abort) {
 	fcStatusData.positionVelMission = MISSION_MGR_SPEED_MIN;
 	missionVxCommand = 0;
 	missionVyCommand = 0;
-	missionPosHoldActive = 0;
 	fcStatusData.isMissionComplete = 0;
+}
 
+__ATTR_ITCM_TEXT
+void updatePositionReferenceToWPRef() {
+	fcStatusData.positionXRef = fcStatusData.positionXRefMission;
+	fcStatusData.positionYRef = fcStatusData.positionYRefMission;
+}
+
+__ATTR_ITCM_TEXT
+void updatePositionReferenceToPresent() {
+	fcStatusData.positionXRef = positionCordinateData.xPosition;
+	fcStatusData.positionYRef = positionCordinateData.yPosition;
+}
+
+__ATTR_ITCM_TEXT
+void missionPositionRelock(void) {
+	missionPosHoldX = positionCordinateData.xPosition;
+	missionPosHoldY = positionCordinateData.yPosition;
+	missionVxCommand = positionCordinateData.xVelocity;
+	missionVyCommand = positionCordinateData.yVelocity;
 }
