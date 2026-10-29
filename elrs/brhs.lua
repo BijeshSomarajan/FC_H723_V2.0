@@ -142,19 +142,20 @@ local function doMissionProgressAlert(cleanFm)
     if aAlertLastWpDone == nil then aAlertLastWpDone = wpDone end
     if aAlertLastOpSeq == nil then aAlertLastOpSeq = opSeq end
 
-    -- A count below the last one means a new mission started
-    if wpDone > aAlertLastWpDone then
-        playFile(WP_REACHED_SOUND)
-        playNumber(wpDone, 0)
-    end
-    aAlertLastWpDone = wpDone
-
     if opSeq ~= aAlertLastOpSeq then
         if opType ~= "0" and aAlertOpDoneModes[opType] then
             playFile(aAlertOpDoneModes[opType])
         end
         aAlertLastOpSeq = opSeq
     end
+	
+    -- A count below the last one means a new mission started
+    if wpDone > aAlertLastWpDone then
+        playFile(WP_REACHED_SOUND)
+        playNumber(wpDone, 0)
+    end
+    aAlertLastWpDone = wpDone
+   
 end
 
 -- ==========================================================================
@@ -234,6 +235,9 @@ local function doFMAlert()
             aAlertLastLand = currentLand
         end
 
+        -- [Way point and operation states]
+        doMissionProgressAlert(cleanFm)
+
         -- [Mission state] Sub-alert Check
         if currentMission ~= aAlertLastMission then
             if aAlertMissionModes[currentMission] then
@@ -243,7 +247,7 @@ local function doFMAlert()
             aAlertLastMission = currentMission
         end
 		
-		doMissionProgressAlert(cleanFm)
+		
     end
 end
 
@@ -977,13 +981,7 @@ local function run(event)
     --------------------------------------------------------------------------
     -- Flight Mode
     --------------------------------------------------------------------------
-    lcd.drawText(
-        38,
-        54,
-        string.format("[ %s ]", tostring(fm)),
-        BOLD
-    )
-
+    lcd.drawText( 38,  54, string.format("[ %s ]", tostring(fm)),    BOLD  )
 
     --------------------------------------------------------------------------
     -- Trigger Audio Module

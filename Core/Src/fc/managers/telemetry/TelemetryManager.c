@@ -55,7 +55,7 @@
  * Flight Mode      -> Flight Mode String
  */
 
-char fcStatusBuf[16];
+char fcStatusBuf[20];
 char osdBuf[100];
 uint8_t satCountAndReliability = 0;
 float homeDistance = 0;
@@ -181,7 +181,7 @@ void updateMissionProgress(void) {
 }
 
 void prepareFCStatus() {
-// Off, Start, Stab, Fly
+	// [0] start state
 	if (fcStatusData.hasCrashed) {
 		fcStatusBuf[0] = 'C';
 	} else if (fcStatusData.canFly) {
@@ -190,66 +190,56 @@ void prepareFCStatus() {
 		fcStatusBuf[0] = 'S';
 	} else if (!fcStatusData.canStart) {
 		fcStatusBuf[0] = 'O';
-	} else if (fcStatusData.canStart) {
+	} else {
 		fcStatusBuf[0] = 'I';
 	}
 
-// Stab, Nav,Cruise , RTH
-	fcStatusBuf[1] = '-';
+	// [1] nav mode
 	if (isFailSafeModeActive()) {
-		fcStatusBuf[2] = (tmCompleteKind == 2) ? 'C' : 'F';
+		fcStatusBuf[1] = (tmCompleteKind == 2) ? 'C' : 'F';
 	} else if (isRTHModeActive()) {
-		fcStatusBuf[2] = (tmCompleteKind == 2) ? 'C' : 'R';
+		fcStatusBuf[1] = (tmCompleteKind == 2) ? 'C' : 'R';
 	} else if (isCruiseModeActive()) {
-		fcStatusBuf[2] = 'V'; //Cruise Mode
+		fcStatusBuf[1] = 'V';
 	} else if (isNavModeActive()) {
-		fcStatusBuf[2] = 'N'; //Nav Mode
+		fcStatusBuf[1] = 'N';
 	} else {
-		fcStatusBuf[2] = 'S'; // Stab Mode
+		fcStatusBuf[1] = 'S';
 	}
 
-// Terrain/Baro
-	fcStatusBuf[3] = '-';
-	if (fcStatusData.isTerrainAltModeActive && fcStatusData.isTerrainSensorExist) {
-		fcStatusBuf[4] = 'T';
-	} else {
-		fcStatusBuf[4] = 'B';
-	}
+	// [2] terrain / baro
+	fcStatusBuf[2] = (fcStatusData.isTerrainAltModeActive && fcStatusData.isTerrainSensorExist) ? 'T' : 'B';
 
-// Landing/Flying
-	fcStatusBuf[5] = '-';
+	// [3] landing / flying
 	if (isAltCommandComplete()) {
-		fcStatusBuf[6] = 'C';
+		fcStatusBuf[3] = 'C';
 	} else if (fcStatusData.isLandingModeActive && isAltCommandMode()) {
-		fcStatusBuf[6] = 'L';
+		fcStatusBuf[3] = 'L';
 	} else if (fcStatusData.isTakeOffModeActive && isAltCommandMode()) {
-		fcStatusBuf[6] = 'T';
+		fcStatusBuf[3] = 'T';
 	} else {
-		fcStatusBuf[6] = 'F';
+		fcStatusBuf[3] = 'F';
 	}
 
-//Mission
-	fcStatusBuf[7] = '-';
+	// [4] mission
+	fcStatusBuf[4] = 'N';
 	if (isNavModeActive() && !isRTHModeActive()) {
 		if (tmCompleteKind == 1) {
-			fcStatusBuf[8] = 'C';
+			fcStatusBuf[4] = 'C';
 		} else if (isMissionModeActive()) {
-			fcStatusBuf[8] = 'M';
-		} else {
-			fcStatusBuf[8] = 'N';
+			fcStatusBuf[4] = 'M';
 		}
 	}
 
-	fcStatusBuf[9] = '-';
+	// [5..8] mission progress
 	uint8_t wp = (tmWpDone > 99) ? 99 : tmWpDone;
-	fcStatusBuf[10] = '0' + (wp / 10);
-	fcStatusBuf[11] = '0' + (wp % 10);
-	fcStatusBuf[12] = '-';
-	fcStatusBuf[13] = '0' + (tmOpSeq % 10);
-	fcStatusBuf[14] = tmOpChar;       // always '0' or T/L/A/W
+	fcStatusBuf[5] = '0' + (wp / 10);
+	fcStatusBuf[6] = '0' + (wp % 10);
+	fcStatusBuf[7] = '0' + (tmOpSeq % 10);
+	fcStatusBuf[8] = tmOpChar;
 
-	fcStatusBuf[15] = '\0';
-
+	// [9..12] spare, new fields go here and the NUL moves out
+	fcStatusBuf[9] = '\0';
 }
 
 void prepareGNSSData(void) {
@@ -270,7 +260,7 @@ void sendOSDData() {
 //rxBat,rxBatMax,alt,homeDistance,heading,headingRef,verticalSpeed,groundSpeed,satField,fm,pitch,roll,throttle,batteryAlertState
 	sprintf(osdBuf, "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%s,%.1f,%.1f,%lu,%d\n", batteryData.voltage, fcStatusData.batteryNomVolt, positionCordinateData.zPosition, homeDistance, sensorAttitudeData.heading, fcStatusData.headingHomeRef, expectedGroundSpeed, groundSpeed, satCountAndReliability,
 			fcStatusBuf, sensorAttitudeData.pitch, sensorAttitudeData.roll, (uint32_t) fcStatusData.currentThrottle, fcStatusData.batteryAlertState);
-
+    logString(osdBuf);
 	uart8WriteDMA((uint8_t*) osdBuf, strlen(osdBuf));
 }
 
@@ -302,7 +292,7 @@ void telemetryUpdateTask() {
 		break;
 	case TELEMETRY_STEP_FC_STATUS:
 		prepareFCStatus();
-		sendFlightModeTelemetry(fcStatusBuf, 16);
+		sendFlightModeTelemetry(fcStatusBuf, (uint8_t) strlen(fcStatusBuf));
 		break;
 	default:
 		currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;

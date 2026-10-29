@@ -309,19 +309,23 @@ void stopMissionIfRunning(void) {
 }
 
 void startRTHMission() {
-	resetMissionStates(1);
-	rthMissionData.waypointCount = 1;
-	rthMissionData.currentWaypointIndex = 0;
-	MissionWPData *missionWPData = &rthMissionData.waypoints[0];
-	missionWPData->latitude = fcStatusData.positionLatHome;
-	missionWPData->longitude = fcStatusData.positionLongHome;
-	missionWPData->velocity = missionRTHSpeed;
-	missionWPData->status = MISSION_STATUS_OPEN;
-	missionWPData->operationCount = 0;
-	missionWPData->currentOperationIndex = 0;
-	currentMissionData = &rthMissionData;
-	MISSION_TRACE("[MM] RTH start spd*100=%ld failsafe=%u\n", MM_X100(missionRTHSpeed), (unsigned ) fcStatusData.isFailSafeModeActive);
-	startLoadedMission();
+	if (fcStatusData.isFlying) {
+		resetMissionStates(1);
+		rthMissionData.waypointCount = 1;
+		rthMissionData.currentWaypointIndex = 0;
+		MissionWPData *missionWPData = &rthMissionData.waypoints[0];
+		missionWPData->latitude = fcStatusData.positionLatHome;
+		missionWPData->longitude = fcStatusData.positionLongHome;
+		missionWPData->velocity = missionRTHSpeed;
+		missionWPData->status = MISSION_STATUS_OPEN;
+		missionWPData->operationCount = 0;
+		missionWPData->currentOperationIndex = 0;
+		currentMissionData = &rthMissionData;
+		MISSION_TRACE("[MM] RTH start spd*100=%ld failsafe=%u\n", MM_X100(missionRTHSpeed), (unsigned ) fcStatusData.isFailSafeModeActive);
+		startLoadedMission();
+	} else {
+		MISSION_TRACE("[MM] RTH not started , not flying\n");
+	}
 }
 
 __ATTR_ITCM_TEXT
@@ -422,7 +426,12 @@ void handleMission(float dt) {
 			if (missionPosHoldActive) {
 				endMissionPositionHold();
 			}
-			doWPNavigation(dt);
+			if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
+				doWPNavigation(dt);
+			} else {
+				currentMissionWPData->status = MISSION_STATUS_COMPLETE;
+				MISSION_TRACE("[MM] WP reached , Marking compete as it is not flying\n");
+			}
 		} else {
 			if (!missionPosHoldActive) {
 				beginMissionPositionHold();
