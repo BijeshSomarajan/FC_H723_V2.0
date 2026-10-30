@@ -103,7 +103,7 @@ uint8_t isPositionHomeSet() {
 
 __ATTR_ITCM_TEXT
 uint8_t isNavDataReliable() {
-	return fcStatusData.isNavDataReliable;
+	return  fcStatusData.isNavDataReliable;
 }
 
 __ATTR_ITCM_TEXT

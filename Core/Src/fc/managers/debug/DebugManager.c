@@ -238,6 +238,6 @@ void debugTask() {
 	//debugNav();
 	//debugNavStates();
 	//debugTelemetry();
-	//debugHeading();
-	debugAltStr();
+	debugHeading();
+	//debugAltStr();
 }
