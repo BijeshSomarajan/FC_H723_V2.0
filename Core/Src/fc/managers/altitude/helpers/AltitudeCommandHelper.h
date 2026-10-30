@@ -13,7 +13,7 @@
 // ---------------------------------------------------------------------------
 #define ALT_COMMAND_DISTANCE_STEP_MAX    2.0f
 #define ALT_COMMAND_DISTANCE_STEP_MIN    0.25f
-#define ALT_COMMAND_DISTANCE_STEP_GAIN   0.3f
+#define ALT_COMMAND_DISTANCE_STEP_GAIN   0.2f
 #define ALT_COMMAND_STEP_TIMEOUT         10.0f
 // ---------------------------------------------------------------------------
 // Base throttle reduction above lift-off throttle (landing)
@@ -27,7 +27,7 @@
 // ---------------------------------------------------------------------------
 #define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_INCREASE_RAMP_TIME  0.5f   // s, throttle 0 -> lift-off throttle
 #define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME  0.3f   // s, lift-off throttle -> 0
-#define ALT_COMMAND_THROTTLE_ZERO_TOLERANCE                  0.01f  // throttle units, landing completes at/below this
+#define ALT_COMMAND_THROTTLE_ZERO_TOLERANCE                  2.0f  // throttle units, landing completes at/below this
 
 typedef enum {
 	ALT_COMMAND_TYPE_NONE = 0, ALT_COMMAND_TYPE_NORMAL, ALT_COMMAND_TYPE_LANDING, ALT_COMMAND_TYPE_TAKEOFF
@@ -36,9 +36,15 @@ typedef enum {
 void resetAltCommandStates(void);
 void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType type);
 void abortAltCommand(void);
+void skipAltCommand(void);
 void manageAltCommand(float dt);
+
 uint8_t isAltCommandMode(void);
 uint8_t isAltCommandComplete(void);
+uint8_t isAltCommandSkipped(void);
 uint8_t isAltCommandThrottleUpdateRequired(void);
+
+void setTargetAltForAltChangeCommand(float alt);
+float getTargetAltForAltChangeCommand(void);
 
 #endif /* ALT_COMMAND_HELPER_H */

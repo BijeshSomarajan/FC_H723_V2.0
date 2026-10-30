@@ -73,22 +73,22 @@ void updateGNSSDataReliability(float dt) {
 
 __ATTR_ITCM_TEXT
 uint8_t isNavModeActive() {
-	return (fcStatusData.isNavModeActive || fcStatusData.isNavCruiseModeActive) && isPositionHomeSet();
+	return (fcStatusData.isNavModeActive || fcStatusData.isCruiseModeActive) && isPositionHomeSet();
 }
 
 __ATTR_ITCM_TEXT
-uint8_t isNavCruiseModeActive() {
-	return isNavModeActive() && (fcStatusData.isNavCruiseModeActive);
+uint8_t isCruiseModeActive() {
+	return isNavModeActive() && (fcStatusData.isCruiseModeActive);
 }
 
 __ATTR_ITCM_TEXT
-uint8_t isNavRTHModeActive() {
-	return isNavModeActive() && (fcStatusData.isNavRTHModeActive || fcStatusData.isFailSafeModeActive);
+uint8_t isRTHModeActive() {
+	return isNavModeActive() && (fcStatusData.isRTHModeActive || fcStatusData.isFailSafeModeActive);
 }
 
 __ATTR_ITCM_TEXT
-uint8_t isNavMissionModeActive() {
-	return isNavModeActive() && fcStatusData.isNavMissionModeActive;
+uint8_t isMissionModeActive() {
+	return isNavModeActive() && fcStatusData.isMissionModeActive;
 }
 
 __ATTR_ITCM_TEXT
@@ -103,7 +103,7 @@ uint8_t isPositionHomeSet() {
 
 __ATTR_ITCM_TEXT
 uint8_t isNavDataReliable() {
-	return fcStatusData.isNavDataReliable;
+	return  fcStatusData.isNavDataReliable;
 }
 
 __ATTR_ITCM_TEXT
