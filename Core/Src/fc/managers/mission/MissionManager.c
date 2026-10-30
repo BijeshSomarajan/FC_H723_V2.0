@@ -59,6 +59,7 @@ uint8_t missionWasRTHModeActive = 0;
 uint8_t missionWasMissionModeActive = 0;
 float missionWaitCounter = 0;
 
+
 __ATTR_ITCM_TEXT
 void startOperation(float dt) {
 	if (currentMissionOperationData == NULL) {
@@ -234,8 +235,7 @@ void handleMission(float dt) {
 		if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
 			controlPositionCordinatesWithGains(dt, fcStatusData.positionXRefMission, fcStatusData.positionYRefMission, 1.0f);
 		} else if (!fcStatusData.isFlying) {
-			fcStatusData.positionXRefMission = positionCordinateData.xPosition;   // on the ground: follow, so liftoff locks here
-			fcStatusData.positionYRefMission = positionCordinateData.yPosition;
+			updatePositionReferenceToPresent();
 		}
 		if (currentMissionWPData->operationCount > 0) {
 			if (doWPOperations(dt)) {
@@ -449,8 +449,8 @@ void resetMissionStates(uint8_t abort) {
 	resetRTHStates();
 	resetWPStates();
 
-	fcStatusData.positionXRefMission = positionCordinateData.xPosition;
-	fcStatusData.positionYRefMission = positionCordinateData.yPosition;
+	updatePositionReferenceToPresent();
+
 	fcStatusData.positionVelMission = MISSION_MGR_SPEED_MIN;
 	missionVxCommand = 0;
 	missionVyCommand = 0;
