@@ -116,7 +116,7 @@ void updateFlyingStatus(float dt) {
 		altMgrCurrentTiltCompThDelta = 0.0f;
 		resetAltitudeControl(1.0f);
 		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
-	} else if (fcStatusData.isFlying && fminf(fcStatusData.throttleControlPercent, fcStatusData.throttlePercent) < (fcStatusData.liftOffThrottlePercent * 0.25f)) {
+	} else if (fcStatusData.isFlying && fminf(fcStatusData.throttleControlPercent, fcStatusData.throttlePercent) < (fcStatusData.liftOffThrottlePercent * 0.3f)) {
 		if (altMgrLowThDtAccumulation >= ALT_MGR_THROTTLE_THRESHOLD_PERIOD) {
 			fcStatusData.isFlying = 0;
 		} else {
@@ -230,7 +230,6 @@ void calculateTiltCompThrottle(float dt) {
 	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
 
 	altMgrCurrentTiltCompThDelta = constrainToRangeF(altMgrCurrentTiltCompThDelta, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
-
 	/* 5. Into the mixer */
 	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
 }
@@ -386,6 +385,7 @@ void manageAltitude(float dt) {
 		altMgrVelDtAccumulation = 0;
 		altMgrAltDtAccumulation = 0;
 	}
+
 	// High-rate mixer equation now perfectly protected against stale values
 	controlData.throttleControlBase = fcStatusData.currentThrottle + controlData.altitudeControl;
 	controlData.throttleControl = controlData.throttleControlBase + controlData.altitudeDOBControl + controlData.tiltCompThDelta;

@@ -52,11 +52,11 @@ void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType
 	altCommandStepTimer = 0;
 }
 
-void setTargetAltForAltChangeCommand(float alt){
+void setTargetAltForAltChangeCommand(float alt) {
 	targetAltForAltChangeCommand = alt;
 }
 
-float getTargetAltForAltChangeCommand(void){
+float getTargetAltForAltChangeCommand(void) {
 	return targetAltForAltChangeCommand;
 }
 
@@ -64,7 +64,6 @@ void skipAltCommand(void) {
 	resetAltCommandStates();
 	altCommandSkipped = 1;
 }
-
 
 void abortAltCommand(void) {
 	resetAltCommandStates();
@@ -81,7 +80,6 @@ uint8_t isAltCommandComplete(void) {
 uint8_t isAltCommandSkipped(void) {
 	return altCommandSkipped;
 }
-
 
 void resetAltCommandStates(void) {
 	altCommandMode = 0;
@@ -115,8 +113,9 @@ void handleTakeOff(float dt) {
 
 __ATTR_ITCM_TEXT
 void handleStepAltChange(float dt) {
-	if (altCommandType == ALT_COMMAND_TYPE_LANDING && fcStatusData.currentThrottle < altCommandLiftOffThrottle) {		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
-		if (fcStatusData.currentThrottle > ALT_COMMAND_THROTTLE_ZERO_TOLERANCE) {
+	if (altCommandType == ALT_COMMAND_TYPE_LANDING && fcStatusData.currentThrottle < altCommandLiftOffThrottle) {
+		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
+		if (fcStatusData.currentThrottle >= ALT_COMMAND_THROTTLE_ZERO_TOLERANCE) {
 			adjustPreLiftOffBaseThrottle(dt, 0);
 		} else {
 			altCommandMode = 0;
