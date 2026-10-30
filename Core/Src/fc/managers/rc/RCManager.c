@@ -124,9 +124,9 @@ void processRCData(float dt) {
 	applyRCStickEffectiveness();
 
 	// Set the FC status
-	fcStatusData.isNavRTHModeActive = checkNavRTHModeActivation();
+	fcStatusData.isRTHModeActive = checkNavRTHModeActivation();
 	fcStatusData.isNavModeActive = checkNavModeActivation();
-	fcStatusData.isNavCruiseModeActive = checkNavCruiseModeActivation();
+	fcStatusData.isCruiseModeActive = checkNavCruiseModeActivation();
 
 	fcStatusData.isTerrainAltModeActive = checkTerrainAltModeActivation();
 

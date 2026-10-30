@@ -82,7 +82,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_TILT_COMP_TAU_FADE         3.0f    // Fade time constant; removes compensation gradually
 #define ALT_MGR_TILT_COMP_MAX_LIMIT        50.0f   // Maximum allowed tilt compensation throttle contribution
 #define ALT_MGR_TILT_COMP_GAIN             2.0f    // Overall compensation gain; 1.0 = full calculated compensation
-#define ALT_MGR_THROTTLE_THRESHOLD_PERIOD 0.80f
+#define ALT_MGR_THROTTLE_THRESHOLD_PERIOD  0.50f
 
 #define ALT_MGR_MAX_ALT_DELTA 2.5f //This is a safety net , max alt delta in normal flying is expected to be within this limit.
 
