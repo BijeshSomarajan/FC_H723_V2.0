@@ -3,7 +3,7 @@
 
 #include "../../../logger/Logger.h"
 #include "../../rc/devices/crsf/CRSF.h"
-#include "../../rc/devices/crsf/CRSFTransceiver.h"
+#include "../../rc/devices/crsf/CRSFGcs.h"
 #include "../../rc/RCSensor.h"
 #include "../GroundStation.h"
 

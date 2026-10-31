@@ -1,4 +1,3 @@
-
 #ifndef SRC_FC_MANAGERS_CONFIG_CONFIGHELPER_H_
 #define SRC_FC_MANAGERS_CONFIG_CONFIGHELPER_H_
 
@@ -36,11 +35,16 @@ struct _ConfigDataPacket {
 	int32_t data[CONFIG_DATA_MAX_LENGTH];
 };
 
+#define CONFIG_COMMAND_TYPE_CALIB 5
+typedef enum {
+	CALIB_STATUS_NONE = 0,CALIB_ACC_GYRO_STARTED, CALIB_ACC_GYRO_COMPLETE, CALIB_MAG_STARTED, CALIB_MAG_COMPLETE, CALIB_RC_STARTED, CALIB_RC_COMPLETE, CALIB_TEMP_STARTED, CALIB_TEMP_COMPLETE
+} CalbrationStatuses;
+
 uint8_t initConfigHelper(void);
 void readConfigSensors(void);
 uint8_t hasConfigDataPacket(void);
 ConfigDataPacket getConfigDataPacket();
 void sendConfigDataPacket(ConfigDataPacket dataPacket);
 void sendConfigData(int32_t *data, int32_t length, int32_t cmd);
-
+void addConfigDataPacket(ConfigDataPacket configPacket);
 #endif

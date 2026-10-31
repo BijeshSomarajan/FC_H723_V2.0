@@ -187,6 +187,8 @@ void doAttitudeManagement() {
 		if (fcStatusData.hasCrashed) {
 			resetAttitudeManager();
 		}
+	}else{
+		resetAttitudeManager();
 	}
 }
 

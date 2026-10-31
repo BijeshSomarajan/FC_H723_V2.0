@@ -300,7 +300,7 @@ void updateAltCommand() {
 			if (fcStatusData.isFlying) {
 				wasLandingModeActive = 1;
 				abortAltCommand();
-				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - 3.0f, ALT_COMMAND_TYPE_LANDING);
+				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - ALT_MGR_LANDING_DELTA, ALT_COMMAND_TYPE_LANDING);
 			} else {
 				skipAltCommand();
 			}
@@ -401,7 +401,7 @@ void manageAltitudeTask(void) {
 	float dt = getDeltaTime(ALT_MANAGER_TIMER_CHANNEL);
 	dt = constrainToRangeF(dt, ALTITUDE_MANAGEMENT_TASK_PERIOD * 0.001f, ALTITUDE_MANAGEMENT_TASK_PERIOD * 4.0f);
 	sensorAltitudeData.altProcessDt = dt;
-	if (fcStatusData.hasCrashed) {
+	if (fcStatusData.isConfigMode || fcStatusData.hasCrashed) {
 		resetAltitudeManager();
 	} else if (fcStatusData.canFly) {
 		manageAltitude(dt);
@@ -414,13 +414,11 @@ void manageAltitudeTask(void) {
 
 __ATTR_ITCM_TEXT
 void doAltitudeManagement(void) {
-	if (fcStatusData.isConfigMode) {
-		return;
-	}
-	if (fcStatusData.hasCrashed) {
+	if (fcStatusData.isConfigMode || fcStatusData.hasCrashed) {
 		resetAltitudeManager();
 		return;
 	}
+
 	if (fcStatusData.canStabilize) {
 		altMgrWasInStabMode = 1;
 	} else if (altMgrWasInStabMode && fcStatusData.isStabilized) {

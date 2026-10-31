@@ -117,7 +117,6 @@ uint8_t doMagCalibration(void) {
 	memset(&fit, 0, sizeof(fit));
 	float win[3][3]; /* sliding window of last 3 samples, in uT */
 	uint32_t count = 0;
-	char buf[64];
 	for (int indx = 0; indx < SENSOR_MAG_CALIB_SAMPLE_COUNT; indx++) {
 		deviceMagRead();
 		delayMs(2);
@@ -126,8 +125,6 @@ uint8_t doMagCalibration(void) {
 		slot[0] = (float) deviceAttitudeData.rawMx * deviceAttitudeData.magSensitivity;
 		slot[1] = (float) deviceAttitudeData.rawMy * deviceAttitudeData.magSensitivity;
 		slot[2] = (float) deviceAttitudeData.rawMz * deviceAttitudeData.magSensitivity;
-		sprintf(buf, "%0.4f,%0.4f,%0.4f\n", slot[0], slot[1], slot[2]);
-		logString(buf);
 		if (indx >= 2) {
 			/* Median-of-3 per axis removes single-sample spikes. */
 			float s[3];

@@ -1,8 +1,13 @@
 #include "ConfigHelper.h"
-#include "string.h"
-#include "../../logger/Logger.h"
+
+#include <stdio.h>
+#include <sys/_stdint.h>
+
 #include "../../io/uart/UART.h"
+#include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
+#include "../../sensors/rc/devices/crsf/CRSFFcConfig.h"
+#include "../../status/FCStatus.h"
 #include "../../util/MathUtil.h"
 
 #define CONFIG_PACKET_DATA_LENGTH 4
@@ -31,7 +36,50 @@ void updateConfigPacketData(uint8_t *dataBuffer, uint16_t len);
 
 void _processConfigData(uint8_t *data, uint16_t len) {
 	if (len > 0) {
-		 updateConfigPacketData(data, len);
+		updateConfigPacketData(data, len);
+	}
+}
+
+void handleCalibrationCommand(uint8_t calibCommand) {
+	switch (calibCommand) {
+	case CMD_CALIBRATE_IMU_OFFSET: {
+		fcStatusData.calibrationStatus = CALIB_ACC_GYRO_STARTED;
+		ConfigDataPacket configDataPacket;
+		configDataPacket.cmd = CMD_CALIBRATE_IMU_OFFSET;
+		configDataPacket.length = 0;
+		logString("[Config Helper] : Calibrate ACC/Gyro\n");
+		addConfigDataPacket(configDataPacket);
+		break;
+	}
+	case CMD_CALIBRATE_IMU_MAG: {
+		fcStatusData.calibrationStatus = CALIB_MAG_STARTED;
+		ConfigDataPacket configDataPacket;
+		configDataPacket.cmd = CMD_CALIBRATE_IMU_MAG;
+		configDataPacket.length = 0;
+		logString("[Config Helper] : Calibrate Mag\n");
+		addConfigDataPacket(configDataPacket);
+		break;
+	}
+	case CMD_CALIBRATE_RC: {
+		fcStatusData.calibrationStatus = CALIB_RC_STARTED;
+		ConfigDataPacket configDataPacket;
+		configDataPacket.cmd = CMD_CALIBRATE_RC;
+		configDataPacket.length = 0;
+		logString("[Config Helper] : Calibrate RC\n");
+		addConfigDataPacket(configDataPacket);
+		break;
+	}
+	default: {
+		fcStatusData.calibrationStatus = CALIB_STATUS_NONE;
+		logString("[Config Helper] : Unsupported or UnKnown command!\n");
+		break;
+	}
+	}
+}
+
+void _fcConfigCallback(uint8_t configCommandType, uint8_t fcConfigCommand) {
+	if (configCommandType == CONFIG_COMMAND_TYPE_CALIB) {
+		handleCalibrationCommand(fcConfigCommand);
 	}
 }
 
@@ -42,6 +90,8 @@ uint8_t initConfigHelper() {
 		status = uart5ReadStart(configDataInputBuffer, 2, _processConfigData);
 		if (status) {
 			logString("[Config Helper] : UART -> Read Start , Success!\n");
+			registerCRSFFcConfigCallBack(_fcConfigCallback);
+			logString("[Config Helper] : FCConfig Callback Registered, Success!\n");
 		} else {
 			logString("[Config Helper] : UART -> Read Start , Failed!\n");
 		}
@@ -178,6 +228,19 @@ uint8_t hasConfigDataPacket() {
 	} else {
 		return 0;
 	}
+}
+
+void addConfigDataPacket(ConfigDataPacket configPacket) {
+	if (configDataPacketCount >= 0) {
+		configDataPacketBuffer[configDataPacketCount] = configPacket;
+		configDataPacketCount++;
+	} else {
+		configDataPacketBuffer[0] = configPacket;
+		configDataPacketCount = 1;
+	}
+	char buf[64];
+	sprintf(buf, "Config Added:%d\n", configDataPacketCount);
+	logString(buf);
 }
 
 ConfigDataPacket getConfigDataPacket() {

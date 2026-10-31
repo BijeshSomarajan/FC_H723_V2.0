@@ -1,8 +1,9 @@
+#include "CRSFGcs.h"
+
 #include <stddef.h>
 
 #include "../../../../logger/Logger.h"
 #include "../../../../util/CommonUtil.h"
-#include "CRSFTransceiver.h"
 
 CRSFMissionCallback crsfMissionCallBackFun;
 CRSFMissionWPCallback crsfMissionWPCallBackFun;
@@ -15,7 +16,6 @@ void registerCRSFMissionWPCallBack(CRSFMissionWPCallback callbackFun) {
 	crsfMissionWPCallBackFun = callbackFun;
 }
 
-char testBuf[128];
 void manageCRSFMissionFrame(const uint8_t *payload) {
 	if (payload == NULL) {
 		return;
@@ -25,7 +25,6 @@ void manageCRSFMissionFrame(const uint8_t *payload) {
 	const uint8_t *p = payload + 4;
 	switch (action) {
 	case CRSF_MISSION_ACTION_ADD_WAYPOINT: {
-		logString("AddWp\n");
 		if (crsfMissionWPCallBackFun != NULL) {
 			CRSFMissionWP wp = { 0 };
 			wp.waypointIndex = readU16BE(p);

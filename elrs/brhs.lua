@@ -21,9 +21,11 @@ local aAlertLastMission = nil
 local aAlertLastGnss = nil
 local aAlertLastWpDone = nil
 local aAlertLastOpSeq = nil
+local aAlertLastCalibration = nil
 local aAlertNextBatAlert = 0
 local aAlertNextLinkAlert = 0  -- Timer tracking state for link quality alerts
 local WP_REACHED_SOUND = "/SOUNDS/en/brhs/mission/wpReach.wav"
+
 
 -- ==========================================================================
 -- ALERT CONFIGURATION SETTINGS
@@ -56,6 +58,7 @@ local NAV_WP_PAYLOAD_SIZE = 56   -- 3 hdr + 1 action + 2 idx + 4 lat + 4 lon + 2
 local NAV_MAX_OPERATIONS = 8
 
 local CRSF_MSP_NAV_COMMAND = 0x7C
+local FC_CONFIG_FRAME_TYPE = 0x7D
 local mspRxBuffer = ""
 local mspSequence = 0
 
@@ -107,6 +110,19 @@ local aAlertOpDoneModes = {
     ["W"] = "/SOUNDS/en/brhs/mission/opWait.wav",
 }
 
+-- ==========================================================================
+-- Config Status Audio Alert
+-- ==========================================================================
+local aAlertCalibrationModes = {
+    ["1"] = "/SOUNDS/en/brhs/config/accGyroStart.wav",
+    ["2"] = "/SOUNDS/en/brhs/config/accGyroComplete.wav",
+    ["3"] = "/SOUNDS/en/brhs/config/magStart.wav",
+    ["4"] = "/SOUNDS/en/brhs/config/magComplete.wav",
+    ["5"] = "/SOUNDS/en/brhs/config/rcStart.wav",
+    ["6"] = "/SOUNDS/en/brhs/config/rcComplete.wav",
+    ["7"] = "/SOUNDS/en/brhs/config/tempStart.wav",
+    ["8"] = "/SOUNDS/en/brhs/config/tempComplete.wav",
+}
 
 -- ==========================================================================
 -- Constant lookup table for compass directions
@@ -128,6 +144,32 @@ local function getCompassDirection(angle)
     return DIRECTIONS[index + 1]
 end
 
+local function doCalibrationAlert(cleanFm)
+
+    -- Character 10 corresponds to fcStatusBuf[9] in the FC.
+    if #cleanFm < 10 then
+        return
+    end
+
+    local currentCalibration = string.sub(cleanFm, 10, 10)
+
+    -- Adopt the first received state without playing an audio alert.
+    if aAlertLastCalibration == nil then
+        aAlertLastCalibration = currentCalibration
+        return
+    end
+
+    -- Play audio only when the calibration status changes.
+    if currentCalibration ~= aAlertLastCalibration then
+        local soundFile = aAlertCalibrationModes[currentCalibration]
+
+        if soundFile then
+            playFile(soundFile)
+        end
+
+        aAlertLastCalibration = currentCalibration
+    end
+end
 
 local function doMissionProgressAlert(cleanFm)
     -- chars 6-7: waypoints reached, 8: op-done sequence, 9: last op type
@@ -247,6 +289,7 @@ local function doFMAlert()
             aAlertLastMission = currentMission
         end
 		
+		doCalibrationAlert(cleanFm)
 		
     end
 end
@@ -627,6 +670,17 @@ local function parseOperations(fields, startIdx)
     return ops
 end
 
+local function buildConfigMSPPayload(action, operation)
+    local payload = {
+        0xC8,        -- Destination (FC)
+        0xEA,        -- Origin (Radio)
+        mspSequence, -- Sequence
+        action,
+        operation
+    }
+    mspSequence = (mspSequence + 1) % 256
+    return payload
+end
 
 local function buildNavMSPPayload(action, index, latStr, lonStr, velocity, ops)
     local payload = {
@@ -731,13 +785,8 @@ local function receiveDataFromVCPAndSendToFC()
                 playTone(100, 100, 0, PLAY_NOW)
             end
 
-
         ----------------------------------------------------------------------
         -- Action 2: Send waypoint
-        --
-        -- Expected CSV:
-        -- 2,index,latitude,longitude,velocity,Code=Value,Code=Value,...
-        -- e.g. 2, 2, 129410000, 776110000, 10.0, 5=3.0
         ----------------------------------------------------------------------
 
         elseif action == 2 then
@@ -746,8 +795,6 @@ local function receiveDataFromVCPAndSendToFC()
             local latStr = fields[3] and string.match(fields[3], "^%s*(-?%d+)%s*$")
             local lonStr = fields[4] and string.match(fields[4], "^%s*(-?%d+)%s*$")
 
-            -- Index and position are the only hard requirements: without
-            -- them there is no waypoint to send.
             if index == nil or latStr == nil or lonStr == nil then
                 playTone(100, 300, 0, PLAY_NOW)
                 goto continue
@@ -755,8 +802,6 @@ local function receiveDataFromVCPAndSendToFC()
 
             index = math.floor(index) % 0x10000
 
-            -- Velocity (m/s -> 0.1 m/s). If field 5 is actually an op,
-            -- treat velocity as 0 and start ops there.
             local velocity = 0
             local opsStart = 6
             local vField = fields[5] or ""
@@ -781,12 +826,28 @@ local function receiveDataFromVCPAndSendToFC()
             else
                 playTone(100, 100, 0, PLAY_NOW)
             end
-        end
-
+        
+        elseif action == 5 then
+            local operation = tonumber(fields[2])
+            if operation == nil or
+               operation < 0 or
+               operation > 255 or
+               operation ~= math.floor(operation) then
+                playTone(100, 300, 0, PLAY_NOW)
+                goto continue
+            end
+            local payload = buildConfigMSPPayload(action, operation)
+            if crossfireTelemetryPush(FC_CONFIG_FRAME_TYPE, payload) then
+                playTone(2000, 100, 0, PLAY_NOW)
+            else
+                playTone(100, 100, 0, PLAY_NOW)
+            end
+			
+        end -- <--- Closes the if/elseif/else chain
 
         ::continue::
-    end
-end
+    end -- closes the while loop
+end -- closes receiveDataFromVCPAndSendToFC function
 
 local function getFirstValue(...)
     for i = 1, select("#", ...) do

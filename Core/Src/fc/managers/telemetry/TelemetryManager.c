@@ -9,16 +9,18 @@
 #include "../../logger/Logger.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
 #include "../../sensors/battery/BatterySensor.h"
+#include "../../sensors/groundStation/GroundStation.h"
 #include "../../sensors/position/GNSS.h"
 #include "../../sensors/rc/RCTelemetry.h"
 #include "../../status/FCStatus.h"
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "../altitude/helpers/AltitudeCommandHelper.h"
+#include "../config/ConfigHelper.h"
+#include "../mission/MissionManager.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
 #include "../position/helpers/PositionManagerHelper.h"
-#include "../mission/MissionManager.h"
 
 /* ============================================================================
  * BRHS Telemetry Mapping
@@ -256,8 +258,14 @@ void prepareFCStatus() {
 	fcStatusBuf[7] = '0' + (tmOpSeq % 10);
 	fcStatusBuf[8] = tmOpChar;
 
-	// [9..12] spare, new fields go here and the NUL moves out
-	fcStatusBuf[9] = '\0';
+	//The calibration status
+	if (fcStatusData.calibrationStatus == CALIB_STATUS_NONE) {
+		fcStatusBuf[9] = '-';
+	} else {
+		fcStatusBuf[9] = '0' + fcStatusData.calibrationStatus;
+	}
+	//[9..12] spare, new fields go here and the NUL moves out
+	fcStatusBuf[10] = '\0';
 }
 
 void prepareGNSSData(void) {
@@ -287,7 +295,6 @@ void sendOSDData() {
  */
 void telemetryUpdateTask() {
 	updateMissionProgress();
-
 	switch (currentTelemetryStep) {
 	case TELEMETRY_STEP_ALTITUDE:
 		if (isCruiseModeActive()) {
@@ -304,10 +311,10 @@ void telemetryUpdateTask() {
 		sendBatteryTelemetry(batteryData.voltage, fcStatusData.batteryNomVolt, (uint32_t) fcStatusData.currentThrottle, fcStatusData.batteryAlertState);
 		break;
 	case TELEMETRY_STEP_GNSS:
-		prepareGNSSData();
 		sendGNSSTelemetry(gnssData.latitude, gnssData.longitude, groundSpeed, fcStatusData.headingHomeRef, homeDistance, satCountAndReliability);
 		break;
 	case TELEMETRY_STEP_FC_STATUS:
+		prepareGNSSData();
 		prepareFCStatus();
 		sendFlightModeTelemetry(fcStatusBuf, (uint8_t) strlen(fcStatusBuf));
 		break;
@@ -333,7 +340,6 @@ uint8_t initTelemetryManager() {
 		logString("[Telemetry Manager] >> OSD UART Init >> Success\n");
 	}
 #endif
-
 	schedulerAddTask(telemetryUpdateTask, TELEMETRY_TASK_FREQUENCY, TELEMETRY_TASK_PRIORITY);
 #if RC_RX_TYPE== RC_RX_TYPE_CRSF
 	fcStatusData.isTelemetryEnabled = 1;
