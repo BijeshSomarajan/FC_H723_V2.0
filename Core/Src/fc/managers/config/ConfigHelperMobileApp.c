@@ -19,8 +19,8 @@
 #define CFG_N_POS_RATE_PID   5
 #define CFG_N_STICK_GAIN     3
 #define CFG_N_DEVICE         3
-#define CFG_N_MISC           4
-#define CFG_MAX_VALUES       12   /* size of ConfigDataPacket.data[] */
+#define CFG_N_MISC           8
+#define CFG_MAX_VALUES       13   /* size of ConfigDataPacket.data[] */
 
 uint8_t getConfigValueCount(uint8_t subCmd) {
 	switch (subCmd) {
@@ -165,6 +165,10 @@ void mergeConfigDataFromMobileApp(int32_t *data, ConfigDataPacket *pkt) {
 		data[CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR] = v[1];
 		data[CALIB_PROP_ALT_HOLD_LIFT_OFF_ALT_ADDR] = v[2];
 		data[CALIB_PROP_MISSION_MAX_ALT_CLIMB_ADDR] = v[3];
+		data[CALIB_PROP_TILT_COMP_GAIN_ADDR] = v[4];
+		data[CALIB_PROP_TILT_COMP_FALL_TAU_ADDR] = v[5];
+		data[CALIB_PROP_VENTURI_GAIN_ADDR] = v[6];
+		data[CALIB_PROP_VENTURI_FALL_TAU_ADDR] = v[7];
 		break;
 	}
 	default: {
@@ -234,7 +238,8 @@ void sendConfigDataToMobileApp(int32_t *data, int32_t length, int32_t cmd, int32
 		break;
 	}
 	case SUB_CMD_MISC: {
-		int32_t values[CFG_N_MISC] = { data[CALIB_PROP_THRUST_EXPO_ADDR], data[CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR], data[CALIB_PROP_ALT_HOLD_LIFT_OFF_ALT_ADDR], data[CALIB_PROP_MISSION_MAX_ALT_CLIMB_ADDR] };
+		int32_t values[CFG_N_MISC] = { data[CALIB_PROP_THRUST_EXPO_ADDR], data[CALIB_PROP_RC_LIFTOFF_THROTTLE_ADDR], data[CALIB_PROP_ALT_HOLD_LIFT_OFF_ALT_ADDR], data[CALIB_PROP_MISSION_MAX_ALT_CLIMB_ADDR], data[CALIB_PROP_TILT_COMP_GAIN_ADDR], data[CALIB_PROP_TILT_COMP_FALL_TAU_ADDR],
+				data[CALIB_PROP_VENTURI_GAIN_ADDR], data[CALIB_PROP_VENTURI_FALL_TAU_ADDR] };
 		sendCRSFConfigData(values, CFG_N_MISC, cmd, subCmd);
 		break;
 	}
