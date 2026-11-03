@@ -93,17 +93,13 @@ extern SENSOR_ATTITUDE_DATA sensorAttitudeData;
 #define SENSOR_TEMP_CORRECTION_ACC_ENABLED      DEVICE_APPLY_ACC_TEMP_OFFSET_CORRECTION
 #define SENSOR_TEMP_CORRECTION_GYRO_ENABLED     DEVICE_APPLY_GYRO_TEMP_OFFSET_CORRECTION
 
-// Magnetometer (MAG) Calibration
-#define SENSOR_MAG_CALIB_SAMPLE_COUNT           5000
-#define SENSOR_MAG_CALIB_SAMPLE_DELAY           10
-
 /* -----------------------------------------------------------
  * 📞 Function Prototypes
  * -----------------------------------------------------------*/
 
 uint8_t initAttitudeSensors();
 void resetAttitudeSensors(uint8_t hard);
-uint8_t readAccGyroTempSensor();
+uint8_t readAccAndGyroSensor();
 uint8_t loadAccGyroTempSensorData(void);
 
 uint8_t readMagSensor();

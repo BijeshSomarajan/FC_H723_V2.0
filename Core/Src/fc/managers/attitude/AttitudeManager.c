@@ -33,7 +33,7 @@ LOWPASSFILTER attitudePitchCtrlRateLPF, attitudeRollCtrlRateLPF, attitudeYawCtrl
 
 __ATTR_ITCM_TEXT
 void readAGTSensorTimerCallback() {
-	readAccGyroTempSensor();
+	readAccAndGyroSensor();
 }
 
 __ATTR_ITCM_TEXT

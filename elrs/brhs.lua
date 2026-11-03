@@ -21,7 +21,6 @@ local aAlertLastMission = nil
 local aAlertLastGnss = nil
 local aAlertLastWpDone = nil
 local aAlertLastOpSeq = nil
-local aAlertLastCalibration = nil
 local aAlertNextBatAlert = 0
 local aAlertNextLinkAlert = 0  -- Timer tracking state for link quality alerts
 local WP_REACHED_SOUND = "/SOUNDS/en/brhs/mission/wpReach.wav"
@@ -56,9 +55,27 @@ local NAV_WP_PAYLOAD_SIZE = 56   -- 3 hdr + 1 action + 2 idx + 4 lat + 4 lon + 2
 -- Operation codes are NOT validated here: the CSV key is sent as-is (one byte)
 -- and the FC decides what each code means.
 local NAV_MAX_OPERATIONS = 8
+local MAX_CONFIG_FRAMES_PER_RUN = 8
 
+-- 5 header bytes + 4 per value must fit one CRSF frame; the largest group
+-- (SUB_CMD_ATT_RATE_PID) has 12 values = 53 bytes.
+local MAX_CONFIG_VALUES = 13 --Cannot extend this.
 local CRSF_MSP_NAV_COMMAND = 0x7C
 local FC_CONFIG_FRAME_TYPE = 0x7D
+
+-- Config commands accepted from the app as "<cmd>,<subCmd>". The command goes
+-- out as payload byte 4 (FC: payload[3]) and the sub command as byte 5
+-- (FC: payload[4]). None of these collide with mission actions 1-4.
+local CONFIG_COMMANDS = {
+    [0xEE] = true,  -- CMD_CALIBRATE_RC
+    [0xF1] = true,  -- CMD_CALIBRATE_IMU_MAG
+    [0xF5] = true,  -- CMD_CALIBRATE_IMU_OFFSET
+    [0xF7] = true,  -- CMD_READ_CONFIG
+    [0xF9] = true,  -- CMD_SAVE_CONFIG
+    [0xFB] = true,  -- CMD_START_FC_DATA
+    [0xFD] = true,  -- CMD_STOP_FC_DATA
+    [0xFF] = true,  -- CMD_FC_DATA
+}
 local mspRxBuffer = ""
 local mspSequence = 0
 
@@ -111,20 +128,6 @@ local aAlertOpDoneModes = {
 }
 
 -- ==========================================================================
--- Config Status Audio Alert
--- ==========================================================================
-local aAlertCalibrationModes = {
-    ["1"] = "/SOUNDS/en/brhs/config/accGyroStart.wav",
-    ["2"] = "/SOUNDS/en/brhs/config/accGyroComplete.wav",
-    ["3"] = "/SOUNDS/en/brhs/config/magStart.wav",
-    ["4"] = "/SOUNDS/en/brhs/config/magComplete.wav",
-    ["5"] = "/SOUNDS/en/brhs/config/rcStart.wav",
-    ["6"] = "/SOUNDS/en/brhs/config/rcComplete.wav",
-    ["7"] = "/SOUNDS/en/brhs/config/tempStart.wav",
-    ["8"] = "/SOUNDS/en/brhs/config/tempComplete.wav",
-}
-
--- ==========================================================================
 -- Constant lookup table for compass directions
 -- ==========================================================================
 
@@ -142,33 +145,6 @@ local function getCompassDirection(angle)
     angle = angle % 360
     local index = math.floor((angle + 22.5) / 45) % 8
     return DIRECTIONS[index + 1]
-end
-
-local function doCalibrationAlert(cleanFm)
-
-    -- Character 10 corresponds to fcStatusBuf[9] in the FC.
-    if #cleanFm < 10 then
-        return
-    end
-
-    local currentCalibration = string.sub(cleanFm, 10, 10)
-
-    -- Adopt the first received state without playing an audio alert.
-    if aAlertLastCalibration == nil then
-        aAlertLastCalibration = currentCalibration
-        return
-    end
-
-    -- Play audio only when the calibration status changes.
-    if currentCalibration ~= aAlertLastCalibration then
-        local soundFile = aAlertCalibrationModes[currentCalibration]
-
-        if soundFile then
-            playFile(soundFile)
-        end
-
-        aAlertLastCalibration = currentCalibration
-    end
 end
 
 local function doMissionProgressAlert(cleanFm)
@@ -288,9 +264,6 @@ local function doFMAlert()
 
             aAlertLastMission = currentMission
         end
-		
-		doCalibrationAlert(cleanFm)
-		
     end
 end
 
@@ -445,16 +418,13 @@ end
 -- ==========================================================================
 
 local function sendTelemetryToVCP()
-
     local now = getTime()
-
     -- NOTE: getTime() ticks are 10 ms, so >= 100 means once per second.
     -- Use >= 10 for 10 Hz.
     if (now - vcpUSBLastSend) >= 100 then
-
         vcpUSBLastSend = now
-
         local telemetry =
+            "TEL," ..
             tostring(txBat) .. "," ..
             tostring(rxBat) .. "," ..
             tostring(rxBatMax) .. "," ..
@@ -472,7 +442,6 @@ local function sendTelemetryToVCP()
             tostring(fm) .. "," ..
             tostring(pitch) .. "," ..
             tostring(roll)
-
         serialWrite(telemetry .. "\n")
     end
 end
@@ -670,14 +639,55 @@ local function parseOperations(fields, startIdx)
     return ops
 end
 
-local function buildConfigMSPPayload(action, operation)
+-- Collect fields[startIdx..] as validated signed int32 decimal strings.
+-- Returns the list, or nil if any field is malformed or out of int32 range
+-- (a save command must never write a silent 0 into the FC config).
+local function parseConfigValues(fields, startIdx)
+
+    local values = {}
+
+    for i = startIdx, #fields do
+
+        if #values >= MAX_CONFIG_VALUES then
+            return nil
+        end
+
+        local str = string.match(fields[i], "^%s*(-?%d+)%s*$")
+        if str == nil then
+            return nil
+        end
+
+        local neg = (string.sub(str, 1, 1) == "-")
+        local digits = (string.gsub(neg and string.sub(str, 2) or str, "^0+", ""))
+        if digits == "" then digits = "0" end
+
+        local limit = neg and "2147483648" or "2147483647"
+        if #digits > 10 or (#digits == 10 and digits > limit) then
+            return nil
+        end
+
+        values[#values + 1] = str
+    end
+
+    return values
+end
+
+local function buildConfigMSPPayload(command, subCommand, values)
     local payload = {
         0xC8,        -- Destination (FC)
         0xEA,        -- Origin (Radio)
         mspSequence, -- Sequence
-        action,
-        operation
+        command,     -- FC: configCommand    = payload[3]
+        subCommand   -- FC: configSubCommand = payload[4]
     }
+
+    -- int32 BE values start at FC payload[5] (Lua index 6)
+    if values then
+        for i = 1, #values do
+            packDecStrInt32BE(payload, 6 + (i - 1) * 4, values[i])
+        end
+    end
+
     mspSequence = (mspSequence + 1) % 256
     return payload
 end
@@ -827,22 +837,39 @@ local function receiveDataFromVCPAndSendToFC()
                 playTone(100, 100, 0, PLAY_NOW)
             end
         
-        elseif action == 5 then
-            local operation = tonumber(fields[2])
-            if operation == nil or
-               operation < 0 or
-               operation > 255 or
-               operation ~= math.floor(operation) then
-                playTone(100, 300, 0, PLAY_NOW)
+        ----------------------------------------------------------------------
+        -- Config command: "<cmd>,<subCmd>[,<int32>,...]" (cmd in CONFIG_COMMANDS)
+        ----------------------------------------------------------------------
+
+        elseif action ~= nil and CONFIG_COMMANDS[action] then
+
+            local subCommand = 0
+
+            if fields[2] ~= nil then
+                subCommand = tonumber(fields[2])
+                if subCommand == nil or
+                   subCommand < 0 or
+                   subCommand > 255 or
+                   subCommand ~= math.floor(subCommand) then
+                   goto continue
+                end
+            end
+
+            local values = parseConfigValues(fields, 3)
+
+            if values == nil then
+                playTone(100, 300, 0, PLAY_NOW)   -- bad/too many values: send nothing
                 goto continue
             end
-            local payload = buildConfigMSPPayload(action, operation)
+
+            local payload = buildConfigMSPPayload(action, subCommand, values)
+
             if crossfireTelemetryPush(FC_CONFIG_FRAME_TYPE, payload) then
                 playTone(2000, 100, 0, PLAY_NOW)
             else
                 playTone(100, 100, 0, PLAY_NOW)
             end
-			
+
         end -- <--- Closes the if/elseif/else chain
 
         ::continue::
@@ -860,6 +887,54 @@ local function getFirstValue(...)
     end
 
     return 0
+end
+
+
+-- ==========================================================================
+-- Receive config frames (type 0x7D) coming from the RX / FC
+--
+-- crossfireTelemetryPop() returns (frameType, dataTable) for frames the radio
+-- does not decode itself. Each frame is forwarded to the PC app as one line:
+--
+--   CFG,<b1>,<b2>,...,<bn>\n     (decimal bytes, exactly as received)
+--
+-- Expected layout, mirroring the TX direction (1-based Lua indexes):
+--   [1] destination  [2] origin  [3] sequence  [4] command  [5] sub command
+--   [6..] data
+-- The bytes are forwarded untouched, so the app does the decoding.
+-- ==========================================================================
+
+
+
+local function receiveConfigFramesFromFC()
+    for _ = 1, MAX_CONFIG_FRAMES_PER_RUN do
+        local command, data = crossfireTelemetryPop()
+        if command == nil then
+            break
+        end
+        if command == FC_CONFIG_FRAME_TYPE and type(data) == "table" then
+            local cmd = data[1]
+            local sub = data[2]
+            if cmd ~= nil and sub ~= nil then
+                local line = "CFG," .. cmd .. "," .. sub
+                -- remaining bytes: big-endian int32 values
+                local i = 3
+                while i + 3 <= #data do
+                    local v = data[i] * 16777216
+                            + data[i + 1] * 65536
+                            + data[i + 2] * 256
+                            + data[i + 3]
+                    if v >= 2147483648 then
+                        v = v - 4294967296
+                    end
+                    line = line .. "," .. string.format("%d", v)
+                    i = i + 4
+                end
+                playTone(1000, 100, 0, PLAY_NOW)
+                serialWrite(line .. "\n")
+            end
+        end
+    end
 end
 
 -- ==========================================================================
@@ -1058,6 +1133,8 @@ local function run(event)
     sendTelemetryToVCP()
 
     receiveDataFromVCPAndSendToFC()
+	
+	receiveConfigFramesFromFC()
 end
 
 

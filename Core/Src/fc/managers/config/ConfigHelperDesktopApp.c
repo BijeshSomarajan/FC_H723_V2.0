@@ -1,21 +1,17 @@
-#include "ConfigHelper.h"
-
-#include <stdio.h>
 #include <sys/_stdint.h>
 
 #include "../../io/uart/UART.h"
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
-#include "../../sensors/rc/devices/crsf/CRSFFcConfig.h"
-#include "../../status/FCStatus.h"
 #include "../../util/MathUtil.h"
+#include "ConfigHelperCommon.h"
+#include "ConfigHelperDesktopApp.h"
 
 #define CONFIG_PACKET_DATA_LENGTH 4
 #define CONFIG_PACKET_CMD_REL_INDEX 0
 #define CONFIG_PACKET_DATA_LENGTH_REL_INDEX 1
 #define CONFIG_PACKET_DATA_TUPLE_LENGTH 5
 #define CONFIG_PACKET_DATA_TUPLE_LAST_INDEX 4
-#define CONFIG_PACKET_BUFFER_SIZE 10
 
 #define CONFIG_DATA_BUFFER_SIZE 1024
 #define CONFIG_DATA_PACKET_QUEUE_SIZE 5
@@ -27,9 +23,6 @@ uint8_t CONFIG_PROTOCOL_DATA_SEPERATOR = 0x00;
 uint8_t CONFIG_PROTOCOL_HEADER[CONFIG_PACKET_DATA_TUPLE_LENGTH] = { 0xfe, 0xff, 0xff, 0xff, 0xff };
 uint8_t CONFIG_PROTOCOL_FOOTER[CONFIG_PACKET_DATA_TUPLE_LENGTH] = { 0xff, 0xff, 0xff, 0xff, 0xff };
 
-int16_t configDataPacketCount = 0;
-ConfigDataPacket configDataPacketBuffer[CONFIG_PACKET_BUFFER_SIZE];
-
 __ATTR_RAM_D2 uint8_t configDataInputBuffer[CONFIG_PACKET_DATA_TUPLE_LENGTH];
 
 void updateConfigPacketData(uint8_t *dataBuffer, uint16_t len);
@@ -39,50 +32,6 @@ void _processConfigData(uint8_t *data, uint16_t len) {
 		updateConfigPacketData(data, len);
 	}
 }
-
-void handleCalibrationCommand(uint8_t calibCommand) {
-	switch (calibCommand) {
-	case CMD_CALIBRATE_IMU_OFFSET: {
-		fcStatusData.calibrationStatus = CALIB_ACC_GYRO_STARTED;
-		ConfigDataPacket configDataPacket;
-		configDataPacket.cmd = CMD_CALIBRATE_IMU_OFFSET;
-		configDataPacket.length = 0;
-		logString("[Config Helper] : Calibrate ACC/Gyro\n");
-		addConfigDataPacket(configDataPacket);
-		break;
-	}
-	case CMD_CALIBRATE_IMU_MAG: {
-		fcStatusData.calibrationStatus = CALIB_MAG_STARTED;
-		ConfigDataPacket configDataPacket;
-		configDataPacket.cmd = CMD_CALIBRATE_IMU_MAG;
-		configDataPacket.length = 0;
-		logString("[Config Helper] : Calibrate Mag\n");
-		addConfigDataPacket(configDataPacket);
-		break;
-	}
-	case CMD_CALIBRATE_RC: {
-		fcStatusData.calibrationStatus = CALIB_RC_STARTED;
-		ConfigDataPacket configDataPacket;
-		configDataPacket.cmd = CMD_CALIBRATE_RC;
-		configDataPacket.length = 0;
-		logString("[Config Helper] : Calibrate RC\n");
-		addConfigDataPacket(configDataPacket);
-		break;
-	}
-	default: {
-		fcStatusData.calibrationStatus = CALIB_STATUS_NONE;
-		logString("[Config Helper] : Unsupported or UnKnown command!\n");
-		break;
-	}
-	}
-}
-
-void _fcConfigCallback(uint8_t configCommandType, uint8_t fcConfigCommand) {
-	if (configCommandType == CONFIG_COMMAND_TYPE_CALIB) {
-		handleCalibrationCommand(fcConfigCommand);
-	}
-}
-
 uint8_t initConfigHelper() {
 	uint8_t status = uart5Init();
 	if (status) {
@@ -90,8 +39,7 @@ uint8_t initConfigHelper() {
 		status = uart5ReadStart(configDataInputBuffer, 2, _processConfigData);
 		if (status) {
 			logString("[Config Helper] : UART -> Read Start , Success!\n");
-			registerCRSFFcConfigCallBack(_fcConfigCallback);
-			logString("[Config Helper] : FCConfig Callback Registered, Success!\n");
+
 		} else {
 			logString("[Config Helper] : UART -> Read Start , Failed!\n");
 		}
@@ -134,13 +82,6 @@ uint8_t isConfigProtocolFooter(int16_t currentIndex) {
 	}
 }
 
-void handleConfigDataPacket(ConfigDataPacket dataPacket) {
-	if (configDataPacketCount < CONFIG_PACKET_BUFFER_SIZE) {
-		configDataPacketBuffer[configDataPacketCount] = dataPacket;
-		configDataPacketCount++;
-	}
-}
-
 ConfigDataPacket unmarshalConfigDataPacket(int16_t startIndx, int16_t endIndx) {
 	ConfigDataPacket dataPacket;
 	int16_t dataIndex = 0;
@@ -174,7 +115,8 @@ void updateConfigPacketData(uint8_t *dataBuffer, uint16_t len) {
 				for (int16_t indx = configProtocolInBufferIndex; indx >= 0; indx -= CONFIG_PACKET_DATA_TUPLE_LENGTH) {
 					if (isConfigProtocolHeader(indx)) {
 						ConfigDataPacket dataPacket = unmarshalConfigDataPacket(indx + 1, configProtocolInBufferIndex);
-						handleConfigDataPacket(dataPacket);
+						dataPacket.source = CONFIG_SOURCE_DESKTOP_APP;
+						addConfigDataPacket(dataPacket);
 					}
 				}
 				configProtocolInBufferIndex = 0;
@@ -222,53 +164,26 @@ int32_t marshalConfigDataPacket(ConfigDataPacket dataPacket, uint8_t *configProt
 	return sendBufferIndx;
 }
 
-uint8_t hasConfigDataPacket() {
-	if (configDataPacketCount > 0) {
-		return 1;
-	} else {
-		return 0;
-	}
-}
-
-void addConfigDataPacket(ConfigDataPacket configPacket) {
-	if (configDataPacketCount >= 0) {
-		configDataPacketBuffer[configDataPacketCount] = configPacket;
-		configDataPacketCount++;
-	} else {
-		configDataPacketBuffer[0] = configPacket;
-		configDataPacketCount = 1;
-	}
-	char buf[64];
-	sprintf(buf, "Config Added:%d\n", configDataPacketCount);
-	logString(buf);
-}
-
-ConfigDataPacket getConfigDataPacket() {
-	ConfigDataPacket dataPacket = configDataPacketBuffer[0];
-	if (configDataPacketCount > 0) {
-		for (int32_t indx = 0; indx < configDataPacketCount - 1; indx++) {
-			configDataPacketBuffer[indx] = configDataPacketBuffer[indx + 1];
-		}
-		configDataPacketCount--;
-	}
-	return dataPacket;
-}
-
-void sendConfigDataPacket(ConfigDataPacket dataPacket) {
+void sendConfigDataPacketInternal(ConfigDataPacket dataPacket) {
 	uint8_t configProtocolOutBuffer[CONFIG_DATA_BUFFER_SIZE];
 	int32_t bufferSize = marshalConfigDataPacket(dataPacket, configProtocolOutBuffer);
 	uart5WriteDMA(configProtocolOutBuffer, bufferSize + 1);
 }
 
-void sendConfigData(int32_t *data, int32_t length, int32_t cmd) {
-	if (length <= CONFIG_DATA_MAX_LENGTH) {
+void sendConfigDataToDektopApp(int32_t *data, int32_t length, int32_t cmd, int32_t subCmd) {
+	if (length <= CALIB_PROP_MAX_CONFIGURABLE_LENGTH) {
 		ConfigDataPacket dataPacket;
 		dataPacket.cmd = cmd;
 		dataPacket.length = length;
 		for (int32_t indx = 0; indx < length; indx++) {
 			dataPacket.data[indx] = data[indx];
 		}
-		sendConfigDataPacket(dataPacket);
+		sendConfigDataPacketInternal(dataPacket);
 	}
 }
 
+void mergeConfigDataFromDesktopApp(int32_t *data, ConfigDataPacket *pkt) {
+	for (uint32_t indx1 = 0; indx1 < CALIB_PROP_MAX_CONFIGURABLE_LENGTH; indx1++) {
+		data[indx1] = pkt->data[indx1];
+	}
+}

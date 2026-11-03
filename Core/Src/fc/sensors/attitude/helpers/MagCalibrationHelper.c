@@ -10,113 +10,336 @@
 #include "../../../timers/DelayTimer.h"
 #include "../devices/AttitudeDevice.h"
 
-void magFitAdd(MagFitAccum *acc, float x, float y, float z) {
-	double u = x / MAG_CAL_FIT_NORM_UT;
-	double v = y / MAG_CAL_FIT_NORM_UT;
-	double w = z / MAG_CAL_FIT_NORM_UT;
-	double f[6] = { u * u, v * v, w * w, u, v, w };
-	for (int i = 0; i < 6; i++) {
-		for (int j = 0; j < 6; j++) {
-			acc->s[i][j] += f[i] * f[j];
-		}
-		acc->b[i] += f[i];
+#define MAG_BINS 27 /* 3x3x3 direction grid; centre cell (13) cannot occur -> 26 usable */
+
+MagCalResult magCalResult;
+
+/*
+ * Running sums for a least-squares fit of a general (rotated) ellipsoid
+ *
+ *     v'Mv + 2 n'v = 1      (M symmetric 3x3, 6 terms; n 3 terms)
+ *
+ * No sample buffer needed: 9x9 normal equations are accumulated on the fly.
+ */
+typedef struct {
+	double ata[9][9];
+	double atb[9];
+	uint32_t n;
+	uint8_t bin[MAG_BINS];
+	float mn[3], mx[3];
+} MagEllipsoid;
+
+/* ~750 B;  keeps it off the stack. Calibration is therefore not re-entrant. */
+MagEllipsoid fitAcc;
+
+void ellInit(MagEllipsoid *e) {
+	memset(e, 0, sizeof(*e));
+	for (int a = 0; a < 3; a++) {
+		e->mn[a] = FLT_MAX;
+		e->mx[a] = -FLT_MAX;
 	}
-	acc->n++;
 }
 
-/* Returns false if the system is singular or the result is not an ellipsoid. */
-uint8_t magFitSolve(const MagFitAccum *acc, float bias[3], float radius[3], double *rms) {
-	double m[6][7];
-	for (int i = 0; i < 6; i++) {
-		for (int j = 0; j < 6; j++) {
-			m[i][j] = acc->s[i][j];
+/* Direction bin of the sample relative to the running min/max midpoint, -1 if not binnable yet. */
+int ellBinIndex(const MagEllipsoid *e, float x, float y, float z) {
+	float v[3] = { x, y, z };
+	float c[3];
+	for (int a = 0; a < 3; a++) {
+		if ((e->mx[a] - e->mn[a]) < MAG_CAL_BIN_START_SPAN_UT) {
+			return -1;
 		}
-		m[i][6] = acc->b[i];
+		c[a] = v[a] - 0.5f * (e->mx[a] + e->mn[a]);
 	}
-	double pivotMin = 1.0e-9 * (double) acc->n;
-	for (int col = 0; col < 6; col++) {
-		int piv = col;
-		for (int r = col + 1; r < 6; r++) {
-			if (fabs(m[r][col]) > fabs(m[piv][col])) {
-				piv = r;
-			}
+	float n = sqrtf(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]);
+	if (n < 1.0e-3f) {
+		return -1;
+	}
+	int idx = 0;
+	for (int a = 0; a < 3; a++) {
+		float d = c[a] / n;
+		int t = (d > 0.38f) ? 2 : (d < -0.38f ? 0 : 1);
+		idx = idx * 3 + t;
+	}
+	return idx == 13 ? -1 : idx;
+}
+
+/* Returns 1 if the sample entered the fit, 0 if skipped (its direction bin is already full). */
+uint8_t ellAdd(MagEllipsoid *e, float x, float y, float z) {
+	float v[3] = { x, y, z };
+	for (int a = 0; a < 3; a++) {
+		if (v[a] < e->mn[a])
+			e->mn[a] = v[a];
+		if (v[a] > e->mx[a])
+			e->mx[a] = v[a];
+	}
+	int bi = ellBinIndex(e, x, y, z);
+	if (bi >= 0) {
+		if (e->bin[bi] >= MAG_CAL_BIN_CAP) {
+			return 0;
 		}
-		if (fabs(m[piv][col]) < pivotMin) {
+		e->bin[bi]++;
+	}
+	double u = x / MAG_CAL_FIT_NORM_UT;
+	double w = y / MAG_CAL_FIT_NORM_UT;
+	double q = z / MAG_CAL_FIT_NORM_UT;
+	double p[9] = { u * u, w * w, q * q, 2 * u * w, 2 * u * q, 2 * w * q, 2 * u, 2 * w, 2 * q };
+	for (int i = 0; i < 9; i++) {
+		for (int j = i; j < 9; j++) {
+			e->ata[i][j] += p[i] * p[j];
+		}
+		e->atb[i] += p[i];
+	}
+	e->n++;
+	return 1;
+}
+
+int ellBinsFilled(const MagEllipsoid *e) {
+	int c = 0;
+	for (int i = 0; i < MAG_BINS; i++) {
+		if (i != 13 && e->bin[i] >= MAG_CAL_BIN_MIN) {
+			c++;
+		}
+	}
+	return c;
+}
+
+/* Gaussian elimination with partial pivoting (destroys a and b). */
+bool solve9(double a[9][9], double b[9], double x[9]) {
+	for (int c = 0; c < 9; c++) {
+		int p = c;
+		for (int r = c + 1; r < 9; r++) {
+			if (fabs(a[r][c]) > fabs(a[p][c]))
+				p = r;
+		}
+		if (fabs(a[p][c]) < 1.0e-12) {
 			return false;
 		}
-		if (piv != col) {
-			for (int c = 0; c < 7; c++) {
-				double t = m[piv][c];
-				m[piv][c] = m[col][c];
-				m[col][c] = t;
+		if (p != c) {
+			for (int k = 0; k < 9; k++) {
+				double t = a[c][k];
+				a[c][k] = a[p][k];
+				a[p][k] = t;
 			}
+			double t = b[c];
+			b[c] = b[p];
+			b[p] = t;
 		}
-		for (int r = col + 1; r < 6; r++) {
-			double f = m[r][col] / m[col][col];
-			for (int c = col; c < 7; c++) {
-				m[r][c] -= f * m[col][c];
+		for (int r = c + 1; r < 9; r++) {
+			double f = a[r][c] / a[c][c];
+			for (int k = c; k < 9; k++) {
+				a[r][k] -= f * a[c][k];
 			}
+			b[r] -= f * b[c];
 		}
 	}
-	double t[6];
-	for (int i = 5; i >= 0; i--) {
-		double sum = m[i][6];
-		for (int j = i + 1; j < 6; j++) {
-			sum -= m[i][j] * t[j];
+	for (int r = 8; r >= 0; r--) {
+		double s = b[r];
+		for (int k = r + 1; k < 9; k++) {
+			s -= a[r][k] * x[k];
 		}
-		t[i] = sum / m[i][i];
+		x[r] = s / a[r][r];
 	}
-
-	if (t[0] <= 0.0 || t[1] <= 0.0 || t[2] <= 0.0) {
-		return false;
-	}
-	double cx = -t[3] / (2.0 * t[0]);
-	double cy = -t[4] / (2.0 * t[1]);
-	double cz = -t[5] / (2.0 * t[2]);
-	double k = 1.0 + t[3] * t[3] / (4.0 * t[0]) + t[4] * t[4] / (4.0 * t[1]) + t[5] * t[5] / (4.0 * t[2]);
-	if (k <= 0.0) {
-		return false;
-	}
-	bias[0] = (float) (cx * MAG_CAL_FIT_NORM_UT);
-	bias[1] = (float) (cy * MAG_CAL_FIT_NORM_UT);
-	bias[2] = (float) (cz * MAG_CAL_FIT_NORM_UT);
-	radius[0] = (float) (sqrt(k / t[0]) * MAG_CAL_FIT_NORM_UT);
-	radius[1] = (float) (sqrt(k / t[1]) * MAG_CAL_FIT_NORM_UT);
-	radius[2] = (float) (sqrt(k / t[2]) * MAG_CAL_FIT_NORM_UT);
-	/* Residual of the fit, computed from the sums: sum (1 - f.t)^2 */
-	double sse = (double) acc->n;
-	for (int i = 0; i < 6; i++) {
-		sse -= 2.0 * t[i] * acc->b[i];
-		for (int j = 0; j < 6; j++) {
-			sse += t[i] * acc->s[i][j] * t[j];
-		}
-	}
-	if (sse < 0.0) {
-		sse = 0.0;
-	}
-	*rms = sqrt(sse / (double) acc->n);
 	return true;
 }
 
-static float median3(float a, float b, float c) {
+bool inv3(const double m[3][3], double o[3][3]) {
+	double c00 = m[1][1] * m[2][2] - m[1][2] * m[2][1];
+	double c01 = m[1][2] * m[2][0] - m[1][0] * m[2][2];
+	double c02 = m[1][0] * m[2][1] - m[1][1] * m[2][0];
+	double det = m[0][0] * c00 + m[0][1] * c01 + m[0][2] * c02;
+	if (fabs(det) < 1.0e-18) {
+		return false;
+	}
+	double id = 1.0 / det;
+	o[0][0] = c00 * id;
+	o[0][1] = (m[0][2] * m[2][1] - m[0][1] * m[2][2]) * id;
+	o[0][2] = (m[0][1] * m[1][2] - m[0][2] * m[1][1]) * id;
+	o[1][0] = c01 * id;
+	o[1][1] = (m[0][0] * m[2][2] - m[0][2] * m[2][0]) * id;
+	o[1][2] = (m[0][2] * m[1][0] - m[0][0] * m[1][2]) * id;
+	o[2][0] = c02 * id;
+	o[2][1] = (m[0][1] * m[2][0] - m[0][0] * m[2][1]) * id;
+	o[2][2] = (m[0][0] * m[1][1] - m[0][1] * m[1][0]) * id;
+	return true;
+}
+
+/* Jacobi eigen-decomposition of a symmetric 3x3: a = V diag(w) V^T (destroys a). */
+void jacobi3(double a[3][3], double w[3], double v[3][3]) {
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			v[i][j] = (i == j) ? 1.0 : 0.0;
+		}
+	}
+	for (int sweep = 0; sweep < 30; sweep++) {
+		double off = fabs(a[0][1]) + fabs(a[0][2]) + fabs(a[1][2]);
+		if (off < 1.0e-15) {
+			break;
+		}
+		for (int p = 0; p < 2; p++) {
+			for (int q = p + 1; q < 3; q++) {
+				if (fabs(a[p][q]) < 1.0e-18) {
+					continue;
+				}
+				double th = (a[q][q] - a[p][p]) / (2.0 * a[p][q]);
+				double t = (th >= 0 ? 1.0 : -1.0) / (fabs(th) + sqrt(th * th + 1.0));
+				double c = 1.0 / sqrt(t * t + 1.0);
+				double s = t * c;
+				for (int k = 0; k < 3; k++) {
+					double akp = a[k][p], akq = a[k][q];
+					a[k][p] = c * akp - s * akq;
+					a[k][q] = s * akp + c * akq;
+				}
+				for (int k = 0; k < 3; k++) {
+					double apk = a[p][k], aqk = a[q][k];
+					a[p][k] = c * apk - s * aqk;
+					a[q][k] = s * apk + c * aqk;
+				}
+				for (int k = 0; k < 3; k++) {
+					double vkp = v[k][p], vkq = v[k][q];
+					v[k][p] = c * vkp - s * vkq;
+					v[k][q] = s * vkp + c * vkq;
+				}
+			}
+		}
+	}
+	for (int i = 0; i < 3; i++) {
+		w[i] = a[i][i];
+	}
+}
+
+/*
+ * Solves for b and A. Returns false only on numerical failure / not an ellipsoid.
+ * Quality limits (radius, ratio, spread) are applied by the caller.
+ * A is scaled so the corrected field has the same mean radius as the raw data (stays in uT).
+ */
+bool ellSolve(const MagEllipsoid *e, MagCalResult *out) {
+	if (e->n < 9) {
+		return false;
+	}
+	double ata[9][9], ata0[9][9], atb[9], atb0[9], th[9];
+	for (int i = 0; i < 9; i++) {
+		for (int j = 0; j < 9; j++) {
+			ata[i][j] = (j >= i) ? e->ata[i][j] : e->ata[j][i];
+		}
+		atb[i] = e->atb[i];
+	}
+	memcpy(ata0, ata, sizeof(ata));
+	memcpy(atb0, atb, sizeof(atb));
+	if (!solve9(ata, atb, th)) {
+		return false;
+	}
+
+	/* Algebraic residual from the normal equations: sum (v'Mv + 2n'v - 1)^2 */
+	double ssr = (double) e->n;
+	for (int i = 0; i < 9; i++) {
+		double t = 0.0;
+		for (int j = 0; j < 9; j++) {
+			t += ata0[i][j] * th[j];
+		}
+		ssr += th[i] * t - 2.0 * th[i] * atb0[i];
+	}
+	double rmsAlg = sqrt((ssr > 0.0 ? ssr : 0.0) / (double) e->n);
+
+	double M[3][3] = { { th[0], th[3], th[4] }, { th[3], th[1], th[5] }, { th[4], th[5], th[2] } };
+	double n[3] = { th[6], th[7], th[8] };
+	double Mi[3][3];
+	if (!inv3(M, Mi)) {
+		return false;
+	}
+	double c[3];
+	for (int i = 0; i < 3; i++) {
+		c[i] = -(Mi[i][0] * n[0] + Mi[i][1] * n[1] + Mi[i][2] * n[2]);
+	}
+	double k = 1.0 - (n[0] * c[0] + n[1] * c[1] + n[2] * c[2]); /* 1 + n'M^-1 n */
+	if (k <= 1.0e-9) {
+		return false;
+	}
+	double Mk[3][3];
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			Mk[i][j] = M[i][j] / k;
+		}
+	}
+	double w[3], V[3][3];
+	jacobi3(Mk, w, V);
+	if (w[0] <= 0.0 || w[1] <= 0.0 || w[2] <= 0.0) {
+		return false; /* not an ellipsoid: too little coverage or bad data */
+	}
+
+	double r[3] = { 1.0 / sqrt(w[0]), 1.0 / sqrt(w[1]), 1.0 / sqrt(w[2]) };
+	double rmin = r[0], rmax = r[0];
+	for (int i = 1; i < 3; i++) {
+		if (r[i] < rmin)
+			rmin = r[i];
+		if (r[i] > rmax)
+			rmax = r[i];
+	}
+	double rg = pow(r[0] * r[1] * r[2], 1.0 / 3.0) * MAG_CAL_FIT_NORM_UT; /* geometric-mean radius, uT */
+
+	/* Symmetric square root sq = V diag(sqrt w) V^T : corrects shape without rotating the frame. */
+	double sq[3][3];
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			double s = 0.0;
+			for (int m = 0; m < 3; m++) {
+				s += V[i][m] * sqrt(w[m]) * V[j][m];
+			}
+			sq[i][j] = s;
+		}
+	}
+	for (int i = 0; i < 3; i++) {
+		out->b[i] = (float) (c[i] * MAG_CAL_FIT_NORM_UT);
+		for (int j = 0; j < 3; j++) {
+			out->A[i][j] = (float) (rg * sq[i][j] / MAG_CAL_FIT_NORM_UT);
+		}
+	}
+	out->radius = (float) rg;
+	out->spread = (float) (rmsAlg / (2.0 * k));
+	out->axisRatio = (float) (rmax / rmin);
+	out->binsFilled = (uint8_t) ellBinsFilled(e);
+	return true;
+}
+
+float median3(float a, float b, float c) {
 	float lo = a < b ? a : b;
 	float hi = a < b ? b : a;
 	float m = hi < c ? hi : c;
 	return lo > m ? lo : m;
 }
 
+void publishToAttitude(const MagCalResult *r) {
+	deviceAttitudeData.biasMx = r->b[0];
+	deviceAttitudeData.biasMy = r->b[1];
+	deviceAttitudeData.biasMz = r->b[2];
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			deviceAttitudeData.softIronM[i][j] = r->A[i][j];
+		}
+	}
+}
+
+/* Restore a saved calibration (e.g. from flash after CRC/finite checks). */
+void magCalSet(const float b[3], const float A[3][3]) {
+	for (int i = 0; i < 3; i++) {
+		magCalResult.b[i] = b[i];
+		for (int j = 0; j < 3; j++) {
+			magCalResult.A[i][j] = A[i][j];
+		}
+	}
+	publishToAttitude(&magCalResult);
+}
+
 /*
- * Returns true and updates deviceAttitudeData bias/scale only on success.
+ * Returns true and updates magCalResult / deviceAttitudeData bias/scale only on success.
  * On failure nothing is modified.
+ * Tumble the device through all orientations (3D, not a flat spin) while it runs;
+ * it stops early once the sphere is covered.
  */
 uint8_t doMagCalibration(void) {
 	deviceMagReadOffset();
-	float mn[3] = { FLT_MAX, FLT_MAX, FLT_MAX };
-	float mx[3] = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
-	MagFitAccum fit;
-	memset(&fit, 0, sizeof(fit));
+	MagEllipsoid *e = &fitAcc;
+	ellInit(e);
 	float win[3][3]; /* sliding window of last 3 samples, in uT */
-	uint32_t count = 0;
 	for (int indx = 0; indx < SENSOR_MAG_CALIB_SAMPLE_COUNT; indx++) {
 		deviceMagRead();
 		delayMs(2);
@@ -130,135 +353,43 @@ uint8_t doMagCalibration(void) {
 			float s[3];
 			for (int a = 0; a < 3; a++) {
 				s[a] = median3(win[0][a], win[1][a], win[2][a]);
-				if (s[a] > mx[a])
-					mx[a] = s[a];
-				if (s[a] < mn[a])
-					mn[a] = s[a];
 			}
-			magFitAdd(&fit, s[0], s[1], s[2]);
-			count++;
+			ellAdd(e, s[0], s[1], s[2]);
+			/* Stop only after the minimum run time AND once the sphere is covered in depth. */
+			if (indx >= MAG_CAL_MIN_RUN_SAMPLES && e->n >= MAG_CAL_MIN_SAMPLES
+					&& ellBinsFilled(e) >= MAG_CAL_MIN_BINS) {
+				break;
+			}
 		}
 		delayMs(SENSOR_MAG_CALIB_SAMPLE_DELAY);
 	}
 	/* ---- Validate coverage: every axis must have been swept ------------- */
-	if (count < 3) {
+	if (e->n < MAG_CAL_MIN_SAMPLES || ellBinsFilled(e) < MAG_CAL_MIN_BINS) {
 		return 0;
 	}
 	for (int a = 0; a < 3; a++) {
-		if ((mx[a] - mn[a]) < MAG_CAL_MIN_SPAN_UT) {
+		if ((e->mx[a] - e->mn[a]) < MAG_CAL_MIN_SPAN_UT) {
 			return 0;
 		}
 	}
-	/* ---- Baseline: min/max estimate ------------------------------------ */
-	float bias[3];
-	float half[3];
+	/* ---- Least-squares ellipsoid, then sanity limits --------------------- */
+	MagCalResult r;
+	if (!ellSolve(e, &r)) {
+		return 0;
+	}
+	if (r.radius < MAG_CAL_FIT_MIN_RADIUS || r.radius > MAG_CAL_FIT_MAX_RADIUS) {
+		return 0;
+	}
+	if (r.axisRatio > MAG_CAL_MAX_RADIUS_RATIO || r.spread > MAG_CAL_MAX_SPREAD) {
+		return 0;
+	}
 	for (int a = 0; a < 3; a++) {
-		bias[a] = 0.5f * (mx[a] + mn[a]);
-		half[a] = 0.5f * (mx[a] - mn[a]);
-	}
-	float avg = (half[0] + half[1] + half[2]) / 3.0f;
-	float scale[3];
-	for (int a = 0; a < 3; a++) {
-		scale[a] = (half[a] > 0.0f) ? avg / half[a] : 1.0f;
-	}
-	/* ---- Refinement: least-squares ellipsoid, if it looks sane ----------- */
-	float fBias[3];
-	float fRadius[3];
-	double rms;
-	if (magFitSolve(&fit, fBias, fRadius, &rms) && rms <= MAG_CAL_MAX_FIT_RMS) {
-		uint8_t ok = 1;
-		float rMin = fRadius[0], rMax = fRadius[0];
-		for (int a = 0; a < 3; a++) {
-			if (fRadius[a] < MAG_CAL_FIT_MIN_RADIUS || fRadius[a] > MAG_CAL_FIT_MAX_RADIUS) {
-				ok = 0;
-			}
-			if (fabsf(fBias[a] - bias[a]) > MAG_CAL_MAX_FIT_SHIFT_UT) {
-				ok = 0;
-			}
-			if (fRadius[a] < rMin)
-				rMin = fRadius[a];
-			if (fRadius[a] > rMax)
-				rMax = fRadius[a];
-		}
-		if (rMax / rMin > MAG_CAL_MAX_RADIUS_RATIO) {
-			ok = 0;
-		}
-		if (ok) {
-			float fAvg = (fRadius[0] + fRadius[1] + fRadius[2]) / 3.0f;
-			for (int a = 0; a < 3; a++) {
-				bias[a] = fBias[a];
-				scale[a] = fAvg / fRadius[a];
-			}
+		float mid = 0.5f * (e->mx[a] + e->mn[a]);
+		if (fabsf(r.b[a] - mid) > MAG_CAL_MAX_FIT_SHIFT_UT) {
+			return 0;
 		}
 	}
-	deviceAttitudeData.biasMx = bias[0];
-	deviceAttitudeData.biasMy = bias[1];
-	deviceAttitudeData.biasMz = bias[2];
-	deviceAttitudeData.scaleMx = scale[0];
-	deviceAttitudeData.scaleMy = scale[1];
-	deviceAttitudeData.scaleMz = scale[2];
+	magCalResult = r; /* diagnostics only: radius / spread / axisRatio / binsFilled */
+	publishToAttitude(&r);
 	return 1;
-}
-
-
-uint8_t doMagCalibrationV0() {
-	deviceMagReadOffset();
-	// Determining magnetometer bias , Move the device in 8 pattern
-	int32_t mag_max[3] = { -2147483648, -2147483648, -2147483648 };
-	int32_t mag_min[3] = { 2147483647, 2147483647, 2147483647 };
-	for (int indx = 0; indx < SENSOR_MAG_CALIB_SAMPLE_COUNT; indx++) {
-		// Read the mag data
-		deviceMagRead();
-		delayMs(2);
-		deviceMagLoadData();
-		// Check X
-		if (deviceAttitudeData.rawMx > mag_max[0])
-			mag_max[0] = deviceAttitudeData.rawMx;
-		if (deviceAttitudeData.rawMx < mag_min[0])
-			mag_min[0] = deviceAttitudeData.rawMx;
-
-		// Check Y
-		if (deviceAttitudeData.rawMy > mag_max[1])
-			mag_max[1] = deviceAttitudeData.rawMy;
-		if (deviceAttitudeData.rawMy < mag_min[1])
-			mag_min[1] = deviceAttitudeData.rawMy;
-
-		// Check Z
-		if (deviceAttitudeData.rawMz > mag_max[2])
-			mag_max[2] = deviceAttitudeData.rawMz;
-		if (deviceAttitudeData.rawMz < mag_min[2])
-			mag_min[2] = deviceAttitudeData.rawMz;
-
-		delayMs(SENSOR_MAG_CALIB_SAMPLE_DELAY);
-	}
-
-	// Get hard iron correction , Bias
-	deviceAttitudeData.biasMx = ((float) (mag_max[0] + mag_min[0]) / 2.0f) * deviceAttitudeData.magSensitivity;
-	deviceAttitudeData.biasMy = ((float) (mag_max[1] + mag_min[1]) / 2.0f) * deviceAttitudeData.magSensitivity;
-	deviceAttitudeData.biasMz = ((float) (mag_max[2] + mag_min[2]) / 2.0f) * deviceAttitudeData.magSensitivity;
-
-	// Get soft iron correction estimate
-	deviceAttitudeData.scaleMx = (float) (mag_max[0] - mag_min[0]) / 2.0f; // get average x axis max chord length in counts
-	deviceAttitudeData.scaleMy = (float) (mag_max[1] - mag_min[1]) / 2.0f; // get average y axis max chord length in counts
-	deviceAttitudeData.scaleMz = (float) (mag_max[2] - mag_min[2]) / 2.0f; // get average z axis max chord length in counts
-	float avg_rad = (deviceAttitudeData.scaleMx + deviceAttitudeData.scaleMy + deviceAttitudeData.scaleMz) / 3.0f;
-
-	if (deviceAttitudeData.scaleMx != 0) {
-		deviceAttitudeData.scaleMx = avg_rad / deviceAttitudeData.scaleMx;
-	} else {
-		deviceAttitudeData.scaleMx = 1.0f;
-	}
-
-	if (deviceAttitudeData.scaleMy != 0) {
-		deviceAttitudeData.scaleMy = avg_rad / deviceAttitudeData.scaleMy;
-	} else {
-		deviceAttitudeData.scaleMy = 1.0f;
-	}
-
-	if (deviceAttitudeData.scaleMz != 0) {
-		deviceAttitudeData.scaleMz = avg_rad / deviceAttitudeData.scaleMz;
-	} else {
-		deviceAttitudeData.scaleMz = 1.0f;
-	}
-   return 1;
 }

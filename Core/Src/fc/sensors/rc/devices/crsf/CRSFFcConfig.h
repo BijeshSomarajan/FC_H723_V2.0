@@ -6,7 +6,11 @@
 void manageCRSFFcConfigFrame(const uint8_t *payload);
 #define CRSF_FC_CONFIG_FRAME_TYPE  0x7D
 
-typedef void (*CRSFFcConfigCallBack)(uint8_t fcConfigCommandType,uint8_t fcConfigCommand);
+#define CRSF_FC_CONFIG_SEND_N_REPEATS 2
+#define CRSF_FC_CONFIG_SEND_REPEAT_DELAY_MS 100
+
+typedef void (*CRSFFcConfigCallBack)(const uint8_t *payload);
 void registerCRSFFcConfigCallBack(CRSFFcConfigCallBack callback);
+void sendCRSFConfigData(const int32_t *payload, uint8_t payloadLength,uint8_t cmd , uint8_t subCmd);
 
 #endif

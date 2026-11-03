@@ -16,7 +16,7 @@
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "../altitude/helpers/AltitudeCommandHelper.h"
-#include "../config/ConfigHelper.h"
+#include "../config/ConfigHelperMobileApp.h"
 #include "../mission/MissionManager.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
@@ -258,14 +258,8 @@ void prepareFCStatus() {
 	fcStatusBuf[7] = '0' + (tmOpSeq % 10);
 	fcStatusBuf[8] = tmOpChar;
 
-	//The calibration status
-	if (fcStatusData.calibrationStatus == CALIB_STATUS_NONE) {
-		fcStatusBuf[9] = '-';
-	} else {
-		fcStatusBuf[9] = '0' + fcStatusData.calibrationStatus;
-	}
 	//[9..12] spare, new fields go here and the NUL moves out
-	fcStatusBuf[10] = '\0';
+	fcStatusBuf[9] = '\0';
 }
 
 void prepareGNSSData(void) {

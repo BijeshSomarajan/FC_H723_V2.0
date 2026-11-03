@@ -177,15 +177,21 @@ void deviceMagApplyOrientationForImu(uint16_t orientationAngle) {
 }
 
 void deviceMagApplyOffsetCorrection(void) {
-	// Apply the bias if already set
-	deviceAttitudeData.mx -= deviceAttitudeData.biasMx;
-	deviceAttitudeData.my -= deviceAttitudeData.biasMy;
-	deviceAttitudeData.mz -= deviceAttitudeData.biasMz;
-
-	// Apply the scales for each axis
-	deviceAttitudeData.mx *= deviceAttitudeData.scaleMx;
-	deviceAttitudeData.my *= deviceAttitudeData.scaleMy;
-	deviceAttitudeData.mz *= deviceAttitudeData.scaleMz;
+	// Hard iron: remove the bias
+	float dx = deviceAttitudeData.mx - deviceAttitudeData.biasMx;
+	float dy = deviceAttitudeData.my - deviceAttitudeData.biasMy;
+	float dz = deviceAttitudeData.mz - deviceAttitudeData.biasMz;
+	// Soft iron: m = A * d. An all-zero matrix means "never calibrated", so only the bias is applied.
+	const float (*A)[3] = deviceAttitudeData.softIronM;
+	if (A[0][0] == 0.0f && A[1][1] == 0.0f && A[2][2] == 0.0f) {
+		deviceAttitudeData.mx = dx;
+		deviceAttitudeData.my = dy;
+		deviceAttitudeData.mz = dz;
+		return;
+	}
+	deviceAttitudeData.mx = A[0][0] * dx + A[0][1] * dy + A[0][2] * dz;
+	deviceAttitudeData.my = A[1][0] * dx + A[1][1] * dy + A[1][2] * dz;
+	deviceAttitudeData.mz = A[2][0] * dx + A[2][1] * dy + A[2][2] * dz;
 }
 
 void deviceMagApplyDataScaling(void) {

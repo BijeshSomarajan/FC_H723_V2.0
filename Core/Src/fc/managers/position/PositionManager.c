@@ -74,14 +74,10 @@ uint8_t initPositionManager(void) {
 		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY, POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
 
 		positionMgrBrakeDecel = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_BRAKE_DECEL_ADDR));
-		if (positionMgrBrakeDecel > POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX) {
-			positionMgrBrakeDecel = POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX;
-		}
+		positionMgrBrakeDecel = constrainToRangeF(positionMgrBrakeDecel, POSITION_MGR_POS_HOLD_BRAKE_DECEL_MIN, POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX);
 
 		positionCruiseSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR));
-		if (positionCruiseSpeed > POSITION_MGR_CRUISE_SPEED_MAX) {
-			positionCruiseSpeed = POSITION_MGR_CRUISE_SPEED_MIN;
-		}
+		positionCruiseSpeed = constrainToRangeF(positionCruiseSpeed, POSITION_MGR_CRUISE_SPEED_MIN, POSITION_MGR_CRUISE_SPEED_MAX);
 
 	} else {
 		logString("[Position Manager] EKF Init > Failed\n");
@@ -278,7 +274,7 @@ void updatePositionCordinateCommand(float dt) {
 
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
-	if (!fcStatusData.hasCrashed) {
+	if (!fcStatusData.isConfigMode && !fcStatusData.hasCrashed) {
 		float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
 		dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
 
@@ -363,7 +359,7 @@ void loadAndProcessGNSSData() {
 
 __ATTR_ITCM_TEXT
 void doPositionManagement() {
-	if (fcStatusData.hasCrashed) {
+	if (fcStatusData.isConfigMode || fcStatusData.hasCrashed) {
 		resetPositionManager(0);
 	} else if (fcStatusData.canStabilize && !positionManagerWasInStabMode) {
 		resetPositionManager(0);

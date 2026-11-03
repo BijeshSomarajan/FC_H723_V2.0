@@ -33,42 +33,16 @@ struct _DEVICE_ATTITUDE_DATA {
 	uint8_t bufferAccTx[4];
 	uint8_t bufferGyroTx[4];
 	uint8_t bufferMagTx[4];
-	uint8_t bufferTempTx[4];
 
 	uint8_t bufferAGTRx[14];
 	uint8_t bufferAccRx[6];
 	uint8_t bufferGyroRx[6];
-	uint8_t bufferTempRx[2];
 	uint8_t bufferMagRx[10];
 
 	//Accelerometer , Gyroscope and Magnetometer Full Scale
 	int16_t gyroFullScale, accFullScale, magFullScale;
 	float maxG;
 	float maxDS;
-
-	//Temperature
-	int16_t rawTemp;
-
-	//Temperature in Celcius
-	float tempC;
-
-	//Temperature offsets and coefficients
-	float offsetTemp;
-	double gyroXTempCoeff[4];
-	double gyroYTempCoeff[4];
-	double gyroZTempCoeff[4];
-
-	double accXTempCoeff[4];
-	double accYTempCoeff[4];
-	double accZTempCoeff[4];
-
-	volatile float accXTempOffset;
-	volatile float accYTempOffset;
-	volatile float accZTempOffset;
-
-	float gyroXTempOffset;
-	float gyroYTempOffset;
-	float gyroZTempOffset;
 
 	//Accelerometer , Gyroscope and Magnetometer sensitivity
 	float gyroSensitivity, accSensitivity, magSensitivity, tempSensitivity;
@@ -81,7 +55,7 @@ struct _DEVICE_ATTITUDE_DATA {
 	int16_t offsetAx, offsetAy, offsetAz, offsetGx, offsetGy, offsetGz;
 
 	//Magnetometer factory offset , env bias and scale
-	float offsetMx, offsetMy, offsetMz, biasMx, biasMy, biasMz, scaleMx, scaleMy, scaleMz;
+	float biasMx, biasMy, biasMz,softIronM[3][3];
 
 	//Accelerometer , Gyroscope and Magnetometer Scaled measurements
 	float axG, ayG, azG, gxDS, gyDS, gzDS, mx, my, mz;
@@ -92,7 +66,7 @@ extern DEVICE_ATTITUDE_DATA deviceAttitudeData;
 uint8_t deviceAGInit(void);
 uint8_t deviceMAGInit(void);
 
-uint8_t deviceAccGyroTempRead(void);
+uint8_t deviceAccAndGyroRead(void);
 uint8_t deviceAccGyroTempLoadData(void);
 uint8_t deviceAccRead(void);
 uint8_t deviceGyroRead(void);
