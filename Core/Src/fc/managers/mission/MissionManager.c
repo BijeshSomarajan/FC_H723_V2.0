@@ -115,16 +115,19 @@ uint8_t checkOperation(float dt) {
 	switch (currentMissionOperationData->operation) {
 	case MISSION_OPERATION_TAKEOFF:
 		if (isAltCommandComplete() || isAltCommandSkipped()) {
+			fcStatusData.isTakeOffModeActive = 0;
 			complete = 1;
 		}
 		break;
 	case MISSION_OPERATION_LAND:
 		if (isAltCommandComplete() || isAltCommandSkipped()) {
+			fcStatusData.isLandingModeActive = 0;
 			complete = 1;
 		}
 		break;
 	case MISSION_OPERATION_SET_ALT:
 		if (isAltCommandComplete() || isAltCommandSkipped()) {
+			fcStatusData.isAltChangeModeActive = 0;
 			complete = 1;
 		}
 		break;

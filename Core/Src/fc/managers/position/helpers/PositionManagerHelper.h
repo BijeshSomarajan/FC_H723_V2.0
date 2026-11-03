@@ -16,7 +16,7 @@
 #define POSITION_GNSS_TRUST_THRESHOLD           2.0f    // Cross this boundary to change states
 
 //Terrain quality gates
-#define POSITION_TERRAIN_ALT_QUAL_MIN 0.02f
+#define POSITION_TERRAIN_ALT_QUAL_MIN     0.02f
 #define POSITION_TERRAIN_ALT_DIST_MIN     0.01f
 #define POSITION_TERRAIN_ALT_DIST_MAX     12.0f
 #define POSITION_TERRAIN_ALT_STABILITY_INVALID_GAIN    1.1f    // Decay rate multiplier for bad data

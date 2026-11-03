@@ -233,9 +233,9 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 #if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
 	venturiBias = getVenturiBiasEstimate(dt, getGroundSpeed());
 #endif
-
-	float dynamicRPSL = getEstimatedZRPSL(&positionEkf, zPos, motionScale);
-	positionEKFMeasurementUpdate(&positionEkf,POS_EKF_Z_AXIS, offset + zPos - venturiBias, dynamicRPSL, H_BARO_WITH_BIAS);
+	float baroMeas = offset + zPos - venturiBias;
+	float dynamicRPSL = getEstimatedZRPSL(&positionEkf, baroMeas, motionScale);
+	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, baroMeas, dynamicRPSL, H_BARO_WITH_BIAS);
 }
 
 __ATTR_ITCM_TEXT
