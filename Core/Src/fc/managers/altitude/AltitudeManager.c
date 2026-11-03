@@ -343,6 +343,18 @@ void manageAltitude(float dt) {
 	updateHoverThrottleEstimate(dt);
 
 	if (!rcData.throttleCentered || isAltCommandThrottleUpdateRequired()) {
+
+		//Reset automatic operations if stick is touched
+		if(!rcData.throttleCentered){
+			fcStatusData.isTakeOffModeActive = 0;
+			fcStatusData.isLandingModeActive = 0;
+			fcStatusData.isAltChangeModeActive = 0;
+			resetAltCommandStates();
+			if(isMissionModeActive()){
+				skipAltCommand();
+			}
+		}
+
 		fcStatusData.currentThrottle = altMgrThrottleControlLPF.output;
 		altMgrPreviousThrottle = fcStatusData.currentThrottle;
 

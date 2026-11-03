@@ -45,7 +45,7 @@ extern VENTURI_ESTIMATE_DATA venturiEstimateData;
 #define VENTURI_EST_SPEED_MIN                   0.1f
 /* Output clamp [m]. Safety ceiling on claimed baro error. Raise only with
  * high-speed data showing the artifact exceeds it, never to fix a dip. */
-#define VENTURI_EST_BIAS_VALUE_MAX              1.0f
+#define VENTURI_EST_BIAS_VALUE_MAX              2.0f
 /* bias[m] = speed^2 * GAIN. The calibrated core.
  * Measured: 0.32 m artifact at 3.6 m/s model speed -> 0.025.
  * Dips at stops -> too high. Rises at stops -> too low.
