@@ -225,11 +225,11 @@ void debugTask() {
 	//debugBattery();
 	//debugRC();
 	//debugModel();
-	debugIMU();
+	//debugIMU();
 	//debufFCStatus();
 	//debugALt();
 	//debugAltStr();
-	//debugAltGraph();
+	debugAltGraph();
 	//debugGnssData();
 	//debugIMUStr();
 	//debufFFT();

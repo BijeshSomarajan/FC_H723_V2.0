@@ -20,6 +20,8 @@
 #define CFG_N_STICK_GAIN     3
 #define CFG_N_DEVICE         3
 #define CFG_N_MISC           8
+#define CFG_N_EST_PROCESS    5
+#define CFG_N_EST_MEASUREMENT 7
 #define CFG_MAX_VALUES       13   /* size of ConfigDataPacket.data[] */
 
 uint8_t getConfigValueCount(uint8_t subCmd) {
@@ -48,6 +50,10 @@ uint8_t getConfigValueCount(uint8_t subCmd) {
 		return CFG_N_DEVICE;
 	case SUB_CMD_MISC:
 		return CFG_N_MISC;
+	case SUB_CMD_EST_PROCESS:
+		return CFG_N_EST_PROCESS;
+	case SUB_CMD_EST_MEASUREMENT:
+		return CFG_N_EST_MEASUREMENT;
 	default:
 		return 0;
 	}
@@ -171,6 +177,24 @@ void mergeConfigDataFromMobileApp(int32_t *data, ConfigDataPacket *pkt) {
 		data[CALIB_PROP_VENTURI_FALL_TAU_ADDR] = v[7];
 		break;
 	}
+	case SUB_CMD_EST_PROCESS: {
+		data[CALIB_PROP_EST_XY_Q_POS_ADDR] = v[0];
+		data[CALIB_PROP_EST_XY_Q_VEL_ADDR] = v[1];
+		data[CALIB_PROP_EST_Z_Q_POS_ADDR] = v[2];
+		data[CALIB_PROP_EST_Z_Q_VEL_ADDR] = v[3];
+		data[CALIB_PROP_EST_DYNAMIC_Q_ENABLED_ADDR] = v[4];
+		break;
+	}
+	case SUB_CMD_EST_MEASUREMENT: {
+		data[CALIB_PROP_EST_Z_GNSS_RP_BASE_ADDR] = v[0];
+		data[CALIB_PROP_EST_Z_GNSS_RV_BASE] = v[1];
+		data[CALIB_PROP_EST_Z_TERRAIN_RP_BASE] = v[2];
+		data[CALIB_PROP_EST_Z_BARO_RP_BASE_ADDR] = v[3];
+		data[CALIB_PROP_EST_Z_BARO_RP_GAIN_ADDR] = v[4];
+		data[CALIB_PROP_EST_Z_BARO_DYNAMIC_R_ENABLED_ADDR] = v[5];
+		data[CALIB_PROP_EST_Z_BARO_CRUISE_ADAPT_ENABLED_ADDR] = v[6];
+		break;
+	}
 	default: {
 		break;
 	}
@@ -243,6 +267,17 @@ void sendConfigDataToMobileApp(int32_t *data, int32_t length, int32_t cmd, int32
 		sendCRSFConfigData(values, CFG_N_MISC, cmd, subCmd);
 		break;
 	}
+	case SUB_CMD_EST_PROCESS: {
+		int32_t values[CFG_N_EST_PROCESS] = { data[CALIB_PROP_EST_XY_Q_POS_ADDR], data[CALIB_PROP_EST_XY_Q_VEL_ADDR], data[CALIB_PROP_EST_Z_Q_POS_ADDR], data[CALIB_PROP_EST_Z_Q_VEL_ADDR], data[CALIB_PROP_EST_DYNAMIC_Q_ENABLED_ADDR] };
+		sendCRSFConfigData(values, CFG_N_EST_PROCESS, cmd, subCmd);
+		break;
+	}
+	case SUB_CMD_EST_MEASUREMENT: {
+		int32_t values[CFG_N_EST_MEASUREMENT] = { data[CALIB_PROP_EST_Z_GNSS_RP_BASE_ADDR], data[CALIB_PROP_EST_Z_GNSS_RV_BASE], data[CALIB_PROP_EST_Z_TERRAIN_RP_BASE], data[CALIB_PROP_EST_Z_BARO_RP_BASE_ADDR], data[CALIB_PROP_EST_Z_BARO_RP_GAIN_ADDR],
+				data[CALIB_PROP_EST_Z_BARO_DYNAMIC_R_ENABLED_ADDR], data[CALIB_PROP_EST_Z_BARO_CRUISE_ADAPT_ENABLED_ADDR] };
+		sendCRSFConfigData(values, CFG_N_EST_MEASUREMENT, cmd, subCmd);
+		break;
+	}
 	default:
 		break;
 	}
@@ -309,4 +344,3 @@ uint8_t initConfigHelperMobileApp() {
 	logString("[Config Helper Mobile App] : FCConfig Callback Registered, Success!\n");
 	return 1;
 }
-

@@ -1,12 +1,15 @@
 #include "PositionEstimatorHelper.h"
 
 #include <math.h>
+#include <stdio.h>
 #include <sys/_stdint.h>
 
 #include "../../../imu/IMU.h"
 #include "../../../memory/Memory.h"
 #include "../../../status/FCStatus.h"
 #include "../../../util/MathUtil.h"
+#include "../../../calibration/Calibration.h"
+#include "../../../logger/Logger.h"
 #include "../common/PositionCommon.h"
 #include "../helpers/PositionManagerHelper.h"
 #include "PositionEstimatorConfig.h"
@@ -22,6 +25,53 @@ const float H_V_GNSS[4] = { 0.0f, 1.0f, 0.0f, 0.0f };
 float positionEstPrevRPSL = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX;
 float positionEstCruiseScale = 0.0f;
 float positionEstAccelerationScaleFilt = 0.0f;
+
+/* ---- Runtime configuration (calibration slots 48..54) ----------------------
+ * Starts at the compile-time defaults; positionEstimatorLoadConfig() replaces
+ * them with the stored values. Used by the dynamic-R estimators below. */
+float cfgZGnssRpBase = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE_DEFAULT;
+float cfgZGnssRvBase = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_DEFAULT;
+float cfgTerrainRpBase = POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE_DEFAULT;
+float cfgBaroRpBase = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE_DEFAULT;
+float cfgBaroRpGain = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN_DEFAULT;
+uint8_t cfgBaroDynamicR = POS_ESTIMATOR_Z_BARO_ENABLE_DYNAMIC_R_DEFAULT;
+uint8_t cfgCruiseAdapt = POS_ESTIMATOR_Z_BARO_ENABLE_CRUISE_ADAPT_DEFAULT;
+
+void positionEKFLoadConfig(POSITION_EKF *ekf);
+
+/* A variance base must be positive and must not exceed its own ceiling
+ * (the estimators clamp between base and ceiling); otherwise use the default. */
+float loadBase(float stored, float fallback, float ceiling) {
+	return (stored > 0.0f && stored <= ceiling) ? stored : fallback;
+}
+
+void logConfigValues() {
+	char buf[200];
+	snprintf(buf, sizeof(buf), "[PosEst-Helper] GNSS-Z RP=%f RV=%f, Terrain RP=%f, Baro RP=%f gain=%f, dynamicREn=%d , cruiseAdaptEn=%d\n", cfgZGnssRpBase, cfgZGnssRvBase, cfgTerrainRpBase, cfgBaroRpBase, cfgBaroRpGain, cfgBaroDynamicR, cfgCruiseAdapt);
+	logString(buf);
+}
+
+void initPosEstimationHelper(void) {
+	positionEKFLoadConfig(&positionEkf);
+
+	cfgZGnssRpBase = loadBase((float) getCalibrationValue(CALIB_PROP_EST_Z_GNSS_RP_BASE_ADDR), POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE_DEFAULT, POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MAX);
+	cfgZGnssRvBase = loadBase((float) getCalibrationValue(CALIB_PROP_EST_Z_GNSS_RV_BASE), POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_DEFAULT, POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX);
+	cfgTerrainRpBase = loadBase(get1KXScaledCalibrationValue(CALIB_PROP_EST_Z_TERRAIN_RP_BASE), POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE_DEFAULT, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX);
+	cfgBaroRpBase = loadBase((float) getCalibrationValue(CALIB_PROP_EST_Z_BARO_RP_BASE_ADDR), POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE_DEFAULT, POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX);
+	float gain = (float) getCalibrationValue(CALIB_PROP_EST_Z_BARO_RP_GAIN_ADDR);
+	cfgBaroRpGain = (gain >= 0.0f) ? gain : POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN_DEFAULT;
+	cfgBaroDynamicR = (getCalibrationValue(CALIB_PROP_EST_Z_BARO_DYNAMIC_R_ENABLED_ADDR) != 0) ? 1 : 0;
+	cfgCruiseAdapt = (getCalibrationValue(CALIB_PROP_EST_Z_BARO_CRUISE_ADAPT_ENABLED_ADDR) != 0) ? 1 : 0;
+
+	/* A function switched off must not leave stale filter state behind */
+	if (!cfgBaroDynamicR) {
+		positionEstAccelerationScaleFilt = 0.0f;
+	}
+	if (!cfgCruiseAdapt) {
+		positionEstCruiseScale = 0.0f;
+	}
+	logConfigValues();
+}
 
 /*--------------------------------------- Utilities and inner functions ----------------------------------------------------*/
 
@@ -53,14 +103,12 @@ float getGroundSpeed(void) {
 	}
 }
 
-#if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
 __ATTR_ITCM_TEXT
 void calculateCruiseScale(float dt) {
 	float target = constrainToRangeF((getGroundSpeed() - POS_ESTIMATOR_Z_CRUISE_SPEED_LO) / (POS_ESTIMATOR_Z_CRUISE_SPEED_HI - POS_ESTIMATOR_Z_CRUISE_SPEED_LO), 0.0f, 1.0f);
 	float tau = (target > positionEstCruiseScale) ? POS_ESTIMATOR_Z_CRUISE_TAU_RISE : POS_ESTIMATOR_Z_CRUISE_TAU_FALL;
 	positionEstCruiseScale += (dt / (tau + dt)) * (target - positionEstCruiseScale);
 }
-#endif
 
 __ATTR_ITCM_TEXT
 float getCruiseScale(void) {
@@ -89,7 +137,7 @@ float getEstimatedZRPGNSS(float vAcc) {
 	if (vAcc < POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_MIN) {
 		vAcc = POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_MIN;
 	}
-	float dynamicRp = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE + (POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_SCALE * (vAcc * vAcc));
+	float dynamicRp = cfgZGnssRpBase + (POS_ESTIMATOR_DYNAMIC_Z_GNSS_VACC_SCALE * (vAcc * vAcc));
 	if (dynamicRp > POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MAX) {
 		dynamicRp = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MAX;
 	}
@@ -115,20 +163,20 @@ float getEstimatedZRPSL(POSITION_EKF *ekf, float zMeas, float motionScale) {
 		Pzz = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_EPS;
 	}
 
-	float denom = Pzz + POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE + POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_SCALE_EPS;
+	float denom = Pzz + cfgBaroRpBase + POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_SCALE_EPS;
 	if (denom < 1e-3f) {
 		denom = 1e-3f;
 	}
 
 	float scale = 1.0f / denom;
-	float residualTerm = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN * residual * residual * scale;
+	float residualTerm = cfgBaroRpGain * residual * residual * scale;
 
 	/* ==============================================================
 	 * Dynamic R estimation (using injected motionScale)
 	 * ============================================================== */
-	float baseDynamicR = POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE + residualTerm;
+	float baseDynamicR = cfgBaroRpBase + residualTerm;
 	float targetDynamicR = baseDynamicR + (motionScale * (POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX - baseDynamicR));
-	targetDynamicR = constrainToRangeF(targetDynamicR, POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX);
+	targetDynamicR = constrainToRangeF(targetDynamicR, cfgBaroRpBase, POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX);
 
 	/* ==============================================================
 	 * LPF smoothing
@@ -164,8 +212,8 @@ float getEstimatedTerrainRP(float distance, float quality, float minDistance, fl
 	 * Conservative: trust the worse of the two
 	 *---------------------------------------------------------*/
 	float scale = fmaxf(distScale, qualityScale);
-	float R = POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE + scale * (POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX - POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE);
-	return constrainToRangeF(R, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX);
+	float R = cfgTerrainRpBase + scale * (POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX - cfgTerrainRpBase);
+	return constrainToRangeF(R, cfgTerrainRpBase, POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX);
 }
 
 __ATTR_ITCM_TEXT
@@ -173,7 +221,7 @@ float getEstimatedZRV(float sAcc, float cruiseScale) {
 	if (sAcc < POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN) {
 		sAcc = POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_MIN;
 	}
-	float dynamicRv = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE + (POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE * (sAcc * sAcc));
+	float dynamicRv = cfgZGnssRvBase + (POS_ESTIMATOR_DYNAMIC_Z_GNSS_SACC_SCALE * (sAcc * sAcc));
 	if (dynamicRv > POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX) {
 		dynamicRv = POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX;
 	}
@@ -213,20 +261,20 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 	float motionScale = 0.0f;
 	float venturiBias = 0.0f;
 
-#if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
-	/* Clamp before filtering so the filter state can never wind up above 1 */
-	float accelerationScale = constrainToRangeF(calculateMotionScale(positionCordinateData.xAcceleration, positionCordinateData.yAcceleration), 0.0f, 1.0f);
-	/* Asymmetric low-pass: react quickly to rising motion, relax slowly */
-	float tau = (accelerationScale > positionEstAccelerationScaleFilt) ? POS_ESTIMATOR_MOTION_SCALE_TAU_RISE : POS_ESTIMATOR_MOTION_SCALE_TAU_FALL;
-	positionEstAccelerationScaleFilt += (dt / (tau + dt)) * (accelerationScale - positionEstAccelerationScaleFilt);
-	motionScale = positionEstAccelerationScaleFilt;
-#endif
+	if (cfgBaroDynamicR) {
+		/* Clamp before filtering so the filter state can never wind up above 1 */
+		float accelerationScale = constrainToRangeF(calculateMotionScale(positionCordinateData.xAcceleration, positionCordinateData.yAcceleration), 0.0f, 1.0f);
+		/* Asymmetric low-pass: react quickly to rising motion, relax slowly */
+		float tau = (accelerationScale > positionEstAccelerationScaleFilt) ? POS_ESTIMATOR_MOTION_SCALE_TAU_RISE : POS_ESTIMATOR_MOTION_SCALE_TAU_FALL;
+		positionEstAccelerationScaleFilt += (dt / (tau + dt)) * (accelerationScale - positionEstAccelerationScaleFilt);
+		motionScale = positionEstAccelerationScaleFilt;
+	}
 
-#if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
-	/* Cruise scale has its own dynamics, so combine after the filter (max, not sum) */
-	calculateCruiseScale(dt);
-	motionScale = fmaxf(motionScale, getCruiseScale());
-#endif
+	if (cfgCruiseAdapt) {
+		/* Cruise scale has its own dynamics, so combine after the filter (max, not sum) */
+		calculateCruiseScale(dt);
+		motionScale = fmaxf(motionScale, getCruiseScale());
+	}
 
 	motionScale = constrainToRangeF(motionScale, 0.0f, 1.0f);
 

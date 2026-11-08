@@ -7,6 +7,7 @@ float CONFIG_SCALE_10  = 10.0f;
 float CONFIG_SCALE_100 = 100.0f;
 float CONFIG_SCALE_1K  = 1000.0f;
 float CONFIG_SCALE_10K = 10000.0f;
+float CONFIG_SCALE_100K = 100000.0f;
 
 int32_t CALIB_DATA[CALIB_PROP_LENGTH];
 
@@ -60,6 +61,14 @@ void set10KXScaledCalibrationValue(uint8_t calidationIndex, float value) {
 
 float get10KXScaledCalibrationValue(uint8_t calidationIndex) {
 	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_10K;
+}
+
+void set100KXScaledCalibrationValue(uint8_t calidationIndex, float value) {
+	CALIB_DATA[calidationIndex] = (int32_t) (value * CONFIG_SCALE_100K);
+}
+
+float get100KXScaledCalibrationValue(uint8_t calidationIndex) {
+	return ((float) CALIB_DATA[calidationIndex]) / CONFIG_SCALE_100K;
 }
 
 /************************************************************************/

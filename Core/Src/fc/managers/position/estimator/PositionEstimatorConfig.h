@@ -134,8 +134,8 @@
  * Keep relatively small; most horizontal uncertainty is represented through
  * velocity and acceleration-bias states.
  */
-#define POS_EKF_X_Q_POS                    0.00005f * 1.2f
-#define POS_EKF_Y_Q_POS                    0.00005f * 1.2f
+#define POS_EKF_X_Q_POS_DEFAULT                    (0.00005f * 1.2f)
+#define POS_EKF_Y_Q_POS_DEFAULT                    (0.00005f * 1.2f)
 
 /* Velocity process noise, (m/s)^2 per 1 ms prediction step.
  *
@@ -146,8 +146,8 @@
  *
  * Tune together with GNSS SACC_MIN and GNSS delay compensation.
  */
-#define POS_EKF_X_Q_VEL                    0.005f * 1.2f
-#define POS_EKF_Y_Q_VEL                    0.005f * 1.2f
+#define POS_EKF_X_Q_VEL_DEFAULT                    (0.005f * 1.2f)
+#define POS_EKF_Y_Q_VEL_DEFAULT                    (0.005f * 1.2f)
 
 /* Acceleration-bias process noise, (m/s^2)^2 per 1 ms prediction step.
  *
@@ -198,14 +198,14 @@
  * Controls growth of vertical position uncertainty during prediction.
  * It does not directly define an altitude response time.
  */
-#define POS_EKF_Z_Q_POS                    0.0005f// * 0.1f
+#define POS_EKF_Z_Q_POS_DEFAULT                    0.0005f// * 0.1f
 
 /* Z velocity process noise, (m/s)^2 per 1 ms prediction step.
  *
  * Allows vertical-velocity uncertainty to grow so measurements can correct
  * accumulated acceleration error.
  */
-#define POS_EKF_Z_Q_VEL                    0.0005f// * 0.1f
+#define POS_EKF_Z_Q_VEL_DEFAULT                    0.0005f// * 0.1f
 
 /* Z acceleration-bias process noise, (m/s^2)^2 per 1 ms prediction step.
  *
@@ -250,9 +250,9 @@
  *
  * The thresholds use linear acceleration after gravity removal.
  */
-#define POS_EKF_DYNAMIC_Q_ENABLED          1
+#define POS_EKF_DYNAMIC_Q_ENABLED_DEFAULT          1
 
-#if POS_EKF_DYNAMIC_Q_ENABLED == 1
+/* The constants below are always defined: dynamic Q is switched at runtime from calibration. */
 
 /* XY linear-acceleration threshold, m/s^2.
  *
@@ -286,8 +286,6 @@
 #define POS_EKF_Q_POS_STRESS_GAIN          1.0f
 #define POS_EKF_Q_VEL_STRESS_GAIN          2.5f
 #define POS_EKF_Q_BIAS_STRESS_GAIN         0.0f
-
-#endif
 
 /* Covariance multiplier applied during panic recovery.
  *
@@ -407,7 +405,7 @@
  *
  * This is intentionally extremely weak for normal altitude estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE           50000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_BASE_DEFAULT           50000.0f
 
 /* Maximum dynamically calculated GNSS-Z position variance, m^2.
  *
@@ -424,7 +422,7 @@
  * Deliberately extremely weak because GNSS vertical velocity is much less
  * useful here than horizontal GNSS velocity.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE            2500.0f //6000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_BASE_DEFAULT            2500.0f //6000.0f
 
 /* Maximum dynamically calculated GNSS-Z velocity variance, (m/s)^2.
  *
@@ -466,7 +464,7 @@
  *
  * Dynamic scaling de-weights the rangefinder as distance/quality degrades.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE        0.01f
+#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE_DEFAULT        0.01f
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX         10.0f
 
 /* ---- Dynamic baro R ------------------------------------------------------- *
@@ -490,7 +488,7 @@
  * Higher -> smoother/more inertial altitude estimate, but greater reliance on
  *           acceleration and bias estimation.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE           5000.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE_DEFAULT           5000.0f
 
 /* Maximum dynamic barometric position variance, m^2.
  *
@@ -507,7 +505,7 @@
  * primary mechanism controlling baro authority. Its importance increases if
  * RP_BASE is later reduced.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN           100.0f
+#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_GAIN_DEFAULT           100.0f
 
 /* Low-pass coefficient applied to the dynamic baro variance.
  *
@@ -554,15 +552,13 @@
  * Group 9: Cruise-Adaptive Z Estimator Profile
  * ========================================================================== */
 
-#define POSITION_MGR_Z_ENABLE_DYNAMIC_R                1
-#if POSITION_MGR_Z_ENABLE_DYNAMIC_R == 1
+#define POS_ESTIMATOR_Z_BARO_ENABLE_DYNAMIC_R_DEFAULT                1
+/* Constants below are always defined: switched at runtime from calibration. */
 #define POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH  3.0f
 #define POS_ESTIMATOR_MOTION_SCALE_TAU_RISE   0.01f   // fast attack
 #define POS_ESTIMATOR_MOTION_SCALE_TAU_FALL    2.0f    // slow release, 0.7-1.5s typical; set from measured error persistence
-#endif
 
-#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED          1
-#if POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED == 1
+#define POS_ESTIMATOR_Z_BARO_ENABLE_CRUISE_ADAPT_DEFAULT          1
 /* Below this horizontal speed, use the hover-side Z profile. */
 #define POS_ESTIMATOR_Z_CRUISE_SPEED_LO                1.0f   // m/s
 /* Above this horizontal speed, use the full cruise-side Z profile. */
@@ -571,6 +567,5 @@
 #define POS_ESTIMATOR_Z_CRUISE_TAU_RISE                0.3f   // s
 /* Time constant for returning toward the hover profile.*/
 #define POS_ESTIMATOR_Z_CRUISE_TAU_FALL                1.2f   // s
-#endif
 
 #endif

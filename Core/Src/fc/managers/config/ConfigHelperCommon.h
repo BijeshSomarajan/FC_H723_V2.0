@@ -40,6 +40,8 @@
 #define SUB_CMD_STICK_GAIN   10
 #define SUB_CMD_DEVICE   11
 #define SUB_CMD_MISC   12
+#define SUB_CMD_EST_PROCESS   13
+#define SUB_CMD_EST_MEASUREMENT   14
 
 typedef struct _ConfigDataPacket ConfigDataPacket;
 struct _ConfigDataPacket {

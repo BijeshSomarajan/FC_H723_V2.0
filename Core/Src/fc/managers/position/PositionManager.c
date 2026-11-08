@@ -60,6 +60,10 @@ uint8_t initPositionManager(void) {
 	if (status) {
 		logString("[Position Manager] EKF Init > Success\n");
 
+		initPosEstimationHelper();
+
+		logString("[Position Manager] Pos Estimation Helper Init > Success\n");
+
 		lowPassFilterInit(&positionMgrAccXLPF, POSITION_MGR_X_EST_OUTPUT_ACC_LPF_FREQ);
 		lowPassFilterInit(&positionMgrAccYLPF, POSITION_MGR_Y_EST_OUTPUT_ACC_LPF_FREQ);
 		lowPassFilterInit(&positionMgrAccZLPF, POSITION_MGR_Z_EST_OUTPUT_ACC_LPF_FREQ);

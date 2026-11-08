@@ -1,18 +1,77 @@
 #include "../../position/estimator/PositionEstimator.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/_stdint.h>
 
 #include "../../../memory/Memory.h"
 #include "../../../util/MathUtil.h"
+#include "../../../calibration/Calibration.h"
+#include "../../../logger/Logger.h"
 
 POSITION_EKF positionEkf;
+
+/* ---- Runtime configuration (calibration slots 43..47) ----------------------
+ * Start at the compile-time defaults; loadConfigValues() replaces them with the
+ * stored values. Q values are stored x100000 (6 -> 0.00006). */
+static float cfgXQPos = POS_EKF_X_Q_POS_DEFAULT;
+static float cfgYQPos = POS_EKF_Y_Q_POS_DEFAULT;
+static float cfgZQPos = POS_EKF_Z_Q_POS_DEFAULT;
+static float cfgXQVel = POS_EKF_X_Q_VEL_DEFAULT;
+static float cfgYQVel = POS_EKF_Y_Q_VEL_DEFAULT;
+static float cfgZQVel = POS_EKF_Z_Q_VEL_DEFAULT;
+static uint8_t cfgDynamicQEnabled = POS_EKF_DYNAMIC_Q_ENABLED_DEFAULT;
+
+/* A slot that was never set reads 0, so it falls back to the compile-time default. */
+static float loadQ(uint8_t addr, float fallback) {
+	float v = get100KXScaledCalibrationValue(addr);
+	return (v > 0.0f) ? v : fallback;
+}
+
+/* Config values are logged in the app's scaled units (Q x100000), which also avoids needing float printf. */
+
+static void logConfigValues(void) {
+	char buf[256];
+	snprintf(buf, sizeof(buf), "[PosEst] Q pos X=%f Y=%f Z=%f, Q vel X=%f Y=%f Z=%f, dynamicQ=%u\n", cfgXQPos, cfgYQPos, cfgZQPos, cfgXQVel, cfgYQVel, cfgZQVel, cfgDynamicQEnabled);
+	logString(buf);
+}
+
+static void loadConfigValues(void) {
+	cfgXQPos = loadQ(CALIB_PROP_EST_XY_Q_POS_ADDR, POS_EKF_X_Q_POS_DEFAULT);
+	cfgYQPos = loadQ(CALIB_PROP_EST_XY_Q_POS_ADDR, POS_EKF_Y_Q_POS_DEFAULT);
+	cfgZQPos = loadQ(CALIB_PROP_EST_Z_Q_POS_ADDR, POS_EKF_Z_Q_POS_DEFAULT);
+	cfgXQVel = loadQ(CALIB_PROP_EST_XY_Q_VEL_ADDR, POS_EKF_X_Q_VEL_DEFAULT);
+	cfgYQVel = loadQ(CALIB_PROP_EST_XY_Q_VEL_ADDR, POS_EKF_Y_Q_VEL_DEFAULT);
+	cfgZQVel = loadQ(CALIB_PROP_EST_Z_Q_VEL_ADDR, POS_EKF_Z_Q_VEL_DEFAULT);
+	/* Block never saved (XY Q pos slot still 0): keep the compile-time default for the switch too,
+	 * otherwise an unset 0 would silently turn dynamic Q off. */
+	if (getCalibrationValue(CALIB_PROP_EST_XY_Q_POS_ADDR) > 0) {
+		cfgDynamicQEnabled = (getCalibrationValue(CALIB_PROP_EST_DYNAMIC_Q_ENABLED_ADDR) != 0) ? 1 : 0;
+	} else {
+		cfgDynamicQEnabled = POS_EKF_DYNAMIC_Q_ENABLED_DEFAULT;
+	}
+	logConfigValues();
+}
+
+/* Re-reads the configuration and applies the Q values to a running filter
+ * (state and covariance are left untouched). Call after the app saves new values. */
+void positionEKFLoadConfig(POSITION_EKF *ekf) {
+	loadConfigValues();
+	const float q_p[3] = { cfgXQPos, cfgYQPos, cfgZQPos };
+	const float q_v[3] = { cfgXQVel, cfgYQVel, cfgZQVel };
+	for (int axis = 0; axis < POS_EKF_SPACE_DIM; axis++) {
+		const int i = axis * POS_EKF_AXIS_DIM;
+		ekf->Q[i + POS_EKF_STATE_P][i + POS_EKF_STATE_P] = q_p[axis];
+		ekf->Q[i + POS_EKF_STATE_V][i + POS_EKF_STATE_V] = q_v[axis];
+	}
+}
 
 /* --- Initialization --- */
 uint8_t positionEKFInit(POSITION_EKF *ekf) {
 	memset(ekf, 0, sizeof(POSITION_EKF));
-	float q_p[3] = { POS_EKF_X_Q_POS, POS_EKF_Y_Q_POS, POS_EKF_Z_Q_POS };
-	float q_v[3] = { POS_EKF_X_Q_VEL, POS_EKF_Y_Q_VEL, POS_EKF_Z_Q_VEL };
+	loadConfigValues();
+	float q_p[3] = { cfgXQPos, cfgYQPos, cfgZQPos };
+	float q_v[3] = { cfgXQVel, cfgYQVel, cfgZQVel };
 	float q_b[3] = { POS_EKF_X_Q_BIAS, POS_EKF_Y_Q_BIAS, POS_EKF_Z_Q_BIAS };
 	float g_s[3] = { POS_EKF_X_GATE, POS_EKF_Y_GATE, POS_EKF_Z_GATE };
 	uint8_t p_l[3] = { POS_EKF_X_PANIC, POS_EKF_Y_PANIC, POS_EKF_Z_PANIC };
@@ -109,7 +168,6 @@ void positionEKFInvalidate(POSITION_EKF *ekf, uint8_t axis) {
 	}
 }
 
-#if POS_EKF_DYNAMIC_Q_ENABLED == 1
 __ATTR_ITCM_TEXT
 void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axis, float ax, float ay, float az, float *out_q00, float *out_q11, float *out_q22, float *out_q33) {
 	const int i = axis * POS_EKF_AXIS_DIM;
@@ -157,7 +215,6 @@ void calculateDynamicProcessNoise(const POSITION_EKF *ekf, int axis, float ax, f
 	*out_q22 = q22;
 	*out_q33 = q33;
 }
-#endif
 
 __ATTR_ITCM_TEXT
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt) {
@@ -261,15 +318,15 @@ void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float d
 		 * 5. Dynamic Process Noise
 		 * ========================================================================= */
 
-#if POS_EKF_DYNAMIC_Q_ENABLED == 1
 		float q00, q11, q22, q33;
-		calculateDynamicProcessNoise(ekf, axis, ax, ay, az, &q00, &q11, &q22, &q33);
-#else
-		float q00 = ekf->Q[i + POS_EKF_STATE_P] [i + POS_EKF_STATE_P];
-		float q11 = ekf->Q[i + POS_EKF_STATE_V] [i + POS_EKF_STATE_V];
-		float q22 = ekf->Q[i + POS_EKF_STATE_B] [i + POS_EKF_STATE_B];
-		float q33 = ekf->Q[i + POS_EKF_STATE_BP][i + POS_EKF_STATE_BP];
-#endif
+		if (cfgDynamicQEnabled) {
+			calculateDynamicProcessNoise(ekf, axis, ax, ay, az, &q00, &q11, &q22, &q33);
+		} else {
+			q00 = ekf->Q[i + POS_EKF_STATE_P][i + POS_EKF_STATE_P];
+			q11 = ekf->Q[i + POS_EKF_STATE_V][i + POS_EKF_STATE_V];
+			q22 = ekf->Q[i + POS_EKF_STATE_B][i + POS_EKF_STATE_B];
+			q33 = ekf->Q[i + POS_EKF_STATE_BP][i + POS_EKF_STATE_BP];
+		}
 
 		/* =========================================================================
 		 * 6. P = M * F^T + Q
