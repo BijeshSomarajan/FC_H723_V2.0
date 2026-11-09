@@ -413,7 +413,9 @@
  *
  * The cap prevents the dynamic variance from growing without bound.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RP_MAX            100000.0f
+/* Every Z variance ceiling (GNSS-Z RP/RV, terrain RP, baro RP) is derived from its configurable base at
+ * runtime: MAX = BASE * POS_ESTIMATOR_R_MAX_FACTOR. There are no fixed _MAX macros for these. */
+#define POS_ESTIMATOR_R_MAX_FACTOR                     100.0f
 
 /* Base GNSS-Z velocity variance, (m/s)^2.
  *
@@ -428,7 +430,6 @@
  *
  * sqrt(30000) ~= 173.2 m/s 1-sigma.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_GNSS_RV_MAX            90000.0f//12000.0f
 
 /* GNSS vertical-position accuracy scaling.
  *
@@ -465,7 +466,6 @@
  * Dynamic scaling de-weights the rangefinder as distance/quality degrades.
  */
 #define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_BASE_DEFAULT        0.01f
-#define POS_ESTIMATOR_DYNAMIC_Z_TERRAIN_RP_MAX         10.0f
 
 /* ---- Dynamic baro R ------------------------------------------------------- *
  *
@@ -497,7 +497,6 @@
  * Reached as motionScale increases, further reducing baro authority during
  * strong maneuver-induced pressure disturbances.
  */
-#define POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_MAX            10000.0f
 
 /* Residual self-inflation gain.
  *
@@ -552,13 +551,13 @@
  * Group 9: Cruise-Adaptive Z Estimator Profile
  * ========================================================================== */
 
-#define POS_ESTIMATOR_Z_BARO_ENABLE_DYNAMIC_R_DEFAULT                1
+#define POSITION_MGR_Z_ENABLE_DYNAMIC_R_DEFAULT                1
 /* Constants below are always defined: switched at runtime from calibration. */
 #define POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH  3.0f
 #define POS_ESTIMATOR_MOTION_SCALE_TAU_RISE   0.01f   // fast attack
 #define POS_ESTIMATOR_MOTION_SCALE_TAU_FALL    2.0f    // slow release, 0.7-1.5s typical; set from measured error persistence
 
-#define POS_ESTIMATOR_Z_BARO_ENABLE_CRUISE_ADAPT_DEFAULT          1
+#define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED_DEFAULT          1
 /* Below this horizontal speed, use the hover-side Z profile. */
 #define POS_ESTIMATOR_Z_CRUISE_SPEED_LO                1.0f   // m/s
 /* Above this horizontal speed, use the full cruise-side Z profile. */
