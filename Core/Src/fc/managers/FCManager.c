@@ -10,6 +10,7 @@
 #include "altitude/AltitudeManager.h"
 #include "attitude/AttitudeManager.h"
 #include "battery/BatteryManager.h"
+#include "blackbox/blackBoxManager.h"
 #include "config/ConfigManager.h"
 #include "debug/DebugManager.h"
 #include "indicator/IndicatorManager.h"
@@ -26,6 +27,7 @@ void dispatchManagers() {
 		doPositionManagement();
 		doConfigManagement();
 		doRCManagement();
+		doBlackboxManagement();
 	}
 }
 
@@ -145,6 +147,16 @@ uint8_t initManagers() {
 			logString("[FC Manager] >> initManagers >> initBatteryManager > Success\n");
 		} else {
 			logString("[FC Manager] >> initManagers >> initBatteryManager > Failed\n");
+		}
+	}
+
+	if (status) {
+		status = initBlackBoxManager();
+		if (status) {
+			logString("[FC Manager] >> initManagers >> initBlackBoxManager > Success\n");
+		} else {
+			logString("[FC Manager] >> initManagers >> initBlackBoxManager > Failed , Ignoring!!!\n");
+			status = 1;
 		}
 	}
 

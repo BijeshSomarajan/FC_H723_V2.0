@@ -21,8 +21,8 @@
 
 #define MOTOR_CONTROL_TIMER_CHANNEL 14
 #define DEBUG_TIMER_CHANNEL 15
-
-//Note there are only 24 channels!
+#define BLACKBOX_TIMER_CHANNEL 16
+//Note there are only 20 channels!
 
 /* Task Priorities */
 #define RC_TASK_PRIORITY 3
