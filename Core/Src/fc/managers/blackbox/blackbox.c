@@ -270,7 +270,11 @@ static void blackboxOpenSessionFile(void) {
 	}
 	blackboxHighestFileIndex++;
 	snprintf(blackBoxSessionFileName, sizeof(blackBoxSessionFileName), "%lu.log", (unsigned long) blackboxHighestFileIndex);
+
+#if BLACK_BOX_DEBUG_ENABLED == 1
 	logPrintf("[BB]:New Session File : %s\n",blackBoxSessionFileName);
+#endif
+
 	blackboxState = BLACKBOX_STATE_OPEN_FILE_PENDING;
 	if (!afatfs_fopen(blackBoxSessionFileName, "w", blackboxFileOpenComplete)) {
 		blackboxState = BLACKBOX_STATE_ERROR;
@@ -645,7 +649,10 @@ uint32_t getBlackBoxSyncTimeouts(void) {
 
 /* Diagnostics: call at most once per second, and only when a blocking UART print is acceptable. */
 void printBlackboxDebug(void) {
+#if BLACK_BOX_DEBUG_ENABLED == 1
 	logPrintf("BB st=%u ring=%lu drop=%lu syncReq=%u meta=%u syncTmo=%lu fs=%u err=%u free=%lu sdIdle=%u sdFault=%u\r\n", (unsigned int) blackboxState, (unsigned long) blackboxRingBufferUsed(), (unsigned long) blackboxDroppedBytes, (unsigned int) blackboxSyncRequested,
 			(unsigned int) blackboxSyncMetadataSaved, (unsigned long) blackboxSyncTimeouts, (unsigned int) afatfs_getFilesystemState(), (unsigned int) afatfs_getLastError(), (unsigned long) afatfs_getFreeBufferSpace(), (unsigned int) sdcard_isOperationIdle(),
 			(unsigned int) sdcard_isFaulted());
+#endif
+
 }

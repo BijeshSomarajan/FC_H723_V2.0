@@ -5,7 +5,7 @@
 
 #define BLACK_BOX_RECORD_PERIOD (1.0f/100.0f)
 #define BLACK_BOX_SYNC_PERIOD (1.0f/2.0f)
-#define BLACK_BOX_MANAGER_DEBUG 1
+#define BLACK_BOX_MANAGER_DEBUG 0
 
 uint8_t initBlackBoxManager();
 void doBlackboxManagement();

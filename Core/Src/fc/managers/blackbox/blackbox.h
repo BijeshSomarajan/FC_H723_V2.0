@@ -21,4 +21,5 @@ void printBlackboxDebug(void) ;
 #define BLACK_BOX_WRITE_CHUNK   512
 #define BLACK_BOX_ENABLED 1
 
+#define BLACK_BOX_DEBUG_ENABLED 0
 #endif /* FC_CORE_BLACKBOX_BLACKBOX_H_ */

@@ -166,7 +166,7 @@ void doBlackboxManagement(void) {
 			if (blackBoxSyncDt >= BLACK_BOX_SYNC_PERIOD) {
 				if (syncBlackbox()) {
 #if BLACK_BOX_MANAGER_DEBUG == 1
-					logString("[BM]:Synced\n");
+				logString("[BM]:Synced\n");
 #endif
 				}
 				blackBoxSyncDt = 0;
