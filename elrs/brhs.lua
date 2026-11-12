@@ -7,6 +7,10 @@ local txBat, rxBat, rxBatMax, lq, rssi, alt, heading, headingRef, throttleContro
 local expectedGroundSpeed, groundSpeed, homeDistance, satField, fm, pitch, roll
 local gnssReliable, nSat
 local latitude, longitude
+local flightTimerStart = nil
+local flightTimerElapsed = 0
+local flightTimerStarted = false
+local flightTimerLastStart = nil
 
 -- Battery alert state from FC (0 none / 1 low / 2 critical), carried on Bat%
 local batteryAlertState
@@ -984,6 +988,40 @@ local function run(event)
     -- Flight mode frame
     fm = getValue("FM") or "---"
 
+    local currentStart = string.sub(string.upper(tostring(fm)), 1, 1)
+    local now = getTime()
+
+    if currentStart == "S" and flightTimerLastStart ~= "S" then
+        flightTimerElapsed = 0
+        flightTimerStart = now
+        flightTimerStarted = true
+    elseif currentStart == "O" and flightTimerLastStart ~= "O" and flightTimerStarted then
+        local elapsedTicks = now - flightTimerStart
+        if elapsedTicks < 0 then
+            elapsedTicks = elapsedTicks + 4294967296
+        end
+        flightTimerElapsed = flightTimerElapsed + elapsedTicks
+        flightTimerStart = nil
+    elseif currentStart ~= "O" and flightTimerLastStart == "O" and flightTimerStarted then
+        flightTimerStart = now
+    end
+
+    flightTimerLastStart = currentStart
+
+    local elapsedTicks = flightTimerElapsed
+    if flightTimerStart ~= nil then
+        local runningTicks = now - flightTimerStart
+        if runningTicks < 0 then
+            runningTicks = runningTicks + 4294967296
+        end
+        elapsedTicks = elapsedTicks + runningTicks
+    end
+
+    local elapsedSeconds = math.floor(elapsedTicks / 100)
+
+    local elapsedTime = string.format("%02d:%02d",
+        math.floor(elapsedSeconds / 60), elapsedSeconds % 60)
+
     --------------------------------------------------------------------------
     -- GPS Coordinates
     --------------------------------------------------------------------------
@@ -1117,7 +1155,8 @@ local function run(event)
     --------------------------------------------------------------------------
     -- Flight Mode
     --------------------------------------------------------------------------
-    lcd.drawText( 38,  54, string.format("[ %s ]", tostring(fm)),    BOLD  )
+    lcd.drawText(2, 54, string.format("[ %s ]", tostring(fm)), BOLD)
+    lcd.drawText(94, 54, elapsedTime, BOLD)
 
     --------------------------------------------------------------------------
     -- Trigger Audio Module

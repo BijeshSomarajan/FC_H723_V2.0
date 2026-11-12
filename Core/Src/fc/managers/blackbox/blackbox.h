@@ -11,6 +11,10 @@ uint32_t recordToBlackbox(const void* data, uint16_t len); /* queues only, never
 void processBlackbox(void);                                /* drains the queue to the card; call from the main loop */
 uint8_t endBlackboxSession(void);
 uint8_t syncBlackbox(void);                                /* writes everything queued, then f_sync */
+uint32_t getBlackBoxMaxOPsMs();
+uint8_t isBlackboxIdle(void);
+char* getBlackBoxSessionFileName();
+void printBlackboxDebug(void) ;
 
 #define BLACK_BOX_MAX_FILES 9999
 #define BLACK_BOX_RING_SIZE    2048

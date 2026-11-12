@@ -108,7 +108,11 @@ sdcardOperationStatus_e sdcard_endWriteBlocks();
  */
 void sdcard_setProfilerCallback(sdcard_profilerCallback_c callback);
 
+/**
+ * Additional/custom functions
+ */
 bool sdcard_isFaulted(void) ;
 bool sdcard_isOperationIdle(void);
-
+bool sdcard_recover(void) ;
+uint32_t sdcard_getMaxOpMs(void);
 #endif

@@ -17,6 +17,7 @@
 
 #define SDCARD_OP_TIMEOUT_MS        500U  /* one 512-byte block never takes this long */
 #define SDCARD_MAX_RETRIES            3U
+#define SDCARD_FAULT_AFTER_FAILURES   3U  /* consecutive failed operations before the card is latched as faulted */
 
 extern SD_HandleTypeDef sdHandle;
 
@@ -41,6 +42,9 @@ typedef struct {
 	volatile uint8_t dmaError;
 
 	volatile uint8_t timedOut;
+
+	/* set after HAL_SD_Abort(): waiting (without blocking) for the card to return to TRANSFER state */
+	uint8_t retryPending;
 } sdcardOperation_t;
 
 static sdcardOperation_t sdcardOperation;
@@ -59,6 +63,7 @@ volatile uint32_t sdLastHalError = 0;
 volatile uint32_t sdRetryCount = 0;
 volatile uint32_t sdTimeoutCount = 0;
 volatile uint32_t sdFailedOpCount = 0;
+volatile uint32_t sdMaxOpMs = 0;      /* longest operation start -> completion, for tuning the timeouts */
 
 /*
  * Once an operation has failed for good (timeout, retries exhausted) the card is
@@ -69,6 +74,8 @@ volatile uint32_t sdFailedOpCount = 0;
  * and may call sdcard_recover() later, when a blocking re-init is acceptable.
  */
 static volatile bool sdcardFaulted = false;
+static uint8_t sdcardConsecutiveFailures = 0U;
+static uint32_t sdcardLastReadyCheckTick = 0U;
 
 /* -------------------------------------------------------------------------- */
 /* Cache maintenance                                                          */
@@ -121,6 +128,8 @@ static void sdcard_resetOperation(void) {
 	sdcardOperation.buffer = NULL;
 	sdcardOperation.callbackData = 0U;
 	sdcardOperation.retries = 0U;
+	sdcardOperation.timedOut = 0U;
+	sdcardOperation.retryPending = 0U;
 }
 
 /*
@@ -138,6 +147,8 @@ bool sdcard_recover(void) {
 	}
 
 	sdcardFaulted = false;
+	sdcardConsecutiveFailures = 0U;
+	sdcardLastReadyCheckTick = 0U;
 
 	return sdcard_isReady();
 }
@@ -150,9 +161,24 @@ static void sdcard_completeOperation(bool success) {
 	uint32_t callbackData = sdcardOperation.callbackData;
 	uint32_t duration = HAL_GetTick() - sdcardOperation.startTime;
 
-	if (!success) {
+	if (duration > sdMaxOpMs) {
+		sdMaxOpMs = duration;
+	}
+
+	if (success) {
+		sdcardConsecutiveFailures = 0U;
+	} else {
 		sdFailedOpCount++;
-		sdcardFaulted = true; /* stop sending commands, see comment at sdcardFaulted */
+
+		/*
+		 * A timeout means the card stopped answering: latch the fault at once.
+		 * Other failures (e.g. HAL errors that survived the retries) are handed back to
+		 * AsyncFatFS, which re-marks the sector dirty and tries again; only a run of
+		 * consecutive failures latches the fault.
+		 */
+		if (sdcardOperation.timedOut || ++sdcardConsecutiveFailures >= SDCARD_FAULT_AFTER_FAILURES) {
+			sdcardFaulted = true;
+		}
 	}
 
 	/*
@@ -211,8 +237,8 @@ bool sdcard_readBlock(uint32_t blockIndex, uint8_t *buffer, sdcard_operationComp
 		return false;
 	}
 
-	if (!sdcard_isReady()) {
-		return false;
+	if (sdcardFaulted) {
+		return false; /* no CMD13 here: the previous operation completed only after TRANSFER state was seen */
 	}
 
 	sdcardOperation.operation = SDCARD_BLOCK_OPERATION_READ;
@@ -249,8 +275,8 @@ sdcardOperationStatus_e sdcard_writeBlock(uint32_t blockIndex, uint8_t *buffer, 
 		return SDCARD_OPERATION_FAILURE;
 	}
 
-	if (!sdcard_isReady()) {
-		return SDCARD_OPERATION_BUSY;
+	if (sdcardFaulted) {
+		return SDCARD_OPERATION_BUSY; /* no CMD13 here, see sdcard_readBlock */
 	}
 
 	sdcardOperation.operation = SDCARD_BLOCK_OPERATION_WRITE;
@@ -321,7 +347,7 @@ void HAL_SD_ErrorCallback(SD_HandleTypeDef *hsd) {
 /* Poll                                                                       */
 /* -------------------------------------------------------------------------- */
 
-/* Returns true if the transfer was restarted, false if it must be failed. */
+/* Returns true if a retry was scheduled, false if the operation must be failed. */
 static bool sdcard_retryOperation(void) {
 	if (sdcardOperation.retries >= SDCARD_MAX_RETRIES) {
 		return false;
@@ -333,11 +359,16 @@ static bool sdcard_retryOperation(void) {
 	/* Bring the card and the SDMMC peripheral back to a clean transfer state. */
 	HAL_SD_Abort(&sdHandle);
 
-	if (!sdcard_isReady()) {
-		return false;
-	}
+	/*
+	 * Do not wait for the card here: sdcard_poll() checks (at most once per ms)
+	 * whether the card is back in TRANSFER state and then restarts the transfer.
+	 */
+	sdcardOperation.dmaComplete = 0U;
+	sdcardOperation.dmaError = 0U;
+	sdcardOperation.startTime = HAL_GetTick();
+	sdcardOperation.retryPending = 1U;
 
-	return sdcard_startTransfer() == HAL_OK;
+	return true;
 }
 
 bool sdcard_poll(void) {
@@ -349,6 +380,33 @@ bool sdcard_poll(void) {
 
 	if (!sdcardOperation.active) {
 		return true;
+	}
+
+	/* A retry is scheduled: wait (polling at most once per ms) for the card, then restart. */
+	if (sdcardOperation.retryPending) {
+		if ((uint32_t) (now - sdcardOperation.startTime) > SDCARD_OP_TIMEOUT_MS) {
+			sdTimeoutCount++;
+			sdcardOperation.timedOut = 1U;
+			sdcard_completeOperation(false);
+			return false;
+		}
+
+		if (now == sdcardLastReadyCheckTick) {
+			return false;
+		}
+		sdcardLastReadyCheckTick = now;
+
+		if (!sdcard_isReady()) {
+			return false;
+		}
+
+		sdcardOperation.retryPending = 0U;
+
+		if (sdcard_startTransfer() != HAL_OK) {
+			sdcard_completeOperation(false);
+		}
+
+		return false;
 	}
 
 	/* Detect a transfer that never completes. */
@@ -375,24 +433,40 @@ bool sdcard_poll(void) {
 		return false;
 	}
 
+	/* A finished single-block read leaves the card in TRANSFER state: no CMD13 needed. */
+	if (sdcardOperation.operation == SDCARD_BLOCK_OPERATION_READ) {
+		sdcard_invalidateCache(sdcardOperation.buffer);
+		sdcard_completeOperation(true);
+		return !sdcardFaulted;
+	}
+
 	/*
 	 * DMA completion does not necessarily mean
-	 * the card has finished internal programming.
+	 * the card has finished internal programming (writes only).
 	 */
-	if (!sdcard_isReady()) {
-		if ((uint32_t) (now - sdcardOperation.startTime) > (SDCARD_OP_TIMEOUT_MS * 4U)) {
-			sdTimeoutCount++;
-			sdcard_completeOperation(false);
-		}
+	if ((uint32_t) (now - sdcardOperation.startTime) > (SDCARD_OP_TIMEOUT_MS * 4U)) {
+		sdTimeoutCount++;
+		sdcardOperation.timedOut = 1U;
+		sdcard_completeOperation(false);
 		return false;
 	}
 
-	if (sdcardOperation.operation == SDCARD_BLOCK_OPERATION_READ) {
-		sdcard_invalidateCache(sdcardOperation.buffer);
+	/*
+	 * Ask the card at most once per millisecond (each CMD13 is a short busy-wait on the
+	 * SDMMC response). A 512-byte block programs in about 1-5 ms, so this costs
+	 * almost no throughput but keeps the main loop from spending its time in CMD13.
+	 */
+	if (now == sdcardLastReadyCheckTick) {
+		return false;
+	}
+	sdcardLastReadyCheckTick = now;
+
+	if (!sdcard_isReady()) {
+		return false;
 	}
 
 	sdcard_completeOperation(true);
-	return sdcard_isReady();
+	return !sdcardFaulted; /* the card was in TRANSFER state a moment ago: no extra CMD13 */
 }
 
 /* -------------------------------------------------------------------------- */
@@ -409,3 +483,6 @@ sdcardOperationStatus_e sdcard_endWriteBlocks(void) {
 	return SDCARD_OPERATION_SUCCESS;
 }
 
+uint32_t sdcard_getMaxOpMs(){
+	return sdMaxOpMs;
+}
