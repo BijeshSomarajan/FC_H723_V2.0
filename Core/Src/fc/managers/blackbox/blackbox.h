@@ -6,6 +6,7 @@
 
 uint8_t initBlackbox(void);
 uint8_t isBlackBoxAvailable(void);
+uint8_t isBlackBoxFaulted(void);
 uint8_t startBlackboxSession(void);
 uint32_t recordToBlackbox(const void* data, uint16_t len); /* queues only, never touches the card */
 void processBlackbox(void);                                /* drains the queue to the card; call from the main loop */
@@ -15,6 +16,7 @@ uint32_t getBlackBoxMaxOPsMs();
 uint8_t isBlackboxIdle(void);
 char* getBlackBoxSessionFileName();
 void printBlackboxDebug(void) ;
+
 
 #define BLACK_BOX_MAX_FILES 9999
 #define BLACK_BOX_RING_SIZE    2048

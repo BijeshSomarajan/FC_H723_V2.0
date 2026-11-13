@@ -11,13 +11,13 @@
 /* -------------------------------------------------------------------------- */
 /* Configuration                                                              */
 /* -------------------------------------------------------------------------- */
-
 #define SDCARD_BLOCK_SIZE           512U
 #define SDCARD_CACHE_LINE_SIZE       32U
 
 #define SDCARD_OP_TIMEOUT_MS        500U  /* one 512-byte block never takes this long */
 #define SDCARD_MAX_RETRIES            3U
 #define SDCARD_FAULT_AFTER_FAILURES   3U  /* consecutive failed operations before the card is latched as faulted */
+#define SDCARD_START_FAIL_MS        500U  /* transfers that cannot be started for this long (no success in between) latch the fault */
 
 extern SD_HandleTypeDef sdHandle;
 
@@ -63,7 +63,7 @@ volatile uint32_t sdLastHalError = 0;
 volatile uint32_t sdRetryCount = 0;
 volatile uint32_t sdTimeoutCount = 0;
 volatile uint32_t sdFailedOpCount = 0;
-volatile uint32_t sdMaxOpMs = 0;      /* longest operation start -> completion, for tuning the timeouts */
+volatile uint32_t sdMaxOpMs = 0; /* longest operation start -> completion, for tuning the timeouts */
 
 /*
  * Once an operation has failed for good (timeout, retries exhausted) the card is
@@ -75,6 +75,7 @@ volatile uint32_t sdMaxOpMs = 0;      /* longest operation start -> completion, 
  */
 static volatile bool sdcardFaulted = false;
 static uint8_t sdcardConsecutiveFailures = 0U;
+static uint32_t sdcardStartFailSince = 0U; /* first start failure of the current run, 0 = none */
 static uint32_t sdcardLastReadyCheckTick = 0U;
 
 /* -------------------------------------------------------------------------- */
@@ -99,12 +100,28 @@ static void sdcard_cleanCache(uint8_t *buffer) {
 /* Operation handling                                                         */
 /* -------------------------------------------------------------------------- */
 
+static bool sdcard_isCommandTimeout(void) {
+	return (HAL_SD_GetError(&sdHandle) & (SDMMC_ERROR_CMD_RSP_TIMEOUT | SDMMC_ERROR_TIMEOUT)) != 0U;
+}
+
 static bool sdcard_isReady(void) {
 	if (sdcardFaulted) {
 		return false; /* never talk to a faulted card: each command may block ~5 s */
 	}
 
-	return BSP_SD_GetCardState() == SD_TRANSFER_OK;
+	/* HAL_SD_GetCardState ORs failures into ErrorCode without clearing: start clean to see only this command's result. */
+	sdHandle.ErrorCode = HAL_SD_ERROR_NONE;
+
+	if (BSP_SD_GetCardState() == SD_TRANSFER_OK) {
+		return true;
+	}
+
+	/* The card did not answer CMD13 at all (removed or dead): latch the fault now instead of asking again. */
+	if (sdcard_isCommandTimeout()) {
+		sdcardFaulted = true;
+	}
+
+	return false;
 }
 
 /* No CMD13: true when the driver has no transfer in flight. */
@@ -148,6 +165,7 @@ bool sdcard_recover(void) {
 
 	sdcardFaulted = false;
 	sdcardConsecutiveFailures = 0U;
+	sdcardStartFailSince = 0U;
 	sdcardLastReadyCheckTick = 0U;
 
 	return sdcard_isReady();
@@ -167,6 +185,7 @@ static void sdcard_completeOperation(bool success) {
 
 	if (success) {
 		sdcardConsecutiveFailures = 0U;
+		sdcardStartFailSince = 0U;
 	} else {
 		sdFailedOpCount++;
 
@@ -193,6 +212,30 @@ static void sdcard_completeOperation(bool success) {
 
 	if (callback != NULL) {
 		callback(operation, blockIndex, buffer, callbackData);
+	}
+}
+
+/*
+ * A transfer that cannot even be started (e.g. card removed) is retried by AsyncFatFS on every pass.
+ * - Command timeout from the HAL: the card does not answer, and the HAL already waited for it,
+ *   so another attempt would block just as long: latch the fault at once.
+ * - Anything else: count time, not attempts, and latch only if start failures persist for
+ *   SDCARD_START_FAIL_MS without a single successful operation in between.
+ */
+static void sdcard_noteStartFailure(void) {
+	uint32_t now = HAL_GetTick();
+
+	sdFailedOpCount++;
+
+	if (sdcard_isCommandTimeout()) {
+		sdcardFaulted = true;
+		return;
+	}
+
+	if (sdcardStartFailSince == 0U) {
+		sdcardStartFailSince = now | 1U; /* never 0 */
+	} else if ((uint32_t) (now - sdcardStartFailSince) >= SDCARD_START_FAIL_MS) {
+		sdcardFaulted = true;
 	}
 }
 
@@ -252,6 +295,7 @@ bool sdcard_readBlock(uint32_t blockIndex, uint8_t *buffer, sdcard_operationComp
 
 	if (sdcard_startTransfer() != HAL_OK) {
 		sdcard_resetOperation();
+		sdcard_noteStartFailure();
 		return false;
 	}
 
@@ -290,6 +334,7 @@ sdcardOperationStatus_e sdcard_writeBlock(uint32_t blockIndex, uint8_t *buffer, 
 
 	if (sdcard_startTransfer() != HAL_OK) {
 		sdcard_resetOperation();
+		sdcard_noteStartFailure();
 		return SDCARD_OPERATION_FAILURE;
 	}
 
@@ -357,7 +402,14 @@ static bool sdcard_retryOperation(void) {
 	sdRetryCount++;
 
 	/* Bring the card and the SDMMC peripheral back to a clean transfer state. */
+	sdHandle.ErrorCode = HAL_SD_ERROR_NONE;
 	HAL_SD_Abort(&sdHandle);
+
+	/* No answer to the abort command: the card is gone, do not retry. */
+	if (sdcard_isCommandTimeout()) {
+		sdcardFaulted = true;
+		return false;
+	}
 
 	/*
 	 * Do not wait for the card here: sdcard_poll() checks (at most once per ms)
@@ -483,6 +535,6 @@ sdcardOperationStatus_e sdcard_endWriteBlocks(void) {
 	return SDCARD_OPERATION_SUCCESS;
 }
 
-uint32_t sdcard_getMaxOpMs(){
+uint32_t sdcard_getMaxOpMs() {
 	return sdMaxOpMs;
 }

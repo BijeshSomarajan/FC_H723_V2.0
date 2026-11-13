@@ -649,6 +649,10 @@ uint32_t getBlackBoxSyncTimeouts(void) {
 	return blackboxSyncTimeouts;
 }
 
+uint8_t isBlackBoxFaulted(void){
+	return sdcard_isFaulted();
+}
+
 /* Diagnostics: call at most once per second, and only when a blocking UART print is acceptable. */
 void printBlackboxDebug(void) {
 #if BLACK_BOX_DEBUG_ENABLED == 1
