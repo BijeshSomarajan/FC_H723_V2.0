@@ -207,7 +207,13 @@ void manageCruiseCommand(float dt) {
 	float expectedRollVel = normalizedRoll * maxSpeed;
 	float xVel = 0;
 	float yVel = 0;
-	convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, sensorAttitudeData.heading, &xVel, &yVel);
+
+	//Headless mode rotation
+	float refHeading = fcStatusData.isHeadlessModeActive == 1? fcStatusData.headingHomeRef : sensorAttitudeData.heading;
+	convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, refHeading, &xVel, &yVel);
+
+	//convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, sensorAttitudeData.heading, &xVel, &yVel);
+
 	setExpectedPositionVelocity(dt, xVel, yVel);
 	updatePositionReference();
 	positionCommandData.targetXVel = xVel;

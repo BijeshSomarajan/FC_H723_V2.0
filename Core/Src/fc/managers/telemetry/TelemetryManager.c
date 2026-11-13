@@ -258,8 +258,14 @@ void prepareFCStatus() {
 	fcStatusBuf[7] = '0' + (tmOpSeq % 10);
 	fcStatusBuf[8] = tmOpChar;
 
-	//[9..12] spare, new fields go here and the NUL moves out
-	fcStatusBuf[9] = '\0';
+	if (fcStatusData.isHeadlessModeActive) {
+		fcStatusBuf[9] = 'L';
+	} else {
+		fcStatusBuf[9] = 'H';
+	}
+
+	//[10..12] spare, new fields go here and the NUL moves out
+	fcStatusBuf[10] = '\0';
 }
 
 void prepareGNSSData(void) {

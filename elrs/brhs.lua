@@ -22,6 +22,7 @@ local aAlertLastNav = nil
 local aAlertLastAlt = nil
 local aAlertLastLand = nil
 local aAlertLastMission = nil
+local aAlertLastHeadless = nil
 local aAlertLastGnss = nil
 local aAlertLastWpDone = nil
 local aAlertLastOpSeq = nil
@@ -122,6 +123,11 @@ local aAlertMissionModes = {
     ["M"] = "/SOUNDS/en/brhs/mission/miOn.wav",
     ["N"] = "/SOUNDS/en/brhs/mission/miOff.wav",
     ["C"] = "/SOUNDS/en/brhs/mission/miCom.wav",
+}
+
+local aAlertHeadlessModes = {
+    ["L"] = "/SOUNDS/en/brhs/headless/headlessOn.wav",
+    ["H"] = "/SOUNDS/en/brhs/headless/headlessOff.wav",
 }
 
 local aAlertOpDoneModes = {
@@ -267,6 +273,22 @@ local function doFMAlert()
             end
 
             aAlertLastMission = currentMission
+        end
+
+        -- [Headless mode] Sub-alert Check (character 10: L = active, H = inactive)
+        if #cleanFm >= 10 then
+            local currentHeadless = string.sub(cleanFm, 10, 10)
+
+            -- Adopt the first received state silently to prevent startup audio.
+            if aAlertLastHeadless == nil then
+                aAlertLastHeadless = currentHeadless
+            elseif currentHeadless ~= aAlertLastHeadless then
+                if aAlertHeadlessModes[currentHeadless] then
+                    playFile(aAlertHeadlessModes[currentHeadless])
+                end
+
+                aAlertLastHeadless = currentHeadless
+            end
         end
     end
 end

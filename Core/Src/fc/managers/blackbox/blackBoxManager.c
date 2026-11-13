@@ -34,7 +34,7 @@ typedef enum {
 static blackBoxManagerState_e blackBoxManagerState = BM_SESSION_IDLE;
 
 /* A start failed while the card is faulted: do not retry (each retry runs a blocking sdcard_recover()) until the next canStart cycle. */
-static uint8_t startFailedOnce = 0;
+static uint8_t blackboxStartFailedOnce = 0;
 
 static const char blackboxHeader[] = "ts,sThr,sPitch,sRoll,sYaw,pitch,roll,heading,rPitch,rRoll,rYaw,bAlt,tAlt,zPos,xVel,yVel,zVel,xAcc,yAcc,zAcc,gSpd,vBias,tComp,altDoB,altCon,hoverTh,controlTh\n";
 static const char blackboxDataFormat[] = "%lu,%d,%d,%d,%d,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\n";
@@ -55,7 +55,7 @@ __ATTR_ITCM_TEXT
 static void handleBlackboxSession(void) {
 	if (!fcStatusData.canStart) {
 		needNewBlackboxSession = 1;
-		startFailedOnce = 0;
+		blackboxStartFailedOnce = 0;
 		if (blackBoxSessionInitSuccess) {
 			if (endBlackboxSession()) {
 				blackBoxManagerState = BM_SESSION_CLOSING;
@@ -84,11 +84,11 @@ static void handleBlackboxSession(void) {
 				}
 			}
 			if (blackBoxManagerState == BM_SESSION_IDLE && isBlackboxIdle()) {
-				if (isBlackBoxFaulted() && startFailedOnce) {
+				if (isBlackBoxFaulted() && blackboxStartFailedOnce) {
 					return;
 				}
 				if (startBlackboxSession()) {
-					startFailedOnce = 0;
+					blackboxStartFailedOnce = 0;
 					blackBoxSessionInitSuccess = 1;
 					needNewBlackboxSession = 0;
 					blackBoxTime = 0;
@@ -100,7 +100,7 @@ static void handleBlackboxSession(void) {
 					logString("[Blackbox Manager]:New session started\n");
 #endif
 				} else {
-					startFailedOnce = 1;
+					blackboxStartFailedOnce = 1;
 #if BLACK_BOX_MANAGER_DEBUG == 1
 					logString("[Blackbox Manager]:New session failed\n");
 #endif
