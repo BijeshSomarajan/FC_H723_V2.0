@@ -24,7 +24,7 @@
 // Set MISSION_MGR_TRACE_ENABLED to 0 (header or build flag) to compile it out.
 // ---------------------------------------------------------------------------
 #ifndef MISSION_MGR_TRACE_ENABLED
-#define MISSION_MGR_TRACE_ENABLED 1
+#define MISSION_MGR_TRACE_ENABLED 0
 #endif
 
 #if MISSION_MGR_TRACE_ENABLED == 1
@@ -398,9 +398,7 @@ uint8_t initMissionManager(void) {
 		missionMaxAltClimb = fabs(get100XScaledCalibrationValue(CALIB_PROP_MISSION_MAX_ALT_CLIMB_ADDR));
 		missionMaxAltClimb = constrainToRangeF(missionMaxAltClimb, MISSION_MGR_ALT_COMMAND_MIN, MISSION_MGR_ALT_COMMAND_MAX);
 
-		char buf[64];
-		sprintf(buf, "[PositionMissionHelper] RS:%.3f, CS:%.3f, MaxClimbAlt:%.2f\n", missionRTHSpeed, missionCruiseSpeed, missionMaxAltClimb);
-		logString(buf);
+		logPrintf("[Mission Manager] RTHSpd:%.3f, CruiseSpd:%.3f, MaxClimbAlt:%.2f\n", missionRTHSpeed, missionCruiseSpeed, missionMaxAltClimb);
 
 	} else {
 		logString("[Mission Manager] Init > Failed!\n");

@@ -31,9 +31,7 @@ static float loadQ(uint8_t addr, float fallback) {
 /* Config values are logged in the app's scaled units (Q x100000), which also avoids needing float printf. */
 
 static void logConfigValues(void) {
-	char buf[256];
-	snprintf(buf, sizeof(buf), "[PosEst] Q pos X=%f Y=%f Z=%f, Q vel X=%f Y=%f Z=%f, dynamicQ=%u\n", cfgXQPos, cfgYQPos, cfgZQPos, cfgXQVel, cfgYQVel, cfgZQVel, cfgDynamicQEnabled);
-	logString(buf);
+	logPrintf("[Position Estimator] QPos[X=%f Y=%f Z=%f], QVel[X=%f Y=%f Z=%f], DynamicQ=%u\n", cfgXQPos, cfgYQPos, cfgZQPos, cfgXQVel, cfgYQVel, cfgZQVel, cfgDynamicQEnabled);
 }
 
 static void loadConfigValues(void) {
@@ -50,7 +48,6 @@ static void loadConfigValues(void) {
 	} else {
 		cfgDynamicQEnabled = POS_EKF_DYNAMIC_Q_ENABLED_DEFAULT;
 	}
-	logConfigValues();
 }
 
 /* Re-reads the configuration and applies the Q values to a running filter
@@ -70,6 +67,7 @@ void positionEKFLoadConfig(POSITION_EKF *ekf) {
 uint8_t positionEKFInit(POSITION_EKF *ekf) {
 	memset(ekf, 0, sizeof(POSITION_EKF));
 	loadConfigValues();
+	logConfigValues();
 	float q_p[3] = { cfgXQPos, cfgYQPos, cfgZQPos };
 	float q_v[3] = { cfgXQVel, cfgYQVel, cfgZQVel };
 	float q_b[3] = { POS_EKF_X_Q_BIAS, POS_EKF_Y_Q_BIAS, POS_EKF_Z_Q_BIAS };

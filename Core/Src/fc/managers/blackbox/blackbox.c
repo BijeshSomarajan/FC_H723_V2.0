@@ -272,7 +272,7 @@ static void blackboxOpenSessionFile(void) {
 	snprintf(blackBoxSessionFileName, sizeof(blackBoxSessionFileName), "%lu.log", (unsigned long) blackboxHighestFileIndex);
 
 #if BLACK_BOX_DEBUG_ENABLED == 1
-	logPrintf("[BB]:New Session File : %s\n",blackBoxSessionFileName);
+	logPrintf("[Blackbox]:New Session File : %s\n",blackBoxSessionFileName);
 #endif
 
 	blackboxState = BLACKBOX_STATE_OPEN_FILE_PENDING;
@@ -324,13 +324,15 @@ uint8_t initBlackbox(void) {
 	__HAL_RCC_GPIOH_CLK_ENABLE();
 	__HAL_RCC_GPIOD_CLK_ENABLE();
 	if (!initSDMMC1()) {
-		logString("[BB]:initSDMMC1 failed\n");
+		logString("[Blackbox]:SDMMC1 init failed\n");
 		return 0;
 	}
+	logString("[Blackbox]:SDMMC1 init Success\n");
 	if (BSP_SD_Init() != 0) {
-		logString("[BB]:BSP_SD_Init failed\n");
+		logString("[Blackbox]:BSP_SD init failed\n");
 		return 0;
 	}
+	logString("[Blackbox]:BSP_SD init Success\n");
 	return 1;
 }
 

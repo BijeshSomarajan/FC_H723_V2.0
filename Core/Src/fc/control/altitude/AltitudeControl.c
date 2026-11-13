@@ -23,7 +23,7 @@ float altControlZDisturbanceEstimate = 0.0f;
 // Lag-filtered expectation of what the previous throttle output should have
 // produced as vertical acceleration. Feeds the disturbance observer.
 float altControlExpectedAccFilt = 0.0f;
-
+float altDOBFFGain = 0.0f;
 uint8_t initAltitudeControl() {
 	/** Master PID **/
 	pidInit(&altPID, get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_PID_KP_ADDR), 0, 0, 0);
@@ -35,16 +35,15 @@ uint8_t initAltitudeControl() {
 	pidInit(&altRatePID, get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_KP_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_KI_ADDR), get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_KD_ADDR), ALT_CONTROL_RATE_PID_D_LPF_FREQ);
 	pidSetPIDOutputLimits(&altRatePID, -get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR));
 	pidSetPOutputLimits(&altRatePID, -get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR), get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR));
-
 	altRateILimit = get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR) * ALT_CONTROL_RATE_PID_I_LIMIT_RATIO;
 	pidSetIOutputLimits(&altRatePID, -altRateILimit, altRateILimit);
 	pidSetDOutputLimits(&altRatePID, -get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR) * ALT_CONTROL_RATE_PID_D_LIMIT_RATIO, get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR) * ALT_CONTROL_RATE_PID_D_LIMIT_RATIO);
 
 	//Overall Limit
 	altControlLimit = get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_CONTROL_LIMIT_ADDR);
-	char buf[64];
-	sprintf(buf, "ACL:%f , RCL:%f ,FCL:%f\n", altMasterPLimit, altRateILimit, altControlLimit);
-	logString(buf);
+	altDOBFFGain = get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_DOB_FF_GAIN_ADDR);
+
+	logPrintf("[Altitude Control] MasterControl Limit:%.2f, RateControl Limit:%.2f, FinalControl Limit:%.2f, DOBFFGain:%.2f\n", altMasterPLimit, get10XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_RATE_PID_LIMIT_ADDR), altControlLimit, altDOBFFGain);
 
 	altControlExpectedAccFilt = 0.0f;
 
@@ -144,7 +143,7 @@ static void updateAltitudeDOB(float thrustGain, float dt, ALTITUDE_CONTROL_GAINS
 	 * NEGATIVE: the mixer ADDS altitudeDOBControl, so the cancelling sign now
 	 * lives here - it used to be carried by "output -= ...". Without the minus
 	 * the observer REINFORCES every disturbance it sees. */
-	float dobOutput = -altControlZDisturbanceEstimate * thrustGain * ALT_CONTROL_ACC_DISTURBANCE_FF_GAIN;
+	float dobOutput = -altControlZDisturbanceEstimate * thrustGain * altDOBFFGain;
 	controlData.altitudeDOBControl = constrainToRangeF(dobOutput, -ALT_CONTROL_DOB_OUTPUT_LIMIT, ALT_CONTROL_DOB_OUTPUT_LIMIT);
 }
 #endif
@@ -176,10 +175,16 @@ void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 	pidUpdateWithGains(&altRatePID, positionCordinateData.zVelocity, altPID.pid, dt, altControlGains.ratePGain, altControlGains.rateIGain, altControlGains.rateDGain);
 	float thrustGain = fcStatusData.hoverThrottle / GRAVITY_MSS; /* K */
 	float output = altRatePID.pid * thrustGain;
+
 	/* ---- 2. Disturbance observer ----------------------------------------- */
 #if ALT_CONTROL_ACC_DISTURBANCE_EST_ENABLED == 1
-	updateAltitudeDOB(thrustGain, dt, altControlGains);
+	if (altDOBFFGain > 0) {
+		updateAltitudeDOB(thrustGain, dt, altControlGains);
+	}else{
+		controlData.altitudeDOBControl = 0;
+	}
 #endif
+
 	/* ---- 3. Output limit -------------------------------------------------- */
 	output = altitudeControlApplyRateSaturation(output, thrustGain, dt);
 	controlData.altitudeControl = output;

@@ -13,7 +13,7 @@
 #define CFG_N_RC_BIAS        4
 #define CFG_N_ATT_MASTER_PID 6
 #define CFG_N_ATT_RATE_PID   12
-#define CFG_N_ALT_MASTER_PID 3
+#define CFG_N_ALT_MASTER_PID 4
 #define CFG_N_ALT_RATE_PID   5
 #define CFG_N_POS_MASTER_PID 4
 #define CFG_N_POS_RATE_PID   5
@@ -129,6 +129,7 @@ void mergeConfigDataFromMobileApp(int32_t *data, ConfigDataPacket *pkt) {
 		data[CALIB_PROP_ALT_HOLD_PID_KP_ADDR] = v[0];
 		data[CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR] = v[1];
 		data[CALIB_PROP_ALT_HOLD_SPEED_ADDR] = v[2];
+		data[CALIB_PROP_ALT_HOLD_DOB_FF_GAIN_ADDR] = v[3];
 		break;
 	}
 	case SUB_CMD_ALT_RATE_PID: {
@@ -232,7 +233,7 @@ void sendConfigDataToMobileApp(int32_t *data, int32_t length, int32_t cmd, int32
 		break;
 	}
 	case SUB_CMD_ALT_MASTER_PID: {
-		int32_t values[CFG_N_ALT_MASTER_PID] = { data[CALIB_PROP_ALT_HOLD_PID_KP_ADDR], data[CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR], data[CALIB_PROP_ALT_HOLD_SPEED_ADDR] };
+		int32_t values[CFG_N_ALT_MASTER_PID] = { data[CALIB_PROP_ALT_HOLD_PID_KP_ADDR], data[CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR], data[CALIB_PROP_ALT_HOLD_SPEED_ADDR] ,data[CALIB_PROP_ALT_HOLD_DOB_FF_GAIN_ADDR] };
 		sendCRSFConfigData(values, CFG_N_ALT_MASTER_PID, cmd, subCmd);
 		break;
 	}

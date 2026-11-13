@@ -48,9 +48,7 @@ static float loadBase(float stored, float fallback) {
 }
 
 void logConfigValues() {
-	char buf[200];
-	snprintf(buf, sizeof(buf), "[PosEst-Helper] GNSS-Z RP=%f RV=%f, Terrain RP=%f, Baro RP=%f gain=%f, dynamicREn=%d , cruiseAdaptEn=%d\n", cfgZGnssRpBase, cfgZGnssRvBase, cfgTerrainRpBase, cfgBaroRpBase, cfgBaroRpGain, cfgBaroDynamicR, cfgCruiseAdapt);
-	logString(buf);
+	logPrintf("[Position EstimatorHelper] GNSS-Z[RP=%f RV=%f], Terrain[RP=%f], Baro[RP=%f gain=%f], dynamicREn=%d , cruiseAdaptEn=%d\n", cfgZGnssRpBase, cfgZGnssRvBase, cfgTerrainRpBase, cfgBaroRpBase, cfgBaroRpGain, cfgBaroDynamicR, cfgCruiseAdapt);
 }
 
 /* (Re)loads the measurement settings and the Q settings from calibration.

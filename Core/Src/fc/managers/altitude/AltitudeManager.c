@@ -96,7 +96,7 @@ uint8_t initAltitudeManager(void) {
 		altMgrTiltCompFadeTau = constrainToRangeF(altMgrTiltCompFadeTau, 0.0001f, ALT_MGR_TILT_COMP_TAU_FADE * 10);
 
 		char buf[128];
-		sprintf(buf, "[Altitude Manager] : AltSpeedGain=%.2f, TiltCompGain:=%.2f, TiltCompFadeTau=%.2f\n", altMgrAltSpeedGain, altMgrTiltCompGain, altMgrTiltCompFadeTau);
+		sprintf(buf, "[Altitude Manager] AltSpeedGain=%.2f, TiltCompGain:=%.2f, TiltCompFadeTau=%.2f\n", altMgrAltSpeedGain, altMgrTiltCompGain, altMgrTiltCompFadeTau);
 		logString(buf);
 
 		initAltitudeControl();
