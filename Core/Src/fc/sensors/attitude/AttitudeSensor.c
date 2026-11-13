@@ -128,51 +128,23 @@ void loadAttitudeSensorConfig() {
 	deviceAttitudeData.offsetGy = getCalibrationValue(CALIB_PROP_GY_BIAS_ADDR);
 	deviceAttitudeData.offsetGz = getCalibrationValue(CALIB_PROP_GZ_BIAS_ADDR);
 
-	deviceAttitudeData.offsetMx = get1KXScaledCalibrationValue(CALIB_PROP_MX_OFFSET_ADDR);
-	deviceAttitudeData.offsetMy = get1KXScaledCalibrationValue(CALIB_PROP_MY_OFFSET_ADDR);
-	deviceAttitudeData.offsetMz = get1KXScaledCalibrationValue(CALIB_PROP_MZ_OFFSET_ADDR);
 
+	/* Load: hard iron (uT) */
 	deviceAttitudeData.biasMx = get1KXScaledCalibrationValue(CALIB_PROP_MX_BIAS_ADDR);
 	deviceAttitudeData.biasMy = get1KXScaledCalibrationValue(CALIB_PROP_MY_BIAS_ADDR);
 	deviceAttitudeData.biasMz = get1KXScaledCalibrationValue(CALIB_PROP_MZ_BIAS_ADDR);
 
-	deviceAttitudeData.scaleMx = get1KXScaledCalibrationValue(CALIB_PROP_MX_SCALE_ADDR);
-	deviceAttitudeData.scaleMy = get1KXScaledCalibrationValue(CALIB_PROP_MY_SCALE_ADDR);
-	deviceAttitudeData.scaleMz = get1KXScaledCalibrationValue(CALIB_PROP_MZ_SCALE_ADDR);
+	/* Load: soft iron matrix, row-major */
+	deviceAttitudeData.softIronM[0][0] = get1KXScaledCalibrationValue(CALIB_PROP_M_SI_00_ADDR);
+	deviceAttitudeData.softIronM[0][1] = get1KXScaledCalibrationValue(CALIB_PROP_M_SI_01_ADDR);
+	deviceAttitudeData.softIronM[0][2] = get1KXScaledCalibrationValue(CALIB_PROP_M_SI_02_ADDR);
+	deviceAttitudeData.softIronM[1][0] = get1KXScaledCalibrationValue(CALIB_PROP_M_SI_10_ADDR);
+	deviceAttitudeData.softIronM[1][1] = get1KXScaledCalibrationValue(CALIB_PROP_M_SI_11_ADDR);
+	deviceAttitudeData.softIronM[1][2] = get1KXScaledCalibrationValue(CALIB_PROP_M_SI_12_ADDR);
+	deviceAttitudeData.softIronM[2][0] = get1KXScaledCalibrationValue(CALIB_PROP_M_SI_20_ADDR);
+	deviceAttitudeData.softIronM[2][1] = get1KXScaledCalibrationValue(CALIB_PROP_M_SI_21_ADDR);
+	deviceAttitudeData.softIronM[2][2] = get1KXScaledCalibrationValue(CALIB_PROP_M_SI_22_ADDR);
 
-	deviceAttitudeData.offsetTemp = get1KXScaledCalibrationValue(CALIB_PROP_IMU_TEMP_ADDR);
-	deviceAttitudeData.tempC = deviceAttitudeData.offsetTemp;
-
-	// Higher order coefficients are divided by higher powers of 10
-	deviceAttitudeData.accXTempCoeff[0] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AX_C_ADDR) / 10000.0f;	 // 3136.34291;
-	deviceAttitudeData.accXTempCoeff[1] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AX_C1_ADDR) / 100000.0f;	 //-66.95038;
-	deviceAttitudeData.accXTempCoeff[2] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AX_C2_ADDR) / 1000000.0f;	 //-3.85809;
-	deviceAttitudeData.accXTempCoeff[3] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AX_C3_ADDR) / 10000000.0f; // 0.04168;
-
-	deviceAttitudeData.accYTempCoeff[0] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AY_C_ADDR) / 10000.0f;	 // 3099.9199;
-	deviceAttitudeData.accYTempCoeff[1] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AY_C1_ADDR) / 100000.0f;	 //-111.3936;
-	deviceAttitudeData.accYTempCoeff[2] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AY_C2_ADDR) / 1000000.0f;	 //-1.23488;
-	deviceAttitudeData.accYTempCoeff[3] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AY_C3_ADDR) / 10000000.0f; // 0.00965;
-
-	deviceAttitudeData.accZTempCoeff[0] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AZ_C_ADDR) / 10000.0f;	 //-14301.91832;
-	deviceAttitudeData.accZTempCoeff[1] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AZ_C1_ADDR) / 100000.0f;	 // 6.38;
-	deviceAttitudeData.accZTempCoeff[2] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AZ_C2_ADDR) / 1000000.0f;	 //-4.84;
-	deviceAttitudeData.accZTempCoeff[3] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_AZ_C3_ADDR) / 10000000.0f; // 0.03351;
-
-	deviceAttitudeData.gyroXTempCoeff[0] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GX_C_ADDR) / 10000.0f;	  // 12.8099;
-	deviceAttitudeData.gyroXTempCoeff[1] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GX_C1_ADDR) / 100000.0f;	  //-1.85993;
-	deviceAttitudeData.gyroXTempCoeff[2] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GX_C2_ADDR) / 1000000.0f;  // 0.4426;
-	deviceAttitudeData.gyroXTempCoeff[3] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GX_C3_ADDR) / 10000000.0f; //-0.00890;
-
-	deviceAttitudeData.gyroYTempCoeff[0] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GY_C_ADDR) / 10000.0f;	  // 10.94848;
-	deviceAttitudeData.gyroYTempCoeff[1] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GY_C1_ADDR) / 100000.0f;	  //-.46218;
-	deviceAttitudeData.gyroYTempCoeff[2] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GY_C2_ADDR) / 1000000.0f;  // 0.20199;
-	deviceAttitudeData.gyroYTempCoeff[3] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GY_C3_ADDR) / 10000000.0f; //-0.002;
-
-	deviceAttitudeData.gyroZTempCoeff[0] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GZ_C_ADDR) / 10000.0f;	  // 181.0141
-	deviceAttitudeData.gyroZTempCoeff[1] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GZ_C1_ADDR) / 100000.0f;	  //-6.10440;
-	deviceAttitudeData.gyroZTempCoeff[2] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GZ_C2_ADDR) / 1000000.0f;  //-0.608;
-	deviceAttitudeData.gyroZTempCoeff[3] = getCalibrationValue(CALIB_PROP_IMU_TEMP_COEFF_GZ_C3_ADDR) / 10000000.0f; // 0.00962;
 }
 
 
@@ -220,16 +192,10 @@ void updateGyroSensorData(float dt) {
 	sensorAttitudeData.gzDS = constrainToRangeF(deviceAttitudeData.gzDS, -sensorGyroZMaxDS, sensorGyroZMaxDS);
 }
 
-void updateTempSensorData(float dt) {
-	deviceTempApplyDataScaling();
-	sensorAttitudeData.tempRaw = deviceAttitudeData.tempC;
-	sensorAttitudeData.temp = deviceAttitudeData.tempC;
-}
 
 void updateAGTSensorData(float dt) {
 	updateGyroSensorData(dt);
 	updateAccSensorData(dt);
-	updateTempSensorData(dt);
 	sensorAttitudeData.agtDataUpdateDt = dt;
 }
 
@@ -254,8 +220,8 @@ uint8_t loadAccGyroTempSensorData() {
 }
 
 __ATTR_ITCM_TEXT
-uint8_t readAccGyroTempSensor() {
-	if (deviceAccGyroTempRead()) {
+uint8_t readAccAndGyroSensor() {
+	if (deviceAccAndGyroRead()) {
 		return 1;
 	}
 	return 0;
@@ -286,8 +252,6 @@ void calculateAccAndGyroBias() {
 	for (int16_t sampleCount = 0; sampleCount < SENSOR_AG_OFFSET_CALIB_SAMPLE_COUNT; sampleCount++) {
 		deviceAccRead();
 		deviceGyroRead();
-		deviceTempRead();
-		deviceTempApplyDataScaling();
 		if (!lpfInit) {
 			lowPassFilterResetToValue(&sensorAccXCalibLPF, deviceAttitudeData.rawAx);
 			lowPassFilterResetToValue(&sensorAccYCalibLPF, deviceAttitudeData.rawAy);
@@ -295,7 +259,6 @@ void calculateAccAndGyroBias() {
 			lowPassFilterResetToValue(&sensorGyroXCalibLPF, deviceAttitudeData.rawGx);
 			lowPassFilterResetToValue(&sensorGyroYCalibLPF, deviceAttitudeData.rawGy);
 			lowPassFilterResetToValue(&sensorGyroZCalibLPF, deviceAttitudeData.rawGz);
-			lowPassFilterResetToValue(&sensorTempCalibLPF, deviceAttitudeData.tempC);
 			lpfInit = 1;
 		}
 		float dt = SENSOR_AG_OFFSET_CALIB_SAMPLE_DELAY * 0.001;
@@ -305,7 +268,6 @@ void calculateAccAndGyroBias() {
 		deviceAttitudeData.offsetGx = lowPassFilterUpdate(&sensorGyroXCalibLPF, deviceAttitudeData.rawGx, dt);
 		deviceAttitudeData.offsetGy = lowPassFilterUpdate(&sensorGyroYCalibLPF, deviceAttitudeData.rawGy, dt);
 		deviceAttitudeData.offsetGz = lowPassFilterUpdate(&sensorGyroZCalibLPF, deviceAttitudeData.rawGz, dt);
-		deviceAttitudeData.offsetTemp = lowPassFilterUpdate(&sensorTempCalibLPF, deviceAttitudeData.tempC, dt);
 		delayMs(SENSOR_AG_OFFSET_CALIB_SAMPLE_DELAY);
 	}
 	// Back fill data for persistence
@@ -315,99 +277,32 @@ void calculateAccAndGyroBias() {
 	setCalibrationValue(CALIB_PROP_GX_BIAS_ADDR, deviceAttitudeData.offsetGx);
 	setCalibrationValue(CALIB_PROP_GY_BIAS_ADDR, deviceAttitudeData.offsetGy);
 	setCalibrationValue(CALIB_PROP_GZ_BIAS_ADDR, deviceAttitudeData.offsetGz);
-	setCalibrationValue(CALIB_PROP_IMU_TEMP_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.offsetTemp));
 	// Persist the calibration
 	saveCalibration();
 }
 
 void calculateMagBias() {
 	doMagCalibration() ;
-	// Back fill data for persistence
-	setCalibrationValue(CALIB_PROP_MX_OFFSET_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.offsetMx));
-	setCalibrationValue(CALIB_PROP_MY_OFFSET_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.offsetMy));
-	setCalibrationValue(CALIB_PROP_MZ_OFFSET_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.offsetMz));
 
+	// Back fill data for persistence
+	/* Hard iron (uT) */
 	setCalibrationValue(CALIB_PROP_MX_BIAS_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.biasMx));
 	setCalibrationValue(CALIB_PROP_MY_BIAS_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.biasMy));
 	setCalibrationValue(CALIB_PROP_MZ_BIAS_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.biasMz));
 
-	setCalibrationValue(CALIB_PROP_MX_SCALE_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.scaleMx));
-	setCalibrationValue(CALIB_PROP_MY_SCALE_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.scaleMy));
-	setCalibrationValue(CALIB_PROP_MZ_SCALE_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.scaleMz));
+	/* Soft iron matrix, row-major */
+	setCalibrationValue(CALIB_PROP_M_SI_00_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.softIronM[0][0]));
+	setCalibrationValue(CALIB_PROP_M_SI_01_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.softIronM[0][1]));
+	setCalibrationValue(CALIB_PROP_M_SI_02_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.softIronM[0][2]));
+	setCalibrationValue(CALIB_PROP_M_SI_10_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.softIronM[1][0]));
+	setCalibrationValue(CALIB_PROP_M_SI_11_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.softIronM[1][1]));
+	setCalibrationValue(CALIB_PROP_M_SI_12_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.softIronM[1][2]));
+	setCalibrationValue(CALIB_PROP_M_SI_20_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.softIronM[2][0]));
+	setCalibrationValue(CALIB_PROP_M_SI_21_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.softIronM[2][1]));
+	setCalibrationValue(CALIB_PROP_M_SI_22_ADDR, get1KXScalableCalibrationValue(deviceAttitudeData.softIronM[2][2]));
 
 	// Persist the calibration
 	saveCalibration();
 }
 
-/***********************************************************************/
-/* Send the calibration data                                           */
-/***********************************************************************/
-void sendAttitudeTempCalibData() {
-	sensorAttitudeTempCalibData[0] = deviceAttitudeData.tempC * 100000;
-	sensorAttitudeTempCalibData[1] = deviceAttitudeData.axG * 100000;
-	sensorAttitudeTempCalibData[2] = deviceAttitudeData.ayG * 100000;
-	sensorAttitudeTempCalibData[3] = deviceAttitudeData.azG * 100000;
-	sensorAttitudeTempCalibData[4] = deviceAttitudeData.gxDS * 100000;
-	sensorAttitudeTempCalibData[5] = deviceAttitudeData.gyDS * 100000;
-	sensorAttitudeTempCalibData[6] = deviceAttitudeData.gzDS * 100000;
-	//sendConfigData(sensorAttitudeTempCalibData, 7, CMD_CALIBRATE_IMU_TEMP_DATA);
-}
 
-void calculateAccAndGyroTempCoeff() {
-	float deltaTemp = 0;
-	uint8_t lpfInit = 0;
-	float previousTemp = 0;
-	float dt = SENSOR_AG_TEMP_CALIB_SAMPLE_DELAY * 0.001;
-	// Wait till the temperature is close to calibration temp
-	do {
-		delayMs(SENSOR_AG_TEMP_CALIB_SAMPLE_DELAY);
-		deviceTempRead();
-		deviceTempApplyDataScaling();
-		if (!lpfInit) {
-			lowPassFilterResetToValue(&sensorTempCalibLPF, deviceAttitudeData.tempC);
-			lpfInit = 1;
-		}
-		deviceAttitudeData.tempC = lowPassFilterUpdate(&sensorTempCalibLPF, deviceAttitudeData.tempC, dt);
-	} while (fabs(deviceAttitudeData.tempC - deviceAttitudeData.offsetTemp) > SESNSOR_TEMP_CAL_PROXIMITY_DEAD_BAND);
-	previousTemp = deviceAttitudeData.tempC;
-	lpfInit = 0;
-	lowPassFilterResetToValue(&sensorTempCalibLPF, deviceAttitudeData.tempC);
-	// Take measurements
-	while (fabs(deltaTemp) <= SESNSOR_TEMP_CAL_RANGE) {
-		delayMs(SENSOR_AG_TEMP_CALIB_SAMPLE_DELAY);
-		deviceTempRead();
-		deviceAccRead();
-		deviceGyroRead();
-
-		deviceAccApplyOffsetCorrection();
-		deviceGyroApplyOffsetCorrection();
-		deviceAccApplyDataScaling();
-		deviceGyroApplyDataScaling();
-		deviceTempApplyDataScaling();
-		if (!lpfInit) {
-			lowPassFilterResetToValue(&sensorAccXCalibLPF, deviceAttitudeData.axG);
-			lowPassFilterResetToValue(&sensorAccYCalibLPF, deviceAttitudeData.ayG);
-			lowPassFilterResetToValue(&sensorAccZCalibLPF, deviceAttitudeData.azG);
-			lowPassFilterResetToValue(&sensorGyroXCalibLPF, deviceAttitudeData.gxDS);
-			lowPassFilterResetToValue(&sensorGyroYCalibLPF, deviceAttitudeData.gyDS);
-			lowPassFilterResetToValue(&sensorGyroZCalibLPF, deviceAttitudeData.gzDS);
-			lowPassFilterResetToValue(&sensorTempCalibLPF, deviceAttitudeData.tempC);
-			lpfInit = 1;
-		} else {
-			deviceAttitudeData.axG = lowPassFilterUpdate(&sensorAccXCalibLPF, deviceAttitudeData.axG, dt);
-			deviceAttitudeData.ayG = lowPassFilterUpdate(&sensorAccYCalibLPF, deviceAttitudeData.ayG, dt);
-			deviceAttitudeData.azG = lowPassFilterUpdate(&sensorAccZCalibLPF, deviceAttitudeData.azG, dt);
-			deviceAttitudeData.gxDS = lowPassFilterUpdate(&sensorGyroXCalibLPF, deviceAttitudeData.gxDS, dt);
-			deviceAttitudeData.gyDS = lowPassFilterUpdate(&sensorGyroYCalibLPF, deviceAttitudeData.gyDS, dt);
-			deviceAttitudeData.gzDS = lowPassFilterUpdate(&sensorGyroZCalibLPF, deviceAttitudeData.gzDS, dt);
-			deviceAttitudeData.tempC = lowPassFilterUpdate(&sensorTempCalibLPF, deviceAttitudeData.tempC, dt);
-		}
-		deltaTemp = deviceAttitudeData.tempC - deviceAttitudeData.offsetTemp;
-		if (fabs(previousTemp - deviceAttitudeData.tempC) >= SENSOR_TEMP_CAL_TEMP_DELTA) {
-			previousTemp = deviceAttitudeData.tempC;
-			deviceAttitudeData.tempC = deltaTemp;
-			sendAttitudeTempCalibData();
-		}
-	} // Delta while loop
-	delayMs(SENSOR_AG_TEMP_CALIB_SAMPLE_DELAY * 10);
-}

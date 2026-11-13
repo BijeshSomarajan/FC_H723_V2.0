@@ -32,14 +32,16 @@
 #define RC_TH_CHANNEL_INDEX          2 // Channel 3 // Throttle
 #define RC_YAW_CHANNEL_INDEX         3 // Channel 4 // Aileron
 
-//#define RC_START_CHANNEL_INDEX       4 //Channel 5  //SA   //ARM
-#define RC_START_CHANNEL_INDEX       9 //Channel 5  //My switch has some problems
+//#define RC_START_CHANNEL_INDEX     4 //Channel 5  //SA    //ARM
+#define RC_START_CHANNEL_INDEX       6 //Channel 5  //SC    //Off/Start/Headless
 
-#define RC_NAV_CHANNEL_INDEX         5 //Channel 6  //swb  //Hold/RTH
-#define RC_ALT_MODE_CHANNEL_INDEX    6 //Channel 7  //swc  //Terrain/ASL
-#define RC_RTH_CHANNEL_INDEX         7 //Channel 8  //swd  //RTH
-#define RC_TOFF_AND_LAND_CHANNEL_INDEX        8 //Channel 9  //key1 //Land channel
-#define RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX    4 //Channel 10 //Vario
+#define RC_NAV_CHANNEL_INDEX         5 //Channel 6  //SB    //Stab/Nav/Cruise
+#define RC_ALT_MODE_CHANNEL_INDEX    9 //Channel 7  //vario //Terrain/ASL
+
+
+#define RC_RTH_CHANNEL_INDEX                  7 //Channel 8 //SD Off/RTH
+#define RC_TOFF_AND_LAND_CHANNEL_INDEX        8 //Channel 9 //SE Press button
+#define RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX   4 //Channel 5 //SA Land/TakeOff
 
 #endif
 

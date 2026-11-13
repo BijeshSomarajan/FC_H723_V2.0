@@ -117,9 +117,6 @@ void controlAltitudeVelWithGains(float dt, ALTITUDE_CONTROL_GAINS altControlGain
 #define ALT_CONTROL_THRUST_TAU                 0.12f
 // Disturbance estimate smoothing, s. Lower = more responsive, more noise.
 #define ALT_CONTROL_ACC_DISTURBANCE_TAU        0.065f
-// How much of the estimated disturbance to cancel. 0.5 is a safe start;
-// 0.8-1.0 gives stronger wind rejection once THRUST_TAU is verified.
-#define ALT_CONTROL_ACC_DISTURBANCE_FF_GAIN    0.3f
 // Sanity clamp on the disturbance estimate, m/s^2. NOTE this is not merely a
 // guard: at K = 51 and gain 0.5 it bounds DOB authority to ~102 throttle
 // units, a meaningful share of the budget below.

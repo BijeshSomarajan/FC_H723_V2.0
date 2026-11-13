@@ -150,8 +150,18 @@ void manageAltCommand(float dt) {
 	if (altCommandMode && (dt > 0.0f)) {
 		if (altCommandType == ALT_COMMAND_TYPE_TAKEOFF) {
 			handleTakeOff(dt);
+			if (isAltCommandComplete()) {
+				fcStatusData.isTakeOffModeActive = 0;
+			}
 		} else if (altCommandType != ALT_COMMAND_TYPE_NONE) {
 			handleStepAltChange(dt);
+			if (isAltCommandComplete()) {
+				if (altCommandType == ALT_COMMAND_TYPE_LANDING) {
+					fcStatusData.isLandingModeActive = 0;
+				} else if (altCommandType == ALT_COMMAND_TYPE_NORMAL) {
+					fcStatusData.isAltChangeModeActive = 0;
+				}
+			}
 		}
 	}
 }

@@ -19,7 +19,7 @@
 #include "../../status/FCStatus.h"
 #include "../../timers/Scheduler.h"
 #include "../altitude/helpers/AltitudeCommandHelper.h"
-#include "../config/ConfigHelper.h"
+#include "../config/ConfigHelperDesktopApp.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimator.h"
 #include "../position/estimator/VenturiBiasEstimator.h"
@@ -37,7 +37,6 @@ uint8_t initDebugManager(void) {
 }
 
 char buf[256];
-extern float testGNSSRV, testGNSSRP;
 void debugString() {
 	sprintf(buf, "%.2f,%.2f,%.2f\n", sensorAttitudeData.heading, batteryData.voltage, sensorAltitudeData.altitudeTerrain);
 	logString(buf);
@@ -49,7 +48,7 @@ void debugGPS() {
 	DEBUG_DATA_BUFFER[2] = fcStatusData.isPositionHomeSet * 1000;
 	DEBUG_DATA_BUFFER[3] = positionCordinateData.xPosition * 1000;
 	DEBUG_DATA_BUFFER[4] = positionCordinateData.yPosition * 1000;
-	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA, 0);
 }
 
 uint8_t sendX = 0;
@@ -67,14 +66,14 @@ void debugRC() {
 	DEBUG_DATA_BUFFER[10] = fcStatusData.isRTHModeActive;
 	DEBUG_DATA_BUFFER[11] = fcStatusData.isFailSafeModeActive;
 	DEBUG_DATA_BUFFER[12] = fcStatusData.isRCHealthy;
-	sendConfigData(DEBUG_DATA_BUFFER, 13, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 13, CMD_FC_DATA, 0);
 }
 
 void debugModel() {
 	DEBUG_DATA_BUFFER[0] = positionCordinateData.xVelocity * 100;
 	DEBUG_DATA_BUFFER[1] = positionCordinateData.yVelocity * 100;
 	DEBUG_DATA_BUFFER[2] = sensorAttitudeData.heading * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 3, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 3, CMD_FC_DATA, 0);
 }
 
 void debugPID() {
@@ -90,7 +89,7 @@ void debugPID() {
 	DEBUG_DATA_BUFFER[7] = sensorAttitudeData.yawCtrlRate * 10;
 	DEBUG_DATA_BUFFER[8] = controlData.yawControl * 10;
 
-	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA, 0);
 }
 
 void debugNoise() {
@@ -103,7 +102,7 @@ void debugNoise() {
 	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.gzDSFiltered * 10;
 	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity * 1000;
 	DEBUG_DATA_BUFFER[7] = fcStatusData.currentThrottle;
-	sendConfigData(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 8, CMD_FC_DATA, 0);
 }
 
 void debugIMU() {
@@ -113,7 +112,7 @@ void debugIMU() {
 	DEBUG_DATA_BUFFER[3] = sensorAttitudeData.rollRate * 10;
 	DEBUG_DATA_BUFFER[4] = sensorAttitudeData.heading * 10;
 	DEBUG_DATA_BUFFER[5] = sensorAttitudeData.yawRate * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA, 0);
 }
 
 void debugIMUStr() {
@@ -128,7 +127,7 @@ void debugBattery() {
 	DEBUG_DATA_BUFFER[2] = fcStatusData.batteryAlertState * 10;
 	DEBUG_DATA_BUFFER[3] = batteryData.voltage * 10;
 	DEBUG_DATA_BUFFER[4] = controlData.batteryDepletionGain * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA, 0);
 }
 
 extern IMU_DATA imuData;
@@ -143,7 +142,7 @@ void debugALt() {
 	DEBUG_DATA_BUFFER[6] = positionCordinateData.zVelocity * 100;
 	DEBUG_DATA_BUFFER[7] = fcStatusData.altitudeHoldState * 10;
 	DEBUG_DATA_BUFFER[8] = altMgrAltHoldBrakingLPF.output * 1000;
-	sendConfigData(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 9, CMD_FC_DATA, 0);
 }
 
 void debugGnssData() {
@@ -164,11 +163,12 @@ void debufFFT() {
 }
 
 void debugAltGraph() {
-	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeSLFiltered * 1000;
-	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 1000;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 1000;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 100;
-	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeTerrainFiltered * 100;
+	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeSLFiltered * 1000;
+	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPosition * 1000;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.zAcceleration * 100;
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA, 0);
 }
 
 void debugNavStates() {
@@ -179,7 +179,7 @@ void debugNavStates() {
 	DEBUG_DATA_BUFFER[4] = fcStatusData.isFailSafeModeActive * 100;
 	DEBUG_DATA_BUFFER[5] = fcStatusData.isMissionComplete * 100;
 	DEBUG_DATA_BUFFER[6] = positionCommandData.targetYVel * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 7, CMD_FC_DATA, 0);
 }
 
 extern float expectedGroundSpeed;
@@ -189,7 +189,7 @@ void debugTelemetry() {
 	DEBUG_DATA_BUFFER[2] = positionCommandData.targetXVel * 10;
 	DEBUG_DATA_BUFFER[3] = positionCommandData.targetYVel * 10;
 	DEBUG_DATA_BUFFER[4] = expectedGroundSpeed * 10;
-	sendConfigData(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA, 0);
 }
 
 void debufFCStatus() {
@@ -203,7 +203,7 @@ void debugHeading() {
 	DEBUG_DATA_BUFFER[1] = positionCordinateData.zPosition * 100;
 	DEBUG_DATA_BUFFER[2] = positionCordinateData.zVelocity * 100;
 	DEBUG_DATA_BUFFER[3] = positionCordinateData.zAcceleration * 1000;
-	sendConfigData(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA, 0);
 }
 
 extern VENTURI_ESTIMATE_DATA venturiEstimateData;
@@ -230,7 +230,7 @@ void debugTask() {
 	//debufFCStatus();
 	//debugALt();
 	//debugAltStr();
-	//debugAltGraph();
+	debugAltGraph();
 	//debugGnssData();
 	//debugIMUStr();
 	//debufFFT();
@@ -238,6 +238,6 @@ void debugTask() {
 	//debugNav();
 	//debugNavStates();
 	//debugTelemetry();
-	debugHeading();
+	//debugHeading();
 	//debugAltStr();
 }

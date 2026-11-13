@@ -24,7 +24,7 @@
 // Set MISSION_MGR_TRACE_ENABLED to 0 (header or build flag) to compile it out.
 // ---------------------------------------------------------------------------
 #ifndef MISSION_MGR_TRACE_ENABLED
-#define MISSION_MGR_TRACE_ENABLED 1
+#define MISSION_MGR_TRACE_ENABLED 0
 #endif
 
 #if MISSION_MGR_TRACE_ENABLED == 1
@@ -58,7 +58,7 @@ float missionVxCommand, missionVyCommand;
 uint8_t missionWasRTHModeActive = 0;
 uint8_t missionWasMissionModeActive = 0;
 float missionWaitCounter = 0;
-
+float missionMaxAltClimb = 0;
 
 __ATTR_ITCM_TEXT
 void startOperation(float dt) {
@@ -80,7 +80,7 @@ void startOperation(float dt) {
 		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
 	case MISSION_OPERATION_SET_ALT: {
-		float altCmd = constrainToRangeF(currentMissionOperationData->value, MISSION_MGR_ALT_COMMAND_MIN, MISSION_MGR_ALT_COMMAND_MAX);
+		float altCmd = constrainToRangeF(currentMissionOperationData->value, MISSION_MGR_ALT_COMMAND_MIN, missionMaxAltClimb);
 		if (altCmd != currentMissionOperationData->value) {
 			MISSION_TRACE("[MM] WP%u OP%u alt clamped\n", MM_WP(), MM_OP());
 		}
@@ -115,16 +115,19 @@ uint8_t checkOperation(float dt) {
 	switch (currentMissionOperationData->operation) {
 	case MISSION_OPERATION_TAKEOFF:
 		if (isAltCommandComplete() || isAltCommandSkipped()) {
+			fcStatusData.isTakeOffModeActive = 0;
 			complete = 1;
 		}
 		break;
 	case MISSION_OPERATION_LAND:
 		if (isAltCommandComplete() || isAltCommandSkipped()) {
+			fcStatusData.isLandingModeActive = 0;
 			complete = 1;
 		}
 		break;
 	case MISSION_OPERATION_SET_ALT:
 		if (isAltCommandComplete() || isAltCommandSkipped()) {
+			fcStatusData.isAltChangeModeActive = 0;
 			complete = 1;
 		}
 		break;
@@ -385,22 +388,17 @@ uint8_t initMissionManager(void) {
 	uint8_t status = initGroundStation(_missionCallBack);
 	if (status) {
 		logString("[Mission Manager] Init > Success\n");
+
 		missionRTHSpeed = fabsf(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RTH_SPEED_ADDR));
 		missionRTHSpeed = constrainToRangeF(missionRTHSpeed, MISSION_MGR_SPEED_MIN, MISSION_MGR_SPEED_MAX);
 
 		missionCruiseSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR));
-		if (missionCruiseSpeed > MISSION_MGR_SPEED_MAX) {
-			missionCruiseSpeed = MISSION_MGR_SPEED_MIN;
-		}
+		missionCruiseSpeed = constrainToRangeF(missionCruiseSpeed, MISSION_MGR_SPEED_MIN, MISSION_MGR_SPEED_MAX);
 
-		missionRTHSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_RTH_SPEED_ADDR));
-		if (missionRTHSpeed > missionCruiseSpeed) {
-			missionRTHSpeed = missionCruiseSpeed * 0.8f;
-		}
+		missionMaxAltClimb = fabs(get100XScaledCalibrationValue(CALIB_PROP_MISSION_MAX_ALT_CLIMB_ADDR));
+		missionMaxAltClimb = constrainToRangeF(missionMaxAltClimb, MISSION_MGR_ALT_COMMAND_MIN, MISSION_MGR_ALT_COMMAND_MAX);
 
-		char buf[64];
-		sprintf(buf, "[PositionMissionHelper] RS:%.3f,CS:%.3f\n", missionRTHSpeed, missionCruiseSpeed);
-		logString(buf);
+		logPrintf("[Mission Manager] RTHSpd:%.3f, CruiseSpd:%.3f, MaxClimbAlt:%.2f\n", missionRTHSpeed, missionCruiseSpeed, missionMaxAltClimb);
 
 	} else {
 		logString("[Mission Manager] Init > Failed!\n");

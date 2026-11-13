@@ -14,15 +14,13 @@
 #define PITCH_CENTER_DEADBAND  15
 #define ROLL_CENTER_DEADBAND  15
 
+#define START_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
+#define HEADLESS_MODE_ACT_TSH  RC_CHANNEL_MAX_VALUE * 0.9f
 #define NAV_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
 #define CRUISE_MODE_ACT_TSH  RC_CHANNEL_MAX_VALUE * 0.9f
-
 #define RTH_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
-
 #define LANDING_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
-
 #define TERRAIN_ALT_MODE_ACT_TSH  RC_CHANNEL_MID_VALUE * 0.9f
-#define TERRAIN_NAV_MODE_ACT_TSH  RC_CHANNEL_MAX_VALUE * 0.9f
 
 uint8_t initRCManager(void);
 void doRCManagement();
@@ -53,6 +51,7 @@ void applyRCStickEffectiveness();
 
 void configureRCStickControl(void);
 
+uint8_t checkHeadlessModeActivation();
 uint8_t checkNavModeActivation(void);
 uint8_t checkNavCruiseModeActivation(void);
 uint8_t checkNavRTHModeActivation(void);

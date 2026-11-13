@@ -14,9 +14,10 @@
 
 #define CRSF_BUFFSIZE 32
 #define CRSF_SYNC_BYTE 0xC8        // Target address: Flight Controller
-#define CRSF_FRAME_RC_CHANNELS 0x16 // Payload frame type for RC sticks/switches
 #define CRSF_MAX_FRAME_SIZE 64     // Safe margin for largest telemetry packets
-#define CRSF_FRAMETYPE_MSP_RESP  0x7B
+
+//FRAME types
+#define CRSF_FRAME_RC_CHANNELS 0x16 // Payload frame type for RC sticks/switches
 
 #pragma pack(push, 1)
 typedef struct {
@@ -51,11 +52,10 @@ typedef struct {
 uint8_t initCRSF(void);
 uint16_t getCRSFChannelValue(uint8_t channel);
 void setCRSFChannelValue(uint8_t channel, uint16_t value);
+void crsfSendTelemetry(uint8_t frameType, const uint8_t *payload, uint8_t payloadLength);
 uint8_t readCRSF(void);
 void resetCRSFState(void);
 uint8_t isCRSFActive(void);
 uint16_t getCRSFFrameRate(void);
-
-
 
 #endif /* SRC_FC_SENSORS_RC_DEVICES_CRSF_H_ */

@@ -33,7 +33,7 @@ LOWPASSFILTER attitudePitchCtrlRateLPF, attitudeRollCtrlRateLPF, attitudeYawCtrl
 
 __ATTR_ITCM_TEXT
 void readAGTSensorTimerCallback() {
-	readAccGyroTempSensor();
+	readAccAndGyroSensor();
 }
 
 __ATTR_ITCM_TEXT
@@ -121,9 +121,19 @@ void doAttitudeAngleControl(float dt) {
 			expectedPitch = -positionCommandData.pitchCommand;
 			expectedRoll = positionCommandData.rollCommand;
 		} else {
-			expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]) - positionCommandData.pitchCommand;
-			expectedRoll = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] + positionCommandData.rollCommand;
+			//expectedPitch = (-(float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX]) - positionCommandData.pitchCommand;
+			//expectedRoll = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX] + positionCommandData.rollCommand;
+			//Headless mode
+			float stickFwd = (float) rcData.RC_EFFECTIVE_DATA[RC_PITCH_CHANNEL_INDEX];
+			float stickRight = (float) rcData.RC_EFFECTIVE_DATA[RC_ROLL_CHANNEL_INDEX];
+			if (fcStatusData.isHeadlessModeActive == 1) {
+				float f = stickFwd, r = stickRight;
+				convertEarthToBodyCordinates(f, r, sensorAttitudeData.heading - fcStatusData.headingHomeRef, &stickFwd, &stickRight);
+			}
+			expectedPitch = -stickFwd - positionCommandData.pitchCommand;
+			expectedRoll = stickRight + positionCommandData.rollCommand;
 		}
+
 		float expectedYaw = ((float) rcData.RC_EFFECTIVE_DATA[RC_YAW_CHANNEL_INDEX]);
 		expectedPitch = constrainToRangeF(expectedPitch, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
 		expectedRoll = constrainToRangeF(expectedRoll, -ATTITUDE_CONTROL_MAX_PITCH_ROLL, ATTITUDE_CONTROL_MAX_PITCH_ROLL);
@@ -187,6 +197,8 @@ void doAttitudeManagement() {
 		if (fcStatusData.hasCrashed) {
 			resetAttitudeManager();
 		}
+	} else {
+		resetAttitudeManager();
 	}
 }
 

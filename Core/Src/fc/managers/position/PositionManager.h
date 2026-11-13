@@ -78,9 +78,11 @@
 #define POSITION_MGR_POS_HOLD_BRAKE_MAX_VELOCITY       1.2f
 #define POSITION_MGR_POS_HOLD_BRAKE_MIN_GROUND_SPEED   0.15f
 #define POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT         3.0f   // hard cap
+
+#define POSITION_MGR_POS_HOLD_BRAKE_DECEL_MIN          0.05f
 #define POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX          0.30f
 
-#define POSITION_MGR_CRUISE_SPEED_MIN                    0.5f   // 1.0f //Note this will be clamped by the Postion PID settings
+#define POSITION_MGR_CRUISE_SPEED_MIN                 0.5f   // 1.0f //Note this will be clamped by the Postion PID settings
 #define POSITION_MGR_CRUISE_SPEED_MAX                 20.0f  // 1.0f //Note this will be clamped by the Postion PID settings
 
 typedef enum {

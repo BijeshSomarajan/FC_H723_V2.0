@@ -56,6 +56,8 @@ uint8_t wasTakeOffModeActive = 0;
 uint8_t wasAltChangeModeActive = 0;
 
 float altMgrTakeOffCommandAlt = 2.0f; //mts
+float altMgrTiltCompGain = ALT_MGR_TILT_COMP_GAIN;
+float altMgrTiltCompFadeTau = ALT_MGR_TILT_COMP_TAU_FADE;
 
 void startAltitudeSensorsRead(void);
 void manageAltitudeTask(void);
@@ -83,11 +85,19 @@ uint8_t initAltitudeManager(void) {
 		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
 
 		altMgrAltSpeedGain = get1KXScaledCalibrationValue(CALIB_PROP_ALT_HOLD_SPEED_ADDR);
-		if (altMgrAltSpeedGain <= 0.0f || altMgrAltSpeedGain >= ALT_MGR_ALT_SPEED_GAIN_MAX) {
-			altMgrAltSpeedGain = ALT_MGR_ALT_SPEED_GAIN_MAX;
-		}
+		altMgrAltSpeedGain = constrainToRangeF(altMgrAltSpeedGain, 0.0001f, ALT_MGR_ALT_SPEED_GAIN_MAX);
 
 		altMgrTakeOffCommandAlt = get100XScaledCalibrationValue(CALIB_PROP_ALT_HOLD_LIFT_OFF_ALT_ADDR);
+
+		altMgrTiltCompGain = get1KXScaledCalibrationValue(CALIB_PROP_TILT_COMP_GAIN_ADDR);
+		altMgrTiltCompGain = constrainToRangeF(altMgrTiltCompGain, 0, ALT_MGR_TILT_COMP_GAIN * 10);
+
+		altMgrTiltCompFadeTau = get1KXScaledCalibrationValue(CALIB_PROP_TILT_COMP_FALL_TAU_ADDR);
+		altMgrTiltCompFadeTau = constrainToRangeF(altMgrTiltCompFadeTau, 0.0001f, ALT_MGR_TILT_COMP_TAU_FADE * 10);
+
+		char buf[128];
+		sprintf(buf, "[Altitude Manager] AltSpeedGain=%.2f, TiltCompGain:=%.2f, TiltCompFadeTau=%.2f\n", altMgrAltSpeedGain, altMgrTiltCompGain, altMgrTiltCompFadeTau);
+		logString(buf);
 
 		initAltitudeControl();
 	} else {
@@ -201,37 +211,41 @@ void updateHoverThrottleEstimate(float dt) {
 
 __ATTR_ITCM_TEXT
 void calculateTiltCompThrottle(float dt) {
-	float target = 0.0f;
-	/* 1. Attitude -> lift scaling: fraction of thrust still pointing up */
-	float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
-	float rollRad = convertDegToRadF(sensorAttitudeData.roll);
-	float liftComponent = cosApproxF(pitchRad) * cosApproxF(rollRad);
-	/* 2. Physical boundaries in cosine space */
-	float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MIN_ANGLE));
-	float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE));
-	/* 3. Past the deadband -> compute the extra throttle the tilt costs.
-	 *    (1/lift - 1) is a DELTA on top of the existing hover throttle,
-	 *    which is why the -1 is correct: the base is already applied. */
-	if (liftComponent < deadbandComponent) {
-		float clampedLift = fmaxf(liftComponent, maxAngleComponent);
-		float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
-		/* GAIN must be 1.0 for full compensation. Anything below 1.0 is
-		 * deliberate under-compensation and will read as steady-state sag. */
-		target = fcStatusData.hoverThrottle * tiltCompFactor * ALT_MGR_TILT_COMP_GAIN;
-	}
-	target = constrainToRangeF(target, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
-	/* 4. Single-pole asymmetric filter. One state, one direction, so the
-	 *    rise/fade split is meaningful. Faster in than out: compensate tilt
-	 *    promptly, relax gently. TAU values are now honest - no cascade
-	 *    de-rating needed, so if you carried the "reduce by 30-40%" note,
-	 *    undo it and set TAU to the real transient window you want. */
-	float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TAU_RISE : ALT_MGR_TILT_COMP_TAU_FADE;
-	float alpha = dt / (activeTau + dt);
-	altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
+	if (altMgrTiltCompGain > 0) {
+		float target = 0.0f;
+		/* 1. Attitude -> lift scaling: fraction of thrust still pointing up */
+		float pitchRad = convertDegToRadF(sensorAttitudeData.pitch);
+		float rollRad = convertDegToRadF(sensorAttitudeData.roll);
+		float liftComponent = cosApproxF(pitchRad) * cosApproxF(rollRad);
+		/* 2. Physical boundaries in cosine space */
+		float deadbandComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MIN_ANGLE));
+		float maxAngleComponent = cosApproxF(convertDegToRadF(ALT_MGR_TILT_COMP_MAX_ANGLE));
+		/* 3. Past the deadband -> compute the extra throttle the tilt costs.
+		 *    (1/lift - 1) is a DELTA on top of the existing hover throttle,
+		 *    which is why the -1 is correct: the base is already applied. */
+		if (liftComponent < deadbandComponent) {
+			float clampedLift = fmaxf(liftComponent, maxAngleComponent);
+			float tiltCompFactor = (1.0f / clampedLift) - 1.0f;
+			/* GAIN must be 1.0 for full compensation. Anything below 1.0 is
+			 * deliberate under-compensation and will read as steady-state sag. */
+			target = fcStatusData.hoverThrottle * tiltCompFactor * altMgrTiltCompGain;
+		}
+		target = constrainToRangeF(target, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
+		/* 4. Single-pole asymmetric filter. One state, one direction, so the
+		 *    rise/fade split is meaningful. Faster in than out: compensate tilt
+		 *    promptly, relax gently. TAU values are now honest - no cascade
+		 *    de-rating needed, so if you carried the "reduce by 30-40%" note,
+		 *    undo it and set TAU to the real transient window you want. */
+		float activeTau = (target >= altMgrCurrentTiltCompThDelta) ? ALT_MGR_TILT_COMP_TAU_RISE : altMgrTiltCompFadeTau;
+		float alpha = dt / (activeTau + dt);
+		altMgrCurrentTiltCompThDelta += alpha * (target - altMgrCurrentTiltCompThDelta);
 
-	altMgrCurrentTiltCompThDelta = constrainToRangeF(altMgrCurrentTiltCompThDelta, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
-	/* 5. Into the mixer */
-	controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
+		altMgrCurrentTiltCompThDelta = constrainToRangeF(altMgrCurrentTiltCompThDelta, 0.0f, ALT_MGR_TILT_COMP_MAX_LIMIT);
+		/* 5. Into the mixer */
+		controlData.tiltCompThDelta = altMgrCurrentTiltCompThDelta;
+	} else {
+		controlData.tiltCompThDelta = 0;
+	}
 }
 
 __ATTR_ITCM_TEXT
@@ -300,7 +314,7 @@ void updateAltCommand() {
 			if (fcStatusData.isFlying) {
 				wasLandingModeActive = 1;
 				abortAltCommand();
-				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - 3.0f, ALT_COMMAND_TYPE_LANDING);
+				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - ALT_MGR_LANDING_DELTA, ALT_COMMAND_TYPE_LANDING);
 			} else {
 				skipAltCommand();
 			}
@@ -343,6 +357,18 @@ void manageAltitude(float dt) {
 	updateHoverThrottleEstimate(dt);
 
 	if (!rcData.throttleCentered || isAltCommandThrottleUpdateRequired()) {
+
+		//Reset automatic operations if stick is touched
+		if (!rcData.throttleCentered) {
+			fcStatusData.isTakeOffModeActive = 0;
+			fcStatusData.isLandingModeActive = 0;
+			fcStatusData.isAltChangeModeActive = 0;
+			resetAltCommandStates();
+			if (isMissionModeActive()) {
+				skipAltCommand();
+			}
+		}
+
 		fcStatusData.currentThrottle = altMgrThrottleControlLPF.output;
 		altMgrPreviousThrottle = fcStatusData.currentThrottle;
 
@@ -401,7 +427,7 @@ void manageAltitudeTask(void) {
 	float dt = getDeltaTime(ALT_MANAGER_TIMER_CHANNEL);
 	dt = constrainToRangeF(dt, ALTITUDE_MANAGEMENT_TASK_PERIOD * 0.001f, ALTITUDE_MANAGEMENT_TASK_PERIOD * 4.0f);
 	sensorAltitudeData.altProcessDt = dt;
-	if (fcStatusData.hasCrashed) {
+	if (fcStatusData.isConfigMode || fcStatusData.hasCrashed) {
 		resetAltitudeManager();
 	} else if (fcStatusData.canFly) {
 		manageAltitude(dt);
@@ -414,13 +440,11 @@ void manageAltitudeTask(void) {
 
 __ATTR_ITCM_TEXT
 void doAltitudeManagement(void) {
-	if (fcStatusData.isConfigMode) {
-		return;
-	}
-	if (fcStatusData.hasCrashed) {
+	if (fcStatusData.isConfigMode || fcStatusData.hasCrashed) {
 		resetAltitudeManager();
 		return;
 	}
+
 	if (fcStatusData.canStabilize) {
 		altMgrWasInStabMode = 1;
 	} else if (altMgrWasInStabMode && fcStatusData.isStabilized) {

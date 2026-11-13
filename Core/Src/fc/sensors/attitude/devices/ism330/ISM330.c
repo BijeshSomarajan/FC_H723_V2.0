@@ -184,10 +184,7 @@ void __deviceAGTCallback(uint8_t *buf, uint16_t len) {
 
 __ATTR_ITCM_TEXT
 uint8_t deviceAccGyroTempLoadData() {
-
 	if (ism330DataReady) {
-		deviceAttitudeData.rawTemp = (deviceAttitudeData.bufferAGTRx[1] << 8) | deviceAttitudeData.bufferAGTRx[0];
-
 		deviceAttitudeData.rawGx = (((int16_t) deviceAttitudeData.bufferAGTRx[3]) << 8) | deviceAttitudeData.bufferAGTRx[2];
 		deviceAttitudeData.rawGy = (((int16_t) deviceAttitudeData.bufferAGTRx[5]) << 8) | deviceAttitudeData.bufferAGTRx[4];
 		deviceAttitudeData.rawGz = (((int16_t) deviceAttitudeData.bufferAGTRx[7]) << 8) | deviceAttitudeData.bufferAGTRx[6];
@@ -204,7 +201,7 @@ uint8_t deviceAccGyroTempLoadData() {
 }
 
 __ATTR_ITCM_TEXT
-uint8_t deviceAccGyroTempRead(void) {
+uint8_t deviceAccAndGyroRead(void) {
 	// If a transfer is already running, OR if the previous data hasn't
 	// been consumed yet, drop out to protect the SPI bus and buffer.
 	if (ism330TxInFlight || ism330DataReady) {
@@ -239,13 +236,6 @@ uint8_t deviceGyroRead(void) {
 	return 0;
 }
 
-uint8_t deviceTempRead(void) {
-	if (spi2ReadRegister(ISM330DHCX_OUT_TEMP_L, deviceAttitudeData.bufferTempTx, 2, ISM330_AG_DEVICE)) {
-		deviceAttitudeData.rawTemp = (deviceAttitudeData.bufferTempTx[1] << 8) | deviceAttitudeData.bufferTempTx[0];
-		return 1;
-	}
-	return 0;
-}
 
 __ATTR_ITCM_TEXT
 void deviceAccApplyOrientationForImu(void) {
@@ -299,10 +289,6 @@ void deviceGyroApplyDataScaling(void) {
 	deviceAttitudeData.gxDS = (float) deviceAttitudeData.rawGx * deviceAttitudeData.gyroSensitivity;
 	deviceAttitudeData.gyDS = (float) deviceAttitudeData.rawGy * deviceAttitudeData.gyroSensitivity;
 	deviceAttitudeData.gzDS = (float) deviceAttitudeData.rawGz * deviceAttitudeData.gyroSensitivity;
-}
-
-void deviceTempApplyDataScaling(void) {
-	deviceAttitudeData.tempC = 25.0f + (float) deviceAttitudeData.rawTemp / 256.0f;
 }
 
 float deviceAccGetMaxValidG(void) {

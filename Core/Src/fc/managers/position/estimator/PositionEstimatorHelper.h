@@ -3,7 +3,7 @@
 #include "../../position/estimator/PositionEstimator.h"
 
 #define POSITION_MGR_VENTURI_ESTIMATE_ENABLED         1
-
+void initPosEstimationHelper(void) ;
 void resetPVEstimation(uint8_t axis, uint8_t keepBias);
 void updateXYPositionGNSS(float hAcc, float xPos, float yPos, float dt);
 void updateZPositionSL(float offset, float zPos, float dt);

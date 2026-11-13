@@ -10,7 +10,7 @@ struct _FC_STATUS_DATA {
 	//FC Statues
 	uint8_t hasInitialized, isTxOn, isRCHealthy, canStart, canArm, canFly, hasCrashed, canStabilize, isStabilized, isFlying, isNavDataReliable, isTerrainAltDataReliable;
 	//FC Modes
-	uint8_t isNavModeActive, isRTHModeActive, isCruiseModeActive ,isFailSafeModeActive, isMissionModeActive, isTerrainAltModeActive;
+	uint8_t isNavModeActive, isRTHModeActive, isCruiseModeActive ,isFailSafeModeActive, isMissionModeActive, isTerrainAltModeActive,isHeadlessModeActive;
 	//Flag to state if landing landing or Take Off mode is active
 	uint8_t isTakeOffModeActive,isLandingModeActive,isAltChangeModeActive;
 

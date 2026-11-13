@@ -1,9 +1,13 @@
 #include "CRSF.h"
-#include "../../../../logger/Logger.h"
-#include "../../../../io/uart/UART.h"
+
+#include <sys/_stdint.h>
+
 #include "../../../../dsp/CircularQueue.h"
+#include "../../../../io/uart/UART.h"
+#include "../../../../logger/Logger.h"
 #include "../../../../memory/Memory.h"
-#include "CRSFTransceiver.h"
+#include "CRSFFcConfig.h"
+#include "CRSFGcs.h"
 
 // Internal state & channel storage
 static uint16_t crsfChannelValue[16] = { 1500 }; // Default to mid-point stick PWM
@@ -29,7 +33,6 @@ CRSF_CHANNELS channels;
 // Forward declaration of internal parser functions
 uint8_t updateCRSFData(uint8_t *dataBytes, uint16_t length);
 void processCRSFFrame(uint8_t frameType, const uint8_t *payload);
-void manageCRSFMissionFrame(const uint8_t *payload);
 
 /**
  * @brief DMA RX ISR Callback - routes raw byte bursts directly into the circular queue
@@ -183,6 +186,9 @@ void processCRSFFrame(uint8_t frameType, const uint8_t *payload) {
 	}
 	case CRSF_MISSION_FRAME_TYPE: {
 		manageCRSFMissionFrame(payload);
+	    break;
+	}case CRSF_FC_CONFIG_FRAME_TYPE: {
+		manageCRSFFcConfigFrame(payload);
 	    break;
 	}
 	// Placeholder for adding future frame types (e.g., Link Statistics 0x14)

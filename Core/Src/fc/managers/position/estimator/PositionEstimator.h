@@ -65,6 +65,7 @@ extern POSITION_EKF positionEkf;
  * Public Core Filter Execution API
  * ========================================================================= */
 uint8_t positionEKFInit(POSITION_EKF *ekf);
+void positionEKFLoadConfig(POSITION_EKF *ekf);
 void positionEKFPredict(POSITION_EKF *ekf, float ax, float ay, float az, float dt);
 void positionEKFMeasurementUpdate(POSITION_EKF *ekf, uint8_t axis, float meas, float rValue, const float H[4]);
 void positionEKFReset(POSITION_EKF *ekf, uint8_t axis, uint8_t keepBias);

@@ -60,6 +60,10 @@ uint8_t initPositionManager(void) {
 	if (status) {
 		logString("[Position Manager] EKF Init > Success\n");
 
+		initPosEstimationHelper();
+
+		logString("[Position Manager] Pos Estimation Helper Init > Success\n");
+
 		lowPassFilterInit(&positionMgrAccXLPF, POSITION_MGR_X_EST_OUTPUT_ACC_LPF_FREQ);
 		lowPassFilterInit(&positionMgrAccYLPF, POSITION_MGR_Y_EST_OUTPUT_ACC_LPF_FREQ);
 		lowPassFilterInit(&positionMgrAccZLPF, POSITION_MGR_Z_EST_OUTPUT_ACC_LPF_FREQ);
@@ -74,14 +78,10 @@ uint8_t initPositionManager(void) {
 		initPositionControl(POSITION_MANAGEMENT_POSITION_CONTROL_FREQUENCY, POSITION_MANAGEMENT_RATE_CONTROL_FREQUENCY);
 
 		positionMgrBrakeDecel = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_BRAKE_DECEL_ADDR));
-		if (positionMgrBrakeDecel > POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX) {
-			positionMgrBrakeDecel = POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX;
-		}
+		positionMgrBrakeDecel = constrainToRangeF(positionMgrBrakeDecel, POSITION_MGR_POS_HOLD_BRAKE_DECEL_MIN, POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX);
 
 		positionCruiseSpeed = fabs(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_CRUISE_SPEED_ADDR));
-		if (positionCruiseSpeed > POSITION_MGR_CRUISE_SPEED_MAX) {
-			positionCruiseSpeed = POSITION_MGR_CRUISE_SPEED_MIN;
-		}
+		positionCruiseSpeed = constrainToRangeF(positionCruiseSpeed, POSITION_MGR_CRUISE_SPEED_MIN, POSITION_MGR_CRUISE_SPEED_MAX);
 
 	} else {
 		logString("[Position Manager] EKF Init > Failed\n");
@@ -207,7 +207,13 @@ void manageCruiseCommand(float dt) {
 	float expectedRollVel = normalizedRoll * maxSpeed;
 	float xVel = 0;
 	float yVel = 0;
-	convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, sensorAttitudeData.heading, &xVel, &yVel);
+
+	//Headless mode rotation
+	float refHeading = fcStatusData.isHeadlessModeActive == 1? fcStatusData.headingHomeRef : sensorAttitudeData.heading;
+	convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, refHeading, &xVel, &yVel);
+
+	//convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, sensorAttitudeData.heading, &xVel, &yVel);
+
 	setExpectedPositionVelocity(dt, xVel, yVel);
 	updatePositionReference();
 	positionCommandData.targetXVel = xVel;
@@ -278,7 +284,7 @@ void updatePositionCordinateCommand(float dt) {
 
 __ATTR_ITCM_TEXT
 void managePositionTask(void) {
-	if (!fcStatusData.hasCrashed) {
+	if (!fcStatusData.isConfigMode && !fcStatusData.hasCrashed) {
 		float dt = getDeltaTime(POSITION_MANAGER_TASK_TIMER_CHANNEL);
 		dt = constrainToRangeF(dt, POSITION_MANAGEMENT_TASK_PERIOD * 0.001f, POSITION_MANAGEMENT_TASK_PERIOD * 4.0f);
 
@@ -363,7 +369,7 @@ void loadAndProcessGNSSData() {
 
 __ATTR_ITCM_TEXT
 void doPositionManagement() {
-	if (fcStatusData.hasCrashed) {
+	if (fcStatusData.isConfigMode || fcStatusData.hasCrashed) {
 		resetPositionManager(0);
 	} else if (fcStatusData.canStabilize && !positionManagerWasInStabMode) {
 		resetPositionManager(0);

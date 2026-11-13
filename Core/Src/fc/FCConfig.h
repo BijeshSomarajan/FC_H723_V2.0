@@ -21,8 +21,8 @@
 
 #define MOTOR_CONTROL_TIMER_CHANNEL 14
 #define DEBUG_TIMER_CHANNEL 15
-
-//Note there are only 24 channels!
+#define BLACKBOX_TIMER_CHANNEL 16
+//Note there are only 20 channels!
 
 /* Task Priorities */
 #define RC_TASK_PRIORITY 3
@@ -32,7 +32,8 @@
 #define INDICATOR_TASK_PRIORITY 5
 #define BATTERY_MANAGER_TASK_PRIORITY 6
 #define TELEMETRY_TASK_PRIORITY 6
-#define DEBUG_TASK_PRIORITY 8
+#define BLACK_BOX_TASK_PRIORITY 7
+#define DEBUG_TASK_PRIORITY 9
 
 #define FC_STABLILIZATION_PERIOD 8.0f
 #define FC_ARM_PERIOD 1.0f
