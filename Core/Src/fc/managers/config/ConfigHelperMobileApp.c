@@ -18,7 +18,7 @@
 #define CFG_N_POS_MASTER_PID 4
 #define CFG_N_POS_RATE_PID   5
 #define CFG_N_STICK_GAIN     3
-#define CFG_N_DEVICE         3
+#define CFG_N_DEVICE         4
 #define CFG_N_MISC           8
 #define CFG_N_EST_PROCESS    5
 #define CFG_N_EST_MEASUREMENT 7
@@ -165,6 +165,7 @@ void mergeConfigDataFromMobileApp(int32_t *data, ConfigDataPacket *pkt) {
 		data[CALIB_PROP_MODEL_VERSION_ADDR] = v[0];
 		data[CALIB_PROP_BAT_TYPE_ADDR] = v[1];
 		data[CALIB_PROP_BAT_NOM_VOLT_ADDR] = v[2];
+		data[CALIB_PROP_FRAME_ALIGN_ERROR_ADDR] = v[3];
 		break;
 	}
 	case SUB_CMD_MISC: {
@@ -258,7 +259,7 @@ void sendConfigDataToMobileApp(int32_t *data, int32_t length, int32_t cmd, int32
 		break;
 	}
 	case SUB_CMD_DEVICE: {
-		int32_t values[CFG_N_DEVICE] = { data[CALIB_PROP_MODEL_VERSION_ADDR], data[CALIB_PROP_BAT_TYPE_ADDR], data[CALIB_PROP_BAT_NOM_VOLT_ADDR] };
+		int32_t values[CFG_N_DEVICE] = { data[CALIB_PROP_MODEL_VERSION_ADDR], data[CALIB_PROP_BAT_TYPE_ADDR], data[CALIB_PROP_BAT_NOM_VOLT_ADDR],data[CALIB_PROP_FRAME_ALIGN_ERROR_ADDR]  };
 		sendCRSFConfigData(values, CFG_N_DEVICE, cmd, subCmd);
 		break;
 	}
