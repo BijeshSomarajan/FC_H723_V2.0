@@ -97,8 +97,12 @@ void startOperation(float dt) {
 		setAbsoluteHeadingCommand(currentMissionOperationData->value);
 		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
-	case MISSION_OPERATION_ROTATE:        // value = signed degrees, + clockwise
+	case MISSION_OPERATION_ROTATE:     // value = signed degrees, + clockwise
 		setRelativeHeadingCommand(currentMissionOperationData->value);
+		currentMissionOperationData->status = MISSION_STATUS_WIP;
+		break;
+	case MISSION_OPERATION_SET_HOME_HEADING:
+		setAbsoluteHeadingCommand(fcStatusData.headingHomeRef);
 		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
 	case MISSION_OPERATION_RTH:           // soft RTH: fly home within the mission, no hard-RTH mode
@@ -144,6 +148,7 @@ uint8_t checkOperation(float dt) {
 		}
 		break;
 	case MISSION_OPERATION_ROTATE:
+	case MISSION_OPERATION_SET_HOME_HEADING:
 	case MISSION_OPERATION_SET_HEADING:
 		complete = isHeadingCommandComplete();
 		break;

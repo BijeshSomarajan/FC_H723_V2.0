@@ -95,6 +95,9 @@ char tmOpTypeChar(uint8_t op) {
 	case MISSION_OPERATION_SET_HEADING:
 		opChar = 'H';
 		break;
+	case MISSION_OPERATION_SET_HOME_HEADING:
+		opChar = 'H';
+		break;
 	case MISSION_OPERATION_ROTATE:
 		opChar = 'R';
 		break;
