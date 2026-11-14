@@ -14,7 +14,7 @@ void setAbsoluteHeadingCommand(float headingDegree) {
 	headingCommandTarget = wrap360(headingDegree);
 	headingCommandTimer = 0.0f;
 	// Allow twice the ideal turn time, so the guard scales with the size of the turn
-	headingCommandTimeout = 2.0f * fabsf(wrap180(headingCommandTarget - fcStatusData.headingRef)) / HEADING_COMMAND_SPIN_RATE + HEADING_COMMAND_TIMEOUT_MARGIN;
+	headingCommandTimeout = 2.0f * fabsf(wrap180(headingCommandTarget - fcStatusData.headingRef)) / HEADING_COMMAND_ROTATION_RATE + HEADING_COMMAND_TIMEOUT_MARGIN;
 	fcStatusData.isHeadingChangeModeActive = 1;
 }
 
@@ -33,7 +33,7 @@ void handleHeadingCommand(float dt) {
 			fcStatusData.isHeadingChangeModeActive = 0;
 		} else {
 			float err = wrap180(headingCommandTarget - fcStatusData.headingRef);
-			float step = HEADING_COMMAND_SPIN_RATE * dt;
+			float step = HEADING_COMMAND_ROTATION_RATE * dt;
 			if (fabsf(err) <= step) {
 				fcStatusData.headingRef = headingCommandTarget;
 			} else {

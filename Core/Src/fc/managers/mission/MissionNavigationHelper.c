@@ -29,6 +29,7 @@
 extern MissionData *currentMissionData;
 extern MissionWPData *currentMissionWPData;
 extern float missionCruiseSpeed;
+extern float missionRTHSpeed;
 extern float missionWPCompleteDt;
 extern float missionWPDistanceFiltered;
 extern float missionVxCommand;
@@ -101,7 +102,7 @@ static void navigateToWaypoint(float dt) {
  * at the point where the turn started (no drift in wind), then the leg is flown.
  */
 __ATTR_ITCM_TEXT
-void updateNavCommand(float dt) {
+void updateWpNavCommand(float dt) {
 	if (isHeadingCommandComplete()) {
 		navigateToWaypoint(dt);
 	} else {
@@ -162,18 +163,53 @@ static void loadMissionHeading(void) {
 	}
 }
 
-__ATTR_ITCM_TEXT
-void loadNavCordinates() {
+/** Common part of every navigation target: reference, speed, distance filter seed, dwell timer. */
+static void setNavTarget(float posX, float posY, float speed) {
 	resetWPStates();
-	float posX, posY;
-	convertGNSSToXYCordinates(currentMissionWPData->latitude, currentMissionWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
 	fcStatusData.positionXRefMission = posX;
 	fcStatusData.positionYRefMission = posY;
-	fcStatusData.positionVelMission = constrainToRangeF(fabsf(currentMissionWPData->velocity), MISSION_MGR_SPEED_MIN, missionCruiseSpeed);
+	fcStatusData.positionVelMission = constrainToRangeF(fabsf(speed), MISSION_MGR_SPEED_MIN, missionCruiseSpeed);
 	float dx = posX - positionCordinateData.xPosition;
 	float dy = posY - positionCordinateData.yPosition;
 	missionWPDistanceFiltered = dx * dx + dy * dy;   // seed with the real distance
 	missionWPCompleteDt = 0;
+}
+
+__ATTR_ITCM_TEXT
+void loadNavCordinates() {
+	float posX, posY;
+	convertGNSSToXYCordinates(currentMissionWPData->latitude, currentMissionWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
+	setNavTarget(posX, posY, currentMissionWPData->velocity);
+}
+
+/**
+ * Soft RTH (mission operation): retargets the navigation to the home point.
+ * The operation then flies the leg through doOpNavigation().
+ */
+__ATTR_ITCM_TEXT
+void startRTHOpNavigation(void) {
+	float posX, posY;
+	convertGNSSToXYCordinates(fcStatusData.positionLatHome, fcStatusData.positionLongHome, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
+	setNavTarget(posX, posY, missionRTHSpeed);
+	cancelHeadingCommand();   // no course lock on the way home: the nose keeps its heading
+	missionVxCommand = positionCordinateData.xVelocity;
+	missionVyCommand = positionCordinateData.yVelocity;
+}
+
+/**
+ * Navigation owned by an operation (soft RTH): flies toward the current navigation target
+ * and returns 1 once it is reached. The target is loaded by the operation's start (loadNavHome).
+ */
+__ATTR_ITCM_TEXT
+uint8_t doRTHOpNavigation(float dt) {
+	uint8_t navCompletionStatus = 0;
+	if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
+		navigateToWaypoint(dt);              // plain leg, no course-lock turn/hold
+		navCompletionStatus = checkNavCompletion(dt);
+	} else {
+		navCompletionStatus = 1;
+	}
+	return navCompletionStatus;
 }
 
 __ATTR_ITCM_TEXT
@@ -188,7 +224,7 @@ uint8_t doWPNavigation(float dt) {
 			currentMissionWPData->status = MISSION_STATUS_WIP_NAV;
 			MISSION_TRACE("[MM] WP%u NAV start\n", MM_WP());
 		}
-		updateNavCommand(dt);
+		updateWpNavCommand(dt);
 		if (checkNavCompletion(dt)) {
 			MISSION_TRACE("[MM] WP%u NAV reached\n", MM_WP());
 			navCompletionStatus = 1;

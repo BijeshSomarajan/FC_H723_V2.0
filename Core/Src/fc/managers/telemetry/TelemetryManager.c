@@ -98,9 +98,13 @@ char tmOpTypeChar(uint8_t op) {
 	case MISSION_OPERATION_ROTATE:
 		opChar = 'R';
 		break;
+	case MISSION_OPERATION_RTH:
+		opChar = 'Z';
+		break;
 	case MISSION_OPERATION_CUSTOM:
 		opChar = 'X';
 		break;
+
 	default:
 		opChar = 'U';
 		break;
@@ -112,7 +116,7 @@ void tmAnnounceOps(MissionWPData *wp, uint8_t from, uint8_t to) {
 	char c = 0;
 	for (uint8_t i = from; i < to && i < NAV_MAX_OPERATIONS; i++) {
 		char t = tmOpTypeChar(wp->operations[i].operation);
-		if (t == 'T' || t == 'L' || t == 'A' || t == 'W' || t == 'H' || t == 'R'|| t == 'C'|| t == 'X') {   // announceable types only
+		if (t == 'T' || t == 'L' || t == 'A' || t == 'W' || t == 'H' || t == 'R' || t == 'X' || t == 'Z') {   // announceable types only
 			c = t;
 		}
 	}

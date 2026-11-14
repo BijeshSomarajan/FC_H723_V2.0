@@ -101,6 +101,10 @@ void startOperation(float dt) {
 		setRelativeHeadingCommand(currentMissionOperationData->value);
 		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
+	case MISSION_OPERATION_RTH:           // soft RTH: fly home within the mission, no hard-RTH mode
+		startRTHOpNavigation();
+		currentMissionOperationData->status = MISSION_STATUS_WIP;
+		break;
 	default:
 		currentMissionOperationData->status = MISSION_STATUS_COMPLETE;  // unknown: skip
 		MISSION_TRACE("[MM] WP%u OP%u skip (unknown)\n", MM_WP(), MM_OP());
@@ -142,6 +146,9 @@ uint8_t checkOperation(float dt) {
 	case MISSION_OPERATION_ROTATE:
 	case MISSION_OPERATION_SET_HEADING:
 		complete = isHeadingCommandComplete();
+		break;
+	case MISSION_OPERATION_RTH:
+		complete = doRTHOpNavigation(dt);
 		break;
 	default:
 		complete = 1;
@@ -239,10 +246,14 @@ void handleMission(float dt) {
 			MISSION_TRACE("[MM] WP%u OPS begin n=%u\n", MM_WP(), (unsigned ) currentMissionWPData->operationCount);
 		}
 	} else if (currentMissionWPData->status == MISSION_STATUS_WIP_OP) {
-		if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
-			controlPositionCordinatesWithGains(dt, fcStatusData.positionXRefMission, fcStatusData.positionYRefMission, 1.0f);
-		} else if (!fcStatusData.isFlying) {
-			updatePositionReferenceToPresent();
+		// An operation that navigates (soft RTH) commands the position itself
+		uint8_t opNavigating = (currentMissionOperationData != NULL && currentMissionOperationData->operation == MISSION_OPERATION_RTH && currentMissionOperationData->status == MISSION_STATUS_WIP);
+		if (!opNavigating) {
+			if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
+				controlPositionCordinatesWithGains(dt, fcStatusData.positionXRefMission, fcStatusData.positionYRefMission, 1.0f);
+			} else if (!fcStatusData.isFlying) {
+				updatePositionReferenceToPresent();
+			}
 		}
 		if (currentMissionWPData->operationCount > 0) {
 			if (doWPOperations(dt)) {
@@ -471,4 +482,3 @@ void updatePositionReferenceToPresent() {
 	fcStatusData.positionXRef = positionCordinateData.xPosition;
 	fcStatusData.positionYRef = positionCordinateData.yPosition;
 }
-

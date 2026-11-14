@@ -138,6 +138,7 @@ local aAlertOpDoneModes = {
 	["R"] = "/SOUNDS/en/brhs/mission/opRotate.wav",
 	["C"] = "/SOUNDS/en/brhs/mission/courseAdj.wav",
 	["X"] = "/SOUNDS/en/brhs/mission/opCustom.wav",
+	["Z"] = "/SOUNDS/en/brhs/mission/opRTH.wav",
 }
 
 -- ==========================================================================
