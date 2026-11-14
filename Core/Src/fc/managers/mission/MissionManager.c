@@ -1,22 +1,20 @@
 #include "MissionManager.h"
-#include "MissionNavigationHelper.h"
 
 #include <math.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <sys/_stdint.h>
 
 #include "../../calibration/Calibration.h"
 #include "../../control/position/PositionControl.h"
 #include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
-#include "../../sensors/groundStation/GroundStation.h"
 #include "../../status/FCStatus.h"
 #include "../../util/MathUtil.h"
-#include "../position/common/PositionCommon.h"
-#include "../position/estimator/PositionEstimatorHelper.h"
-#include "../position/helpers/PositionManagerHelper.h"
 #include "../altitude/helpers/AltitudeCommandHelper.h"
+#include "../attitude/helpers/HeadingCommandHelper.h"
+#include "../position/common/PositionCommon.h"
+#include "../position/helpers/PositionManagerHelper.h"
+#include "MissionNavigationHelper.h"
 
 // ---------------------------------------------------------------------------
 // Mission trace: short, transition-only lines (never from per-cycle paths).
@@ -95,9 +93,13 @@ void startOperation(float dt) {
 		missionWaitCounter = 0;
 		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
-	case MISSION_OPERATION_SET_HEADING:
-		currentMissionOperationData->status = MISSION_STATUS_COMPLETE; //Not supported yet
-		MISSION_TRACE("[MM] WP%u OP%u skip (heading)\n", MM_WP(), MM_OP());
+	case MISSION_OPERATION_SET_HEADING: // value = absolute heading, 0-360
+		setAbsoluteHeadingCommand(currentMissionOperationData->value);
+		currentMissionOperationData->status = MISSION_STATUS_WIP;
+		break;
+	case MISSION_OPERATION_ROTATE:        // value = signed degrees, + clockwise
+		setRelativeHeadingCommand(currentMissionOperationData->value);
+		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
 	default:
 		currentMissionOperationData->status = MISSION_STATUS_COMPLETE;  // unknown: skip
@@ -137,8 +139,9 @@ uint8_t checkOperation(float dt) {
 			complete = 1;
 		}
 		break;
+	case MISSION_OPERATION_ROTATE:
 	case MISSION_OPERATION_SET_HEADING:
-		complete = 1;
+		complete = isHeadingCommandComplete();
 		break;
 	default:
 		complete = 1;
@@ -184,6 +187,7 @@ void handleWPCompletion(float dt) {
 		fcStatusData.isMissionComplete = 1;
 		fcStatusData.isMissionCompleteLatch = 1;
 		fcStatusData.isMissionModeActive = 0;
+		cancelHeadingCommand();
 		updatePositionReferenceToWPRef();
 		MISSION_TRACE("[MM] MISSION complete rth=%u fs=%u\n", (unsigned ) (currentMissionData == &rthMissionData), (unsigned ) fcStatusData.isFailSafeModeActive);
 		if (fcStatusData.isFailSafeModeActive) {
@@ -290,6 +294,7 @@ void startRTHMission() {
 		missionWPData->status = MISSION_STATUS_OPEN;
 		missionWPData->operationCount = 0;
 		missionWPData->currentOperationIndex = 0;
+		missionWPData->courseLock = 0;
 		currentMissionData = &rthMissionData;
 		MISSION_TRACE("[MM] RTH start fs=%u\n", (unsigned ) fcStatusData.isFailSafeModeActive);
 		startLoadedMission();
@@ -446,7 +451,7 @@ void resetMissionStates(uint8_t abort) {
 	}
 	resetRTHStates();
 	resetWPStates();
-
+	cancelHeadingCommand();
 	updatePositionReferenceToPresent();
 
 	fcStatusData.positionVelMission = MISSION_MGR_SPEED_MIN;

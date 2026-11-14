@@ -164,7 +164,7 @@ void debufFFT() {
 
 void debugAltGraph() {
 	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeTerrainFiltered * 100;
-	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeSLFiltered * 1000;
+	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeSLFiltered * 100;
 	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPosition * 1000;
 	DEBUG_DATA_BUFFER[3] = positionCordinateData.zVelocity * 1000;
 	DEBUG_DATA_BUFFER[4] = positionCordinateData.zAcceleration * 100;

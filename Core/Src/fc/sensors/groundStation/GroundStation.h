@@ -9,11 +9,11 @@ typedef enum {
 } MissionAction;
 
 typedef enum {
-	MISSION_OPERATION_TAKEOFF = 1, MISSION_OPERATION_LAND, MISSION_OPERATION_SET_ALT, MISSION_OPERATION_SET_HEADING, MISSION_OPERATION_WAIT, MISSION_OPERATION_CUSTOM
+	MISSION_OPERATION_TAKEOFF = 1, MISSION_OPERATION_LAND, MISSION_OPERATION_SET_ALT, MISSION_OPERATION_SET_HEADING, MISSION_OPERATION_ROTATE, MISSION_OPERATION_WAIT, MISSION_OPERATION_CUSTOM
 } MissionOperation;
 
 typedef enum {
-	MISSION_STATUS_INVALID = 0, MISSION_STATUS_OPEN, MISSION_STATUS_WIP, MISSION_STATUS_WIP_NAV,MISSION_STATUS_WIP_OP,MISSION_STATUS_COMPLETE
+	MISSION_STATUS_INVALID = 0, MISSION_STATUS_OPEN, MISSION_STATUS_WIP, MISSION_STATUS_WIP_NAV, MISSION_STATUS_WIP_OP, MISSION_STATUS_COMPLETE
 } MissionStaus;
 
 typedef struct {
@@ -26,7 +26,8 @@ typedef struct {
 	uint16_t waypointIndex;
 	double latitude;      // 1e-7 degrees
 	double longitude;     // 1e-7 degrees
-	float velocity;
+	float velocity;       //Velocity desired to the WP
+	uint8_t courseLock;   // 0 = keep current heading, 1 = point along the direction of flight
 	uint8_t status;
 	uint8_t operationCount;
 	uint8_t currentOperationIndex;

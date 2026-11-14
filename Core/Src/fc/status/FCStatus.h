@@ -12,15 +12,15 @@ struct _FC_STATUS_DATA {
 	//FC Modes
 	uint8_t isNavModeActive, isRTHModeActive, isCruiseModeActive ,isFailSafeModeActive, isMissionModeActive, isTerrainAltModeActive,isHeadlessModeActive;
 	//Flag to state if landing landing or Take Off mode is active
-	uint8_t isTakeOffModeActive,isLandingModeActive,isAltChangeModeActive;
+	uint8_t isTakeOffModeActive,isLandingModeActive,isAltChangeModeActive,isHeadingChangeModeActive ;
 
 	//Flight debug status enabled
 	uint8_t isDebugEnabled;
 	uint8_t isTelemetryEnabled;
 	//The position references
 	double positionXRef, positionYRef;
-	//The mission position references
-	double positionXRefMission, positionYRefMission,positionVelMission;
+	//The mission position and heading references
+	double positionXRefMission, positionYRefMission,positionVelMission,headingRefMission;
 	//The home position
 	double positionLatHome, positionLongHome;
 	float positionXHome, positionYHome;

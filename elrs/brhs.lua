@@ -53,7 +53,7 @@ local aAlertCritLinkInterval  = 300   -- 3 seconds repeat interval (Critical Lin
 
 -- VCP USB Params
 local vcpUSBLastSend = 0
-local NAV_WP_PAYLOAD_SIZE = 56   -- 3 hdr + 1 action + 2 idx + 4 lat + 4 lon + 2 velocity + 8 ops * 5
+local NAV_WP_PAYLOAD_SIZE = 57   -- 3 hdr + 1 action + 2 idx + 4 lat + 4 lon + 2 velocity + 1 courseLock + 8 ops * 5
 
 -- Must match CRSF_NAV_MAX_OPERATIONS on the receiver. The operations array is
 -- fixed size on the wire; unused slots are zero filled (operation = 0).
@@ -116,7 +116,6 @@ local aAlertLandModes = {
     ["T"] = "/SOUNDS/en/brhs/land/takeoff.wav",
     ["L"] = "/SOUNDS/en/brhs/land/land.wav",
     ["F"] = "/SOUNDS/en/brhs/land/fly.wav",
-    ["G"] = "/SOUNDS/en/brhs/land/touchDwn.wav",
 }
 
 local aAlertMissionModes = {
@@ -135,6 +134,10 @@ local aAlertOpDoneModes = {
     ["L"] = "/SOUNDS/en/brhs/mission/opLand.wav",
     ["A"] = "/SOUNDS/en/brhs/mission/opAlt.wav",
     ["W"] = "/SOUNDS/en/brhs/mission/opWait.wav",
+	["H"] = "/SOUNDS/en/brhs/mission/opHead.wav",
+	["R"] = "/SOUNDS/en/brhs/mission/opRotate.wav",
+	["C"] = "/SOUNDS/en/brhs/mission/courseAdj.wav",
+	["X"] = "/SOUNDS/en/brhs/mission/opCustom.wav",
 }
 
 -- ==========================================================================
@@ -584,8 +587,13 @@ end
 -- Build MSP NAV payload from parsed command
 --
 -- WP CSV format:
---   action,index,latitude,longitude,velocity,Code=Value,...
---   e.g.  2,2,129410000,776110000,10.0,5=3.0
+--   action,index,latitude,longitude,velocity,courseLock,Code=Value,...
+--   e.g.  2,2,129410000,776110000,10.0,1,5=3.0
+--
+-- courseLock is one byte sent as-is (0 = keep the current heading, non-zero =
+-- point the nose along the direction of flight); the FC decides what it means.
+-- Older lines without a courseLock field (operations right after the velocity,
+-- or right after the longitude) are still accepted and send courseLock = 0.
 --
 -- Velocity from the app is xx.x m/s.
 -- FC representation is uint16_t in units of 0.1 m/s:
@@ -606,7 +614,8 @@ end
 --   Byte 7-10  Latitude
 --   Byte 11-14 Longitude
 --   Byte 15-16 Velocity (uint16 BE, units of 0.1 m/s)
---   Byte 17-56 8 x { int32 value BE, uint8 operation }
+--   Byte 17    Course lock (uint8)
+--   Byte 18-57 8 x { int32 value BE, uint8 operation }
 -- ==========================================================================
 
 -- Convert a decimal string ("5.0", "-12.35", "+3") into a scaled integer
@@ -718,7 +727,7 @@ local function buildConfigMSPPayload(command, subCommand, values)
     return payload
 end
 
-local function buildNavMSPPayload(action, index, latStr, lonStr, velocity, ops)
+local function buildNavMSPPayload(action, index, latStr, lonStr, velocity, courseLock, ops)
     local payload = {
         0xC8,        -- Destination (FC)
         0xEA,        -- Origin (Radio)
@@ -730,10 +739,11 @@ local function buildNavMSPPayload(action, index, latStr, lonStr, velocity, ops)
         packDecStrInt32BE(payload, 7, latStr)
         packDecStrInt32BE(payload, 11, lonStr)
         packUint16BE(payload, 15, velocity)
+        payload[17] = courseLock
         -- Fixed array of NAV_MAX_OPERATIONS slots, 5 bytes each:
         --   int32_t value (BE), uint8_t operation. Unused slots are zero.
         for i = 1, NAV_MAX_OPERATIONS do
-            local pos = 17 + (i - 1) * 5
+            local pos = 18 + (i - 1) * 5
             local op = ops[i]
 
             if op then
@@ -838,8 +848,12 @@ local function receiveDataFromVCPAndSendToFC()
 
             index = math.floor(index) % 0x10000
 
+            -- Fields: 5 = velocity, 6 = courseLock, 7.. = operations ("Code=Value").
+            -- A field containing "=" is an operation, so lines from an older app
+            -- (no courseLock, or no velocity either) still parse; courseLock is 0 then.
             local velocity = 0
-            local opsStart = 6
+            local courseLock = 0
+            local opsStart = 7
             local vField = fields[5] or ""
 
             if string.find(vField, "=", 1, true) then
@@ -851,11 +865,24 @@ local function receiveDataFromVCPAndSendToFC()
                     if velocity < 0 then velocity = 0 end
                     if velocity > 65535 then velocity = 65535 end
                 end
+
+                local cField = fields[6] or ""
+
+                if string.find(cField, "=", 1, true) then
+                    opsStart = 6
+                else
+                    local c = tonumber(cField)
+                    if c ~= nil then
+                        courseLock = math.floor(c)
+                        if courseLock < 0 then courseLock = 0 end
+                        if courseLock > 255 then courseLock = 255 end
+                    end
+                end
             end
 
             local ops = parseOperations(fields, opsStart)
 
-            local payload = buildNavMSPPayload(action, index, latStr, lonStr, velocity, ops)
+            local payload = buildNavMSPPayload(action, index, latStr, lonStr, velocity, courseLock, ops)
 
             if crossfireTelemetryPush(CRSF_MSP_NAV_COMMAND, payload) then
                 playTone(2000, 100, 0, PLAY_NOW)

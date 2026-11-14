@@ -17,6 +17,7 @@
 #include "../../util/MathUtil.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/helpers/PositionManagerHelper.h"
+#include "helpers/HeadingCommandHelper.h"
 
 extern POSITION_COMMAND_DATA positionCommandData;
 
@@ -112,7 +113,11 @@ __ATTR_ITCM_TEXT
 void doAttitudeAngleControl(float dt) {
 	if (!rcData.yawCentered) {
 		fcStatusData.headingRef = sensorAttitudeData.heading;
+		cancelHeadingCommand();
+	}else{
+		handleHeadingCommand(dt);
 	}
+
 	if (!fcStatusData.hasCrashed && fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
 		float expectedPitch = 0;
 		float expectedRoll = 0;

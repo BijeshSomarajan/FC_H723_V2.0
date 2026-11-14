@@ -49,14 +49,17 @@ void _crsfMissionWPCallBack(uint8_t wpCommand, CRSFMissionWP wp) {
 		missionWPData->latitude = (double) wp.latitude * 1e-7;
 		missionWPData->longitude = (double) wp.longitude * 1e-7;
 		missionWPData->velocity = (float) wp.velocity * 1e-1;
+		missionWPData->courseLock = (uint8_t) wp.courseLock;
 		missionWPData->status = MISSION_STATUS_OPEN;
 		missionWPData->operationCount = 0;
 		missionWPData->currentOperationIndex = 0;
+		logPrintf("[wp]Indx:%d, vel:%f, courseLock:%d\n",wp.waypointIndex , missionWPData->velocity ,missionWPData->courseLock);
 		for (uint8_t i = 0; i < NAV_MAX_OPERATIONS; i++) {
 			if (wp.operations[i].operation != 0) {
 				missionWPData->operations[i].operation = wp.operations[i].operation;
 				missionWPData->operations[i].value = (float) wp.operations[i].value * 1e-1;
 				missionWPData->operations[i].status = MISSION_STATUS_OPEN;
+				logPrintf("[Op]Indx:%d, Op:%d, value:%f\n",missionWPData->operationCount , missionWPData->operations[i].operation ,missionWPData->operations[i].value);
 				missionWPData->operationCount++;
 			}
 		}

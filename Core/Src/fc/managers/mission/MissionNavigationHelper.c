@@ -1,17 +1,18 @@
 #include "MissionNavigationHelper.h"
 
 #include <math.h>
-#include <stdio.h>
+#include <sys/_stdint.h>
 
-#include "MissionManager.h"
-#include "../../memory/Memory.h"
-#include "../../logger/Logger.h"
-#include "../../status/FCStatus.h"
 #include "../../control/position/PositionControl.h"
+#include "../../memory/Memory.h"
+#include "../../sensors/groundStation/GroundStation.h"
+#include "../../status/FCStatus.h"
 #include "../../util/MathUtil.h"
+#include "../attitude/helpers/HeadingCommandHelper.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
 #include "../position/helpers/PositionManagerHelper.h"
+#include "MissionManager.h"
 
 #ifndef MISSION_MGR_TRACE_ENABLED
 #define MISSION_MGR_TRACE_ENABLED 0
@@ -34,8 +35,13 @@ extern float missionVxCommand;
 extern float missionVyCommand;
 void resetWPStates(void);
 
+// Where the drone holds while the nose turns at the start of a course-locked leg
+static float navTurnHoldX = 0.0f;
+static float navTurnHoldY = 0.0f;
+
+/** Flies the leg toward the waypoint: velocity profile, acceleration limit, velocity command. */
 __ATTR_ITCM_TEXT
-void updateNavCommand(float dt) {
+static void navigateToWaypoint(float dt) {
 	// ---------------------------------------------------------------
 	// Position error to waypoint
 	// ---------------------------------------------------------------
@@ -66,6 +72,7 @@ void updateNavCommand(float dt) {
 		desiredVx = dirX * targetSpeed;
 		desiredVy = dirY * targetSpeed;
 	}
+
 	// ---------------------------------------------------------------
 	// Acceleration limiting
 	// ---------------------------------------------------------------
@@ -87,6 +94,22 @@ void updateNavCommand(float dt) {
 	// Feed into position / velocity controller
 	// ---------------------------------------------------------------
 	setExpectedPositionVelocity(dt, missionVxCommand, missionVyCommand);
+}
+
+/**
+ * Course-lock leg: while the nose is still turning to the bearing the drone holds position
+ * at the point where the turn started (no drift in wind), then the leg is flown.
+ */
+__ATTR_ITCM_TEXT
+void updateNavCommand(float dt) {
+	if (isHeadingCommandComplete()) {
+		navigateToWaypoint(dt);
+	} else {
+		controlPositionCordinatesWithGains(dt, navTurnHoldX, navTurnHoldY, 1.0f);
+		// Track the real velocity so the leg starts without a velocity step when the turn ends
+		missionVxCommand = positionCordinateData.xVelocity;
+		missionVyCommand = positionCordinateData.yVelocity;
+	}
 }
 
 __ATTR_ITCM_TEXT
@@ -116,6 +139,29 @@ uint8_t checkNavCompletion(float dt) {
 	return (insideRadius && (lowGroundSpeed || dwellTimeout)) ? 1 : 0;
 }
 
+/**
+ * Course lock: points the nose along the direction of flight (current position to the target).
+ * Waypoints without the lock keep whatever heading the drone already has.
+ */
+__ATTR_ITCM_TEXT
+static void loadMissionHeading(void) {
+	cancelHeadingCommand();
+	if (currentMissionWPData->courseLock != 0) {
+		float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;   // north
+		float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;   // east
+		// A bearing is meaningless when the target is too close
+		if ((dx * dx + dy * dy) >= MISSION_COURSE_LOCK_MIN_LEG_SQ) {
+			float bearing = atan2Approx(dy, dx) * (180.0f / (float) M_PI);   // clockwise from north
+			if (bearing < 0.0f) {
+				bearing += 360.0f;
+			}
+			navTurnHoldX = positionCordinateData.xPosition;   // hold here while the nose turns
+			navTurnHoldY = positionCordinateData.yPosition;
+			setAbsoluteHeadingCommand(bearing);
+		}
+	}
+}
+
 __ATTR_ITCM_TEXT
 void loadNavCordinates() {
 	resetWPStates();
@@ -136,6 +182,7 @@ uint8_t doWPNavigation(float dt) {
 	if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
 		if (currentMissionWPData->status == MISSION_STATUS_WIP) {
 			loadNavCordinates();
+			loadMissionHeading();
 			missionVxCommand = positionCordinateData.xVelocity;
 			missionVyCommand = positionCordinateData.yVelocity;
 			currentMissionWPData->status = MISSION_STATUS_WIP_NAV;

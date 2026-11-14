@@ -16,7 +16,7 @@
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "../altitude/helpers/AltitudeCommandHelper.h"
-#include "../config/ConfigHelperMobileApp.h"
+#include "../attitude/helpers/HeadingCommandHelper.h"
 #include "../mission/MissionManager.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
@@ -95,8 +95,11 @@ char tmOpTypeChar(uint8_t op) {
 	case MISSION_OPERATION_SET_HEADING:
 		opChar = 'H';
 		break;
+	case MISSION_OPERATION_ROTATE:
+		opChar = 'R';
+		break;
 	case MISSION_OPERATION_CUSTOM:
-		opChar = 'C';
+		opChar = 'X';
 		break;
 	default:
 		opChar = 'U';
@@ -109,7 +112,7 @@ void tmAnnounceOps(MissionWPData *wp, uint8_t from, uint8_t to) {
 	char c = 0;
 	for (uint8_t i = from; i < to && i < NAV_MAX_OPERATIONS; i++) {
 		char t = tmOpTypeChar(wp->operations[i].operation);
-		if (t == 'T' || t == 'L' || t == 'A' || t == 'W') {   // announceable types only
+		if (t == 'T' || t == 'L' || t == 'A' || t == 'W' || t == 'H' || t == 'R'|| t == 'C'|| t == 'X') {   // announceable types only
 			c = t;
 		}
 	}
@@ -157,35 +160,38 @@ void updateMissionProgress(void) {
 		MissionData *m = currentMissionData;      // read once, then bounds-check
 		MissionWPData *wp = currentMissionWPData;
 		if (m != NULL && wp != NULL && m->waypointCount <= NAV_MAX_WAYPOINTS) {
-			uint8_t wpIdx = m->currentWaypointIndex;
-			tmWpTotal = m->waypointCount;
+			if (wp->status == MISSION_STATUS_WIP_NAV && wp->courseLock == 1 && isHeadingCommandComplete()) {
+				tmOpChar = 'C';
+			} else {
+				uint8_t wpIdx = m->currentWaypointIndex;
+				tmWpTotal = m->waypointCount;
+				if (wpIdx > tmLastWpIdx && wpIdx < NAV_MAX_WAYPOINTS) {
+					// advanced: whatever the old waypoint had left must have finished
+					MissionWPData *old = &m->waypoints[tmLastWpIdx];
+					uint8_t oldCount = (old->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : old->operationCount;
+					tmAnnounceOps(old, tmLastOpsDone, oldCount);
+					tmWpDone = wpIdx;
+					tmLastWpIdx = wpIdx;
+					tmLastOpsDone = 0;
+				} else if (wpIdx < tmLastWpIdx) {      // reset underneath us: resync
+					tmLastWpIdx = wpIdx;
+					tmLastOpsDone = 0;
+				}
 
-			if (wpIdx > tmLastWpIdx && wpIdx < NAV_MAX_WAYPOINTS) {
-				// advanced: whatever the old waypoint had left must have finished
-				MissionWPData *old = &m->waypoints[tmLastWpIdx];
-				uint8_t oldCount = (old->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : old->operationCount;
-				tmAnnounceOps(old, tmLastOpsDone, oldCount);
-				tmWpDone = wpIdx;
-				tmLastWpIdx = wpIdx;
-				tmLastOpsDone = 0;
-			} else if (wpIdx < tmLastWpIdx) {      // reset underneath us: resync
-				tmLastWpIdx = wpIdx;
-				tmLastOpsDone = 0;
-			}
-
-			uint8_t opCount = (wp->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : wp->operationCount;
-			uint8_t opsDone = 0;
-			if (wp->status == MISSION_STATUS_WIP_OP) {
-				opsDone = wp->currentOperationIndex;
-			} else if (wp->status == MISSION_STATUS_COMPLETE) {
-				opsDone = opCount;
-			}
-			if (opsDone > opCount) {
-				opsDone = opCount;
-			}
-			if (opsDone > tmLastOpsDone) {
-				tmAnnounceOps(wp, tmLastOpsDone, opsDone);
-				tmLastOpsDone = opsDone;
+				uint8_t opCount = (wp->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : wp->operationCount;
+				uint8_t opsDone = 0;
+				if (wp->status == MISSION_STATUS_WIP_OP) {
+					opsDone = wp->currentOperationIndex;
+				} else if (wp->status == MISSION_STATUS_COMPLETE) {
+					opsDone = opCount;
+				}
+				if (opsDone > opCount) {
+					opsDone = opCount;
+				}
+				if (opsDone > tmLastOpsDone) {
+					tmAnnounceOps(wp, tmLastOpsDone, opsDone);
+					tmLastOpsDone = opsDone;
+				}
 			}
 		}
 	}
