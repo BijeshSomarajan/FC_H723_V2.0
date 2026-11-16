@@ -85,7 +85,7 @@ void resetAltitudeManager(void);
 #define ALT_MGR_THROTTLE_THRESHOLD_PERIOD  0.50f
 
 #define ALT_MGR_MAX_ALT_DELTA 3.0f //This is a safety net , max alt delta in normal flying is expected to be within this limit.
-#define ALT_MGR_LANDING_DELTA 2.0f //While landing , the target is set below the home altitude.
+#define ALT_MGR_LANDING_DELTA 5.0f //While landing , the target is set below the home altitude.
 
 typedef enum {
 	ALT_HOLD_STATE_IDLE = 0, ALT_HOLD_STATE_BRAKING, ALT_HOLD_STATE_LOCKED

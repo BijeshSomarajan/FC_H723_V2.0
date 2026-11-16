@@ -165,7 +165,7 @@ void handleThrottleChange(float dt) {
 __ATTR_ITCM_TEXT
 void updateAltitudeHomeReference() {
 	fcStatusData.altitudeRef = positionCordinateData.zPosition;
-	fcStatusData.altitudeSLHome = fcStatusData.altitudeRef;
+	fcStatusData.altitudeHome = fcStatusData.altitudeRef;
 }
 
 __ATTR_ITCM_TEXT
@@ -314,7 +314,7 @@ void updateAltCommand() {
 			if (fcStatusData.isFlying) {
 				wasLandingModeActive = 1;
 				abortAltCommand();
-				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - ALT_MGR_LANDING_DELTA, ALT_COMMAND_TYPE_LANDING);
+				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeHome - ALT_MGR_LANDING_DELTA, ALT_COMMAND_TYPE_LANDING);
 			} else {
 				skipAltCommand();
 			}
@@ -338,7 +338,7 @@ void updateAltCommand() {
 			if (fcStatusData.isFlying) {
 				wasAltChangeModeActive = 1;
 				abortAltCommand();
-				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome + getTargetAltForAltChangeCommand(), ALT_COMMAND_TYPE_NORMAL);
+				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeHome + getTargetAltForAltChangeCommand(), ALT_COMMAND_TYPE_NORMAL);
 			} else {
 				skipAltCommand();
 			}

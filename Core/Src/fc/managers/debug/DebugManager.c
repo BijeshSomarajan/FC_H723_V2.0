@@ -162,13 +162,19 @@ void debufFFT() {
 
 }
 
+extern uint8_t inaCounter;
 void debugAltGraph() {
 	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeTerrainFiltered * 100;
-	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeSLFiltered * 100;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPosition * 1000;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zVelocity * 1000;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.zAcceleration * 100;
-	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA, 0);
+	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeTerrain * 100;
+	DEBUG_DATA_BUFFER[2] = batteryData.voltage * 100;
+	DEBUG_DATA_BUFFER[3] = inaCounter;
+	/*
+	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altitudeSLFiltered * 100;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPosition * 1000;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[5] = positionCordinateData.zAcceleration * 100;
+	*/
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA, 0);
 }
 
 void debugNavStates() {
@@ -194,7 +200,7 @@ void debugTelemetry() {
 
 void debufFCStatus() {
 	sprintf(buf, "%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(), positionCordinateData.zPosition, positionCordinateData.zVelocity, controlData.throttleControl, fcStatusData.throttlePercent,
-			fcStatusData.altitudeSLHome, rcData.throttleCentered);
+			fcStatusData.altitudeHome, rcData.throttleCentered);
 	logString(buf);
 }
 

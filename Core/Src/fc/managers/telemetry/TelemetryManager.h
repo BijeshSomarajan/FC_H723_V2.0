@@ -13,9 +13,6 @@ typedef enum {
 } TelemetryStep;
 
 #define TELEMETRY_TASK_FREQUENCY 50.0f
-
 uint8_t initTelemetryManager(void);
-
-#define TELEMETRY_OSD_ENABLED 1
 
 #endif /* SRC_FC_MANAGERS_TELEMETRY_TELEMETRYMANAGER_H_ */

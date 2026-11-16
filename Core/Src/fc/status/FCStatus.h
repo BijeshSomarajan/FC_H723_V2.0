@@ -34,7 +34,7 @@ struct _FC_STATUS_DATA {
 
 	//Flight reference values
 	float headingRef, headingHomeRef, headingDelta;
-	float altitudeSLHome;
+	float altitudeHome;
 	float altitudeRef;
 
 	//Throttle reference values

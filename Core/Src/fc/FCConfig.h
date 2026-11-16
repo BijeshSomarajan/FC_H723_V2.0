@@ -38,7 +38,9 @@
 #define FC_STABLILIZATION_PERIOD 8.0f
 #define FC_ARM_PERIOD 1.0f
 
+/* Note DEBUG and OSD cannot be active at the sametime */
 #define DEBUG_ENABLED 1
+#define OSD_ENABLED 0
 
 #define MAX_PERMISSIBLE_THROTTLE_DELTA 900
 

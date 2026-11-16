@@ -176,7 +176,6 @@ void uart8Config() {
 }
 
 uint8_t uart8Init() {
-
 	if (!uart8Initialized) {
 		uart8Config();
 		uart8DMAConfig();
