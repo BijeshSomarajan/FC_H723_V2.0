@@ -8,8 +8,8 @@
 #include "../../../status/FCStatus.h"
 #include "../../../util/MathUtil.h"
 #include "../../position/common/PositionCommon.h"
-#include "../../position/helpers/PositionManagerHelper.h"
 #include "../AltitudeManager.h"
+#include "TerrainLandingHelper.h"
 
 uint8_t altCommandMode = 0;
 uint8_t altCommandComplete = 0;
@@ -51,6 +51,7 @@ void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType
 	altCommandThrottleRefreshRequired = (type != ALT_COMMAND_TYPE_TAKEOFF);
 	altCommandStepIssued = 0;
 	altCommandStepTimer = 0;
+	resetTerrainLandingStates();
 }
 
 void setTargetAltForAltChangeCommand(float alt) {
@@ -89,6 +90,8 @@ void resetAltCommandStates(void) {
 	altCommandThrottleRefreshRequired = 0;
 	altCommandStepIssued = 0;
 	altCommandSkipped = 0;
+
+	resetTerrainLandingStates();
 }
 
 __ATTR_ITCM_TEXT
@@ -114,7 +117,7 @@ void handleTakeOff(float dt) {
 
 __ATTR_ITCM_TEXT
 void handleStepAltChange(float dt) {
-	if (altCommandType == ALT_COMMAND_TYPE_LANDING && fcStatusData.currentThrottle < altCommandLiftOffThrottle) {
+	if (altCommandType == ALT_COMMAND_TYPE_LANDING && (isTerrainLandingTouchdown() || fcStatusData.currentThrottle < altCommandLiftOffThrottle)) {
 		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
 		if (fcStatusData.currentThrottle >= ALT_COMMAND_THROTTLE_ZERO_TOLERANCE) {
 			adjustPreLiftOffBaseThrottle(dt, 0);
@@ -154,7 +157,11 @@ void manageAltCommand(float dt) {
 				fcStatusData.isTakeOffModeActive = 0;
 			}
 		} else if (altCommandType != ALT_COMMAND_TYPE_NONE) {
-			handleStepAltChange(dt);
+			if (altCommandType == ALT_COMMAND_TYPE_LANDING && handleTerrainAssistedLanding(dt)) {
+				altCommandStepIssued = 0;   // terrain owns the ref; baro stepping restarts fresh if we fall back
+			} else {
+				handleStepAltChange(dt);
+			}
 			if (isAltCommandComplete()) {
 				if (altCommandType == ALT_COMMAND_TYPE_LANDING) {
 					fcStatusData.isLandingModeActive = 0;

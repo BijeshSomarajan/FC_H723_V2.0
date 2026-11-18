@@ -1,11 +1,12 @@
 #include "AltitudeSensor.h"
+
 #include "../../dsp/LowPassFilter.h"
-#include "../../imu/IMU.h"
 #include "../../logger/Logger.h"
-#include "../../util/MathUtil.h"
-#include "devices/AltitudeDevice.h"
+#include "../../memory/Memory.h"
 #include "../../status/FCStatus.h"
-#include "../rc/RCSensor.h"
+#include "../../util/MathUtil.h"
+#include "../attitude/AttitudeSensor.h"
+#include "devices/AltitudeDevice.h"
 
 SENSOR_ALTITUDE_DATA sensorAltitudeData;
 extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
@@ -57,6 +58,13 @@ void filterTerrainLevelAlt(float dt) {
 }
 
 __ATTR_ITCM_TEXT
+void applyLidarTiltComplensation(){
+	float lift  = cosApproxF(convertDegToRadF(sensorAttitudeData.pitch)) * cosApproxF(convertDegToRadF(sensorAttitudeData.roll));
+	lift = constrainToRangeF(lift, 0.0f, 1.0f);
+	sensorAltitudeData.altitudeTerrain = sensorAltitudeData.altitudeTerrain * lift;
+}
+
+__ATTR_ITCM_TEXT
 uint8_t loadAltitudeSensorsData(void) {
 	uint8_t flags = SENSOR_DATA_NONE;
 	if (deviceBaroLoadData()) {
@@ -70,6 +78,7 @@ uint8_t loadAltitudeSensorsData(void) {
 		if (deviceLidarLoadData()) {
 			flags |= SENSOR_DATA_LIDAR;
 			sensorAltitudeData.altitudeTerrain = deviceAltitudeData.altitudeTerrain;
+			applyLidarTiltComplensation();
 			filterTerrainLevelAlt(SENSOR_LIDAR_READ_PERIOD);
 			sensorAltitudeData.altitudeTerrainQual = deviceAltitudeData.altitudeTerrainQlty;
 		}

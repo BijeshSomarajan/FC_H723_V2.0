@@ -2,6 +2,7 @@
 #define SRC_FC_MANAGERS_ALTITUDE_ALTITUDEMANAGER_H_
 
 #include <sys/_stdint.h>
+#include "AltitudeCommon.h"
 
 uint8_t initAltitudeManager(void);
 void doAltitudeManagement(void);
@@ -86,10 +87,6 @@ void resetAltitudeManager(void);
 
 #define ALT_MGR_MAX_ALT_DELTA 3.0f //This is a safety net , max alt delta in normal flying is expected to be within this limit.
 #define ALT_MGR_LANDING_DELTA 5.0f //While landing , the target is set below the home altitude.
-
-typedef enum {
-	ALT_HOLD_STATE_IDLE = 0, ALT_HOLD_STATE_BRAKING, ALT_HOLD_STATE_LOCKED
-} ALTITUDE_MGR_STATE;
 
 /**
  * Brake configurations

@@ -12,6 +12,7 @@
 #include "../../imu/IMU.h"
 #include "../../logger/Logger.h"
 #include "../../sensors/altitude/AltitudeSensor.h"
+#include "../../sensors/altitude/devices/AltitudeDevice.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
 #include "../../sensors/battery/BatterySensor.h"
 #include "../../sensors/position/GNSS.h"
@@ -19,6 +20,7 @@
 #include "../../status/FCStatus.h"
 #include "../../timers/Scheduler.h"
 #include "../altitude/helpers/AltitudeCommandHelper.h"
+#include "../config/ConfigHelperCommon.h"
 #include "../config/ConfigHelperDesktopApp.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimator.h"
@@ -162,19 +164,15 @@ void debufFFT() {
 
 }
 
-extern uint8_t inaCounter;
+extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
 void debugAltGraph() {
 	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeTerrainFiltered * 100;
-	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeTerrain * 100;
-	DEBUG_DATA_BUFFER[2] = batteryData.voltage * 100;
-	DEBUG_DATA_BUFFER[3] = inaCounter;
-	/*
+	DEBUG_DATA_BUFFER[1] = deviceAltitudeData.altitudeSL * 100;
 	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altitudeSLFiltered * 100;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPosition * 1000;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity * 1000;
+	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPosition * 100;
+	DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity * 100;
 	DEBUG_DATA_BUFFER[5] = positionCordinateData.zAcceleration * 100;
-	*/
-	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA, 0);
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA, 0);
 }
 
 void debugNavStates() {

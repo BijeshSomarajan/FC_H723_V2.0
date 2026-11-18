@@ -60,15 +60,10 @@ uint8_t initINA260(void) {
 // 4. Callback when asynchronous read completes.
 // buf == NULL means the transfer failed (NACK, bus error, DMA error): keep the
 // last voltage, but ALWAYS release the state machine or it never runs again.
-uint8_t inaCounter;
 void __deviceINA260DataReadCallback(uint8_t *buf, uint16_t len) {
     if (buf != NULL && len >= 2) {
         uint16_t rawVoltage = (buf[0] << 8) | buf[1];
         ina260Data.voltage = (float) rawVoltage * 0.00125f;
-        inaCounter++;
-        if(inaCounter > 100){
-        	inaCounter = 0;
-        }
     }
     ina260State = INA_STATE_IDLE; // Cycle finished (ok or failed), ready for next request
 }

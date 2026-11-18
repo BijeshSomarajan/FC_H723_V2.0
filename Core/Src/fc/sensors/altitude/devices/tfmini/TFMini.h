@@ -13,7 +13,11 @@
 #include "../../../../util/MathUtil.h"
 
 #define TFMINI_DEFAULT_ADDRESS   (0x10)
-#define TFMINI_MAX_VALID_DISTANCE 12 //10 mts
+
+#define TFMINI_MAX_VALID_DISTANCE 12.0f //12 mts
+#define TFMINI_MIN_VALID_DISTANCE 0.12f //12 cms
+#define TFMINI_MIN_QUAL 0.02f
+
 #define TFMINI_MIN_VALID_STRENGTH 80
 #define TFMINI_MAX_VALID_STRENGTH 20000
 
