@@ -26,7 +26,7 @@
 // Linear throttle ramps below lift-off throttle
 // ---------------------------------------------------------------------------
 #define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_INCREASE_RAMP_TIME  0.5f   // s, throttle 0 -> lift-off throttle
-#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME  0.3f   // s, lift-off throttle -> 0
+#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME  1.2f//0.3f   // s, lift-off throttle -> 0
 #define ALT_COMMAND_THROTTLE_ZERO_TOLERANCE                  2.0f  // throttle units, landing completes at/below this
 
 typedef enum {

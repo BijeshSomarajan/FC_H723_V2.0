@@ -12,6 +12,7 @@
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
 #include "../position/helpers/PositionManagerHelper.h"
+#include "../position/PositionManager.h"
 #include "MissionManager.h"
 
 #ifndef MISSION_MGR_TRACE_ENABLED
@@ -41,8 +42,7 @@ static float navTurnHoldX = 0.0f;
 static float navTurnHoldY = 0.0f;
 
 /** Flies the leg toward the waypoint: velocity profile, acceleration limit, velocity command. */
-__ATTR_ITCM_TEXT
-static void navigateToWaypoint(float dt) {
+static void navigateToWaypointOld(float dt) {
 	// ---------------------------------------------------------------
 	// Position error to waypoint
 	// ---------------------------------------------------------------
@@ -91,9 +91,97 @@ static void navigateToWaypoint(float dt) {
 	// ---------------------------------------------------------------
 	missionVxCommand += dvx;
 	missionVyCommand += dvy;
+
+	// Acceleration the command is actually ramping at (earth frame, signed)
+	float invDt = (dt > 1e-4f) ? (1.0f / dt) : 0.0f;
+	float cmdAccX = dvx * invDt;
+	float cmdAccY = dvy * invDt;
+
+
 	// ---------------------------------------------------------------
 	// Feed into position / velocity controller
 	// ---------------------------------------------------------------
+	setPositionAccelFeedforward(cmdAccX, cmdAccY);
+	setExpectedPositionVelocity(dt, missionVxCommand, missionVyCommand);
+}
+
+__ATTR_ITCM_TEXT
+static void navigateToWaypoint(float dt) {
+	// ---------------------------------------------------------------
+	// Position error to waypoint
+	// ---------------------------------------------------------------
+	float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;
+	float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;
+	// ---------------------------------------------------------------
+	// Distance to waypoint
+	// ---------------------------------------------------------------
+	float distance = fastSqrtf(dx * dx + dy * dy);
+	// ---------------------------------------------------------------
+	// Desired velocity
+	// ---------------------------------------------------------------
+	float desiredVx = 0.0f;
+	float desiredVy = 0.0f;
+	// ---------------------------------------------------------------
+	// Navigation phase
+	//
+	// Navigation resumes automatically whenever the aircraft is
+	// outside the stop radius.
+	// ---------------------------------------------------------------
+	if (distance > POSITION_MISSION_WP_STOP_RADIUS) {
+		float invDist = 1.0f / distance;
+		float dirX = dx * invDist;
+		float dirY = dy * invDist;
+		float remainingDistance = distance - POSITION_MISSION_WP_STOP_RADIUS;
+		float brakingSpeed = fastSqrtf(2.0f * POSITION_MISSION_BRAKE_DECEL * remainingDistance);
+		float targetSpeed = fminf(fcStatusData.positionVelMission, brakingSpeed);
+		desiredVx = dirX * targetSpeed;
+		desiredVy = dirY * targetSpeed;
+	}
+
+	// ---------------------------------------------------------------
+	// Acceleration limiting
+	// ---------------------------------------------------------------
+	float dvx = desiredVx - missionVxCommand;
+	float dvy = desiredVy - missionVyCommand;
+	float deltaMag = fastSqrtf(dvx * dvx + dvy * dvy);
+	float maxDelta = POSITION_MISSION_MAX_ACCEL * dt;
+	if (deltaMag > maxDelta && deltaMag > 0.0001f) {
+		float scale = maxDelta / deltaMag;
+		dvx *= scale;
+		dvy *= scale;
+	}
+
+	// ---------------------------------------------------------------
+	// Deceleration check (must be computed BEFORE the command is updated)
+	// Command is slowing down when the change opposes the current command.
+	// ---------------------------------------------------------------
+	uint8_t decelerating = ((dvx * missionVxCommand + dvy * missionVyCommand) < 0.0f);
+
+	// ---------------------------------------------------------------
+	// Smoothed mission velocity command
+	// ---------------------------------------------------------------
+	missionVxCommand += dvx;
+	missionVyCommand += dvy;
+
+	// ---------------------------------------------------------------
+	// Acceleration feedforward (earth frame, signed)
+	// Only while decelerating, magnitude capped so it can't saturate
+	// the rate loop. Zero while accelerating or cruising.
+	// ---------------------------------------------------------------
+	float invDt = (dt > 1e-4f) ? (1.0f / dt) : 0.0f;
+	float cmdAccX = decelerating ? (dvx * invDt) : 0.0f;
+	float cmdAccY = decelerating ? (dvy * invDt) : 0.0f;
+	float accMagSq = cmdAccX * cmdAccX + cmdAccY * cmdAccY;
+	if (accMagSq > (POSITION_MISSION_FF_ACC_MAX * POSITION_MISSION_FF_ACC_MAX)) {
+		float accScale = POSITION_MISSION_FF_ACC_MAX / fastSqrtf(accMagSq);
+		cmdAccX *= accScale;
+		cmdAccY *= accScale;
+	}
+
+	// ---------------------------------------------------------------
+	// Feed into position / velocity controller
+	// ---------------------------------------------------------------
+	setPositionAccelFeedforward(cmdAccX, cmdAccY);
 	setExpectedPositionVelocity(dt, missionVxCommand, missionVyCommand);
 }
 
@@ -134,10 +222,11 @@ uint8_t checkNavCompletion(float dt) {
 		// (noise) shouldn't erase several seconds of accumulated dwell.
 		missionWPCompleteDt = fmaxf(missionWPCompleteDt - dt, 0.0f);
 	}
-	// Normal path: inside radius and settled
-	// Worst case:  inside radius for DWELL_TIMEOUT regardless of speed
+	// Normal path:  inside radius and speed <= COMPLETE_MAX_GROUND_SPEED
+	// Fallback:     inside radius for DWELL_TIMEOUT and speed <= DWELL_MAX_GROUND_SPEED (wind)
 	uint8_t dwellTimeout = (missionWPCompleteDt >= POSITION_MISSION_WP_DWELL_TIMEOUT);
-	return (insideRadius && (lowGroundSpeed || dwellTimeout)) ? 1 : 0;
+	uint8_t dwellSpeedOk = (getGroundSpeed() <= POSITION_MISSION_WP_DWELL_MAX_GROUND_SPEED);
+	return (insideRadius && (lowGroundSpeed || (dwellTimeout && dwellSpeedOk))) ? 1 : 0;
 }
 
 /**
