@@ -8,7 +8,8 @@
 #include "../../../status/FCStatus.h"
 #include "../../../util/MathUtil.h"
 #include "../../position/common/PositionCommon.h"
-#include "../AltitudeManager.h"
+#include "../../position/helpers/PositionManagerHelper.h"
+#include "../AltitudeCommon.h"
 #include "TerrainAsisstanceHelper.h"
 
 uint8_t altCommandMode = 0;

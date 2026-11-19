@@ -554,8 +554,8 @@
 #define POSITION_MGR_Z_ENABLE_DYNAMIC_R_DEFAULT                1
 /* Constants below are always defined: switched at runtime from calibration. */
 #define POS_ESTIMATOR_DYNAMIC_Z_ACC_XY_THRESH  3.0f
-#define POS_ESTIMATOR_MOTION_SCALE_TAU_RISE   0.01f   // fast attack
-#define POS_ESTIMATOR_MOTION_SCALE_TAU_FALL    2.0f    // slow release, 0.7-1.5s typical; set from measured error persistence
+#define POS_ESTIMATOR_MOTION_SCALE_TAU_RISE    0.01f   // fast attack
+#define POS_ESTIMATOR_MOTION_SCALE_TAU_FALL    0.8f // 2.0f    // slow release, 0.7-1.5s typical; set from measured error persistence
 
 #define POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED_DEFAULT          1
 /* Below this horizontal speed, use the hover-side Z profile. */
@@ -565,6 +565,6 @@
 /* Time constant for entering the cruise profile. */
 #define POS_ESTIMATOR_Z_CRUISE_TAU_RISE                0.3f   // s
 /* Time constant for returning toward the hover profile.*/
-#define POS_ESTIMATOR_Z_CRUISE_TAU_FALL                1.2f   // s
+#define POS_ESTIMATOR_Z_CRUISE_TAU_FALL                0.8f//1.2f   // s
 
 #endif

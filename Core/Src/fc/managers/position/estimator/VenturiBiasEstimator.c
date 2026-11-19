@@ -43,6 +43,7 @@ float getVenturiBiasEstimate(float dt, float speed) {
 		float target = constrainToRangeF(v * v * venturiBiasGain, 0.0f, VENTURI_EST_BIAS_VALUE_MAX);
 		float tau = (target > venturiEstimateData.venturiBias) ? VENTURI_EST_BIAS_TAU_RISE : venturiBiasFallTau;
 		venturiEstimateData.venturiBias += (dt / (tau + dt)) * (target - venturiEstimateData.venturiBias);
+		venturiEstimateData.biasError = fabsf(target - venturiEstimateData.venturiBias);
 	} else {
 		resetVenturiBiasEstimator();
 	}
@@ -52,6 +53,7 @@ float getVenturiBiasEstimate(float dt, float speed) {
 void resetVenturiBiasEstimator(void) {
 	venturiEstimateData.venturiBias = 0.0f;
 	venturiEstimateData.lateralSpeedMag = 0.0f;
+	venturiEstimateData.biasError = 0.0f;
 }
 
 #endif

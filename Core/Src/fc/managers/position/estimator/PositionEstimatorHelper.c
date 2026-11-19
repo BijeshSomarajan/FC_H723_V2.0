@@ -42,6 +42,8 @@ static float cfgBaroRpMax = (POS_ESTIMATOR_DYNAMIC_Z_BARO_RP_BASE_DEFAULT * POS_
 static uint8_t cfgBaroDynamicR = POSITION_MGR_Z_ENABLE_DYNAMIC_R_DEFAULT;
 static uint8_t cfgCruiseAdapt = POS_ESTIMATOR_Z_CRUISE_ADAPT_ENABLED_DEFAULT;
 
+#define VENTURI_LAG_R_FULL_SCALE_M 0.15f   // bias error that maps to full R inflation
+
 /* A variance base must be positive (its ceiling is derived from it); otherwise use the default. */
 static float loadBase(float stored, float fallback) {
 	return (stored > 0.0f) ? stored : fallback;
@@ -281,6 +283,10 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 	float motionScale = 0.0f;
 	float venturiBias = 0.0f;
 
+#if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
+	venturiBias = getVenturiBiasEstimate(dt, getGroundSpeed());
+#endif
+
 	if (cfgBaroDynamicR) {
 		/* Clamp before filtering so the filter state can never wind up above 1 */
 		float accelerationScale = constrainToRangeF(calculateMotionScale(positionCordinateData.xAcceleration, positionCordinateData.yAcceleration), 0.0f, 1.0f);
@@ -296,11 +302,13 @@ void updateZPositionSL(float offset, float zPos, float dt) {
 		motionScale = fmaxf(motionScale, getCruiseScale());
 	}
 
+#if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
+	float lagScale = constrainToRangeF(venturiEstimateData.biasError / VENTURI_LAG_R_FULL_SCALE_M, 0.0f, 1.0f);
+	motionScale = fmaxf(motionScale, lagScale);
+#endif
+
 	motionScale = constrainToRangeF(motionScale, 0.0f, 1.0f);
 
-#if POSITION_MGR_VENTURI_ESTIMATE_ENABLED == 1
-	venturiBias = getVenturiBiasEstimate(dt, getGroundSpeed());
-#endif
 	float baroMeas = offset + zPos - venturiBias;
 	float dynamicRPSL = getEstimatedZRPSL(&positionEkf, baroMeas, motionScale);
 	positionEKFMeasurementUpdate(&positionEkf, POS_EKF_Z_AXIS, baroMeas, dynamicRPSL, H_BARO_WITH_BIAS);

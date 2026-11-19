@@ -327,6 +327,7 @@ void updateAltCommand() {
 			if (!fcStatusData.isFlying) {
 				wasTakeOffModeActive = 1;
 				abortAltCommand();
+				updatePositionReference();
 				startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + altMgrTakeOffCommandAlt, ALT_COMMAND_TYPE_TAKEOFF);
 			} else {
 				skipAltCommand();
