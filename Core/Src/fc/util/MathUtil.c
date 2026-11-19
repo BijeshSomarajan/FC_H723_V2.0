@@ -408,3 +408,23 @@ int32_t shiftBitsLeft32(int32_t value, int32_t nBits) {
 uint8_t isInRangeF(float rawValue, float minValue, float maxValue) {
 	return (rawValue >= minValue && rawValue <= maxValue);
 }
+
+float wrap360(float d) {
+	while (d < 0.0f) {
+		d += 360.0f;
+	}
+	while (d >= 360.0f) {
+		d -= 360.0f;
+	}
+	return d;
+}
+
+float wrap180(float e) {
+	while (e > 180.0f) {
+		e -= 360.0f;
+	}
+	while (e < -180.0f) {
+		e += 360.0f;
+	}
+	return e;
+}

@@ -29,6 +29,7 @@ typedef struct {
 	int32_t latitude;      // 1e-7 degrees
 	int32_t longitude;     // 1e-7 degrees
 	uint16_t velocity;     // 1e-1 m/s
+	uint8_t courseLock;
 	CRSFMissionOperation operations[CRSF_MISSION_MAX_OPERATIONS];
 } CRSFMissionWP;
 

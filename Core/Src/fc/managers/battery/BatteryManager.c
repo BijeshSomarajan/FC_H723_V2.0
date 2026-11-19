@@ -105,7 +105,7 @@ uint8_t initBatteryManager(void) {
 	status = initBatterySensor();
 	if (!status) {
 		logString("[BatteryManager] Init Failed\n");
-		return 1;
+		return 0;
 	} else {
 		logString("[BatteryManager] Init Success\n");
 	}

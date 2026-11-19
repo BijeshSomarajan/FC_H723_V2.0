@@ -17,6 +17,7 @@
 #include "../../util/MathUtil.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/helpers/PositionManagerHelper.h"
+#include "helpers/HeadingCommandHelper.h"
 
 extern POSITION_COMMAND_DATA positionCommandData;
 
@@ -28,7 +29,7 @@ void attRateControlTimerCallback(void);
 float attitudeManagerCrashThresholdG;
 uint16_t attitudeManagerCrashTriggerCounter = 0;
 float attitudeAngleControlDt = 0;
-float headingBias;
+float headingBias, frameAlignError;
 LOWPASSFILTER attitudePitchCtrlRateLPF, attitudeRollCtrlRateLPF, attitudeYawCtrlRateLPF;
 
 __ATTR_ITCM_TEXT
@@ -64,7 +65,7 @@ __ATTR_ITCM_TEXT
 void alignImuAnglesToBoard() {
 	sensorAttitudeData.pitch = -imuData.roll;
 	sensorAttitudeData.roll = -imuData.pitch;
-	float temp = imuData.heading + 90.0f + headingBias;
+	float temp = imuData.heading + 90.0f + headingBias + frameAlignError;
 	if (temp < 0) {
 		temp = temp + 360.0f;
 	} else if (temp > 360) {
@@ -112,7 +113,11 @@ __ATTR_ITCM_TEXT
 void doAttitudeAngleControl(float dt) {
 	if (!rcData.yawCentered) {
 		fcStatusData.headingRef = sensorAttitudeData.heading;
+		cancelHeadingCommand();
+	} else {
+		handleHeadingCommand(dt);
 	}
+
 	if (!fcStatusData.hasCrashed && fcStatusData.canFly && fcStatusData.throttlePercent > ATTITUDE_CONTROL_MIN_TH_PERCENT) {
 		float expectedPitch = 0;
 		float expectedRoll = 0;
@@ -217,6 +222,8 @@ uint8_t initAttitudeManager() {
 		lowPassFilterInit(&attitudeRollCtrlRateLPF, ATTITUDE_CTRL_RATE_LPF_FREQUENCY);
 		lowPassFilterInit(&attitudeYawCtrlRateLPF, ATTITUDE_CTRL_RATE_LPF_FREQUENCY);
 		headingBias = get1KXScaledCalibrationValue(CALIB_PROP_HEADING_BIAS_ADDR);
+		frameAlignError = get1KXScaledCalibrationValue(CALIB_PROP_FRAME_ALIGN_ERROR_ADDR);
+		logPrintf("[Attitude Manager] HeadingBias:%.2f, FrameAlignError:%.2f\n", headingBias, frameAlignError);
 		logString("[Attitude Manager] All tasks > Started\n");
 	} else {
 		logString("[Attitude Manager] Init > Failed!\n");

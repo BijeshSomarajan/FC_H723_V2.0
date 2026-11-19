@@ -31,7 +31,8 @@ void manageCRSFMissionFrame(const uint8_t *payload) {
 			wp.latitude = readI32BE(p + 2);
 			wp.longitude = readI32BE(p + 6);
 			wp.velocity = readU16BE(p + 10);
-			p += 12;
+			wp.courseLock = (uint8_t)p[12];
+			p += 13;
 			for (size_t i = 0; i < CRSF_MISSION_MAX_OPERATIONS; i++) {
 				wp.operations[i].value = readI32BE(p);
 				wp.operations[i].operation = p[4];

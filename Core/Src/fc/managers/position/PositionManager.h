@@ -79,6 +79,10 @@
 #define POSITION_MGR_POS_HOLD_BRAKE_MIN_GROUND_SPEED   0.15f
 #define POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT         3.0f   // hard cap
 
+#define POSITION_MGR_POS_HOLD_LATCH_STABLE_TIME_S  0.10f
+#define POSITION_MGR_POS_HOLD_LATCH_LEAD_TIME_S   0.25f  // seconds, tune 0.15-0.4
+#define POSITION_MGR_POS_HOLD_LATCH_ACC_MAX       0.5f   // m/s²
+
 #define POSITION_MGR_POS_HOLD_BRAKE_DECEL_MIN          0.05f
 #define POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX          0.30f
 
@@ -92,5 +96,6 @@ typedef enum {
 uint8_t initPositionManager(void);
 void doPositionManagement(void);
 void resetPositionManager(uint8_t hard);
+void setPositionAccelFeedforward(float axEarth, float ayEarth);
 
 #endif /* SRC_FC_MANAGERS_POSITION_POSITIONMANAGER_H_ */

@@ -37,6 +37,7 @@ typedef struct _VENTURI_ESTIMATE_DATA VENTURI_ESTIMATE_DATA;
 struct _VENTURI_ESTIMATE_DATA {
 	float venturiBias;        // output to EKF BP state [m]
 	float lateralSpeedMag;    // sqrt(vPitch^2 + vRoll^2) [m/s]
+	float biasError;
 };
 extern VENTURI_ESTIMATE_DATA venturiEstimateData;
 

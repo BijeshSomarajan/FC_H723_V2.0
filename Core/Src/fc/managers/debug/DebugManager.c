@@ -12,6 +12,7 @@
 #include "../../imu/IMU.h"
 #include "../../logger/Logger.h"
 #include "../../sensors/altitude/AltitudeSensor.h"
+#include "../../sensors/altitude/devices/AltitudeDevice.h"
 #include "../../sensors/attitude/AttitudeSensor.h"
 #include "../../sensors/battery/BatterySensor.h"
 #include "../../sensors/position/GNSS.h"
@@ -19,6 +20,7 @@
 #include "../../status/FCStatus.h"
 #include "../../timers/Scheduler.h"
 #include "../altitude/helpers/AltitudeCommandHelper.h"
+#include "../config/ConfigHelperCommon.h"
 #include "../config/ConfigHelperDesktopApp.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimator.h"
@@ -162,13 +164,14 @@ void debufFFT() {
 
 }
 
+extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
+extern TFMini tfMini;
 void debugAltGraph() {
 	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeTerrainFiltered * 100;
-	DEBUG_DATA_BUFFER[1] = sensorAltitudeData.altitudeSLFiltered * 1000;
-	DEBUG_DATA_BUFFER[2] = positionCordinateData.zPosition * 1000;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zVelocity * 1000;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.zAcceleration * 100;
-	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 5, CMD_FC_DATA, 0);
+	DEBUG_DATA_BUFFER[1] = deviceAltitudeData.altitudeTerrainQlty * 100;
+	DEBUG_DATA_BUFFER[2] = tfMini.distance* 100;
+	DEBUG_DATA_BUFFER[3] = tfMini.strength;
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA, 0);
 }
 
 void debugNavStates() {
@@ -194,7 +197,7 @@ void debugTelemetry() {
 
 void debufFCStatus() {
 	sprintf(buf, "%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%d\n", fcStatusData.isFlying, fcStatusData.isLandingModeActive, fcStatusData.isTakeOffModeActive, isAltCommandMode(), positionCordinateData.zPosition, positionCordinateData.zVelocity, controlData.throttleControl, fcStatusData.throttlePercent,
-			fcStatusData.altitudeSLHome, rcData.throttleCentered);
+			fcStatusData.altitudeHome, rcData.throttleCentered);
 	logString(buf);
 }
 

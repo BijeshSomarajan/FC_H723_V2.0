@@ -16,7 +16,7 @@
 #include "../../timers/Scheduler.h"
 #include "../../util/MathUtil.h"
 #include "../altitude/helpers/AltitudeCommandHelper.h"
-#include "../config/ConfigHelperMobileApp.h"
+#include "../attitude/helpers/HeadingCommandHelper.h"
 #include "../mission/MissionManager.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
@@ -76,6 +76,7 @@ uint8_t tmLastOpsDone = 0;
 uint8_t tmMissionWasActive = 0;
 uint8_t tmRthContext = 0;
 uint8_t tmCompleteKind = 0;      // 0 none, 1 mission complete, 2 RTH complete
+uint8_t tmCourseLockAlertWp = 0xFF;   // waypoint index already alerted
 
 char tmOpTypeChar(uint8_t op) {
 	char opChar = 'U';
@@ -95,9 +96,19 @@ char tmOpTypeChar(uint8_t op) {
 	case MISSION_OPERATION_SET_HEADING:
 		opChar = 'H';
 		break;
-	case MISSION_OPERATION_CUSTOM:
-		opChar = 'C';
+	case MISSION_OPERATION_SET_HOME_HEADING:
+		opChar = 'H';
 		break;
+	case MISSION_OPERATION_ROTATE:
+		opChar = 'R';
+		break;
+	case MISSION_OPERATION_RTH:
+		opChar = 'Z';
+		break;
+	case MISSION_OPERATION_CUSTOM:
+		opChar = 'X';
+		break;
+
 	default:
 		opChar = 'U';
 		break;
@@ -109,7 +120,7 @@ void tmAnnounceOps(MissionWPData *wp, uint8_t from, uint8_t to) {
 	char c = 0;
 	for (uint8_t i = from; i < to && i < NAV_MAX_OPERATIONS; i++) {
 		char t = tmOpTypeChar(wp->operations[i].operation);
-		if (t == 'T' || t == 'L' || t == 'A' || t == 'W') {   // announceable types only
+		if (t == 'T' || t == 'L' || t == 'A' || t == 'W' || t == 'H' || t == 'R' || t == 'X' || t == 'Z') {   // announceable types only
 			c = t;
 		}
 	}
@@ -131,6 +142,7 @@ void updateMissionProgress(void) {
 		tmLastWpIdx = 0;
 		tmLastOpsDone = 0;
 		tmCompleteKind = 0;
+		tmCourseLockAlertWp = 0xFF;
 	}
 
 	// Completion event: MissionManager sets the latch, it is consumed here
@@ -159,7 +171,6 @@ void updateMissionProgress(void) {
 		if (m != NULL && wp != NULL && m->waypointCount <= NAV_MAX_WAYPOINTS) {
 			uint8_t wpIdx = m->currentWaypointIndex;
 			tmWpTotal = m->waypointCount;
-
 			if (wpIdx > tmLastWpIdx && wpIdx < NAV_MAX_WAYPOINTS) {
 				// advanced: whatever the old waypoint had left must have finished
 				MissionWPData *old = &m->waypoints[tmLastWpIdx];
@@ -171,6 +182,12 @@ void updateMissionProgress(void) {
 			} else if (wpIdx < tmLastWpIdx) {      // reset underneath us: resync
 				tmLastWpIdx = wpIdx;
 				tmLastOpsDone = 0;
+			}
+
+			// Reached = navigation finished (WP is in its operations, or already complete),
+			// not "all operations done": operations have their own alerts
+			if ((wp->status == MISSION_STATUS_WIP_OP || wp->status == MISSION_STATUS_COMPLETE) && tmWpDone < (uint8_t) (wpIdx + 1)) {
+				tmWpDone = wpIdx + 1;
 			}
 
 			uint8_t opCount = (wp->operationCount > NAV_MAX_OPERATIONS) ? NAV_MAX_OPERATIONS : wp->operationCount;
@@ -187,6 +204,13 @@ void updateMissionProgress(void) {
 				tmAnnounceOps(wp, tmLastOpsDone, opsDone);
 				tmLastOpsDone = opsDone;
 			}
+
+			// Course lock settled: one alert per waypoint, after the progress so it is not overwritten
+			if (wp->status == MISSION_STATUS_WIP_NAV && wp->courseLock != 0 && isHeadingCommandComplete() && tmCourseLockAlertWp != wpIdx) {
+				tmCourseLockAlertWp = wpIdx;
+				tmOpChar = 'C';
+				tmOpSeq = (tmOpSeq + 1) % 10;      // one event per leg
+			}
 		}
 	}
 
@@ -200,6 +224,7 @@ void updateMissionProgress(void) {
 	tmRthContext = rthContext;
 	tmMissionWasActive = missionActive;
 }
+
 void prepareFCStatus() {
 	// [0] start state
 	if (fcStatusData.hasCrashed) {
@@ -286,7 +311,7 @@ void sendOSDData() {
 //rxBat,rxBatMax,alt,homeDistance,heading,headingRef,verticalSpeed,groundSpeed,satField,fm,pitch,roll,throttle,batteryAlertState
 	sprintf(osdBuf, "%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%s,%.1f,%.1f,%lu,%d\n", batteryData.voltage, fcStatusData.batteryNomVolt, positionCordinateData.zPosition, homeDistance, sensorAttitudeData.heading, fcStatusData.headingHomeRef, expectedGroundSpeed, groundSpeed, satCountAndReliability,
 			fcStatusBuf, sensorAttitudeData.pitch, sensorAttitudeData.roll, (uint32_t) fcStatusData.currentThrottle, fcStatusData.batteryAlertState);
-	uart8WriteDMA((uint8_t*) osdBuf, strlen(osdBuf));
+	uart5WriteDMA((uint8_t*) osdBuf, strlen(osdBuf));
 }
 
 /**
@@ -294,49 +319,49 @@ void sendOSDData() {
  * Sends exactly ONE type of telemetry per execution tick.
  */
 void telemetryUpdateTask() {
-	updateMissionProgress();
-	switch (currentTelemetryStep) {
-	case TELEMETRY_STEP_ALTITUDE:
-		if (isCruiseModeActive()) {
-			expectedGroundSpeed = fastSqrtf(positionCommandData.targetXVel * positionCommandData.targetXVel + positionCommandData.targetYVel * positionCommandData.targetYVel);
-		} else {
-			expectedGroundSpeed = 0.0f;
+	if (!fcStatusData.isConfigMode) {
+		updateMissionProgress();
+		switch (currentTelemetryStep) {
+		case TELEMETRY_STEP_ALTITUDE:
+			if (isCruiseModeActive()) {
+				expectedGroundSpeed = fastSqrtf(positionCommandData.targetXVel * positionCommandData.targetXVel + positionCommandData.targetYVel * positionCommandData.targetYVel);
+			} else {
+				expectedGroundSpeed = 0.0f;
+			}
+			sendAltitudeTelemetry(positionCordinateData.zPosition, expectedGroundSpeed);
+			break;
+		case TELEMETRY_STEP_ATTITUDE:
+			sendAttitudeTelemetry(sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAttitudeData.heading);
+			break;
+		case TELEMETRY_STEP_BATTERY:
+			sendBatteryTelemetry(batteryData.voltage, fcStatusData.batteryNomVolt, (uint32_t) fcStatusData.currentThrottle, fcStatusData.batteryAlertState);
+			break;
+		case TELEMETRY_STEP_GNSS:
+			sendGNSSTelemetry(gnssData.latitude, gnssData.longitude, groundSpeed, fcStatusData.headingHomeRef, homeDistance, satCountAndReliability);
+			break;
+		case TELEMETRY_STEP_FC_STATUS:
+			prepareGNSSData();
+			prepareFCStatus();
+			sendFlightModeTelemetry(fcStatusBuf, (uint8_t) strlen(fcStatusBuf));
+			break;
+		default:
+			currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
+			return;
 		}
-		sendAltitudeTelemetry(positionCordinateData.zPosition, expectedGroundSpeed);
-		break;
-	case TELEMETRY_STEP_ATTITUDE:
-		sendAttitudeTelemetry(sensorAttitudeData.pitch, sensorAttitudeData.roll, sensorAttitudeData.heading);
-		break;
-	case TELEMETRY_STEP_BATTERY:
-		sendBatteryTelemetry(batteryData.voltage, fcStatusData.batteryNomVolt, (uint32_t) fcStatusData.currentThrottle, fcStatusData.batteryAlertState);
-		break;
-	case TELEMETRY_STEP_GNSS:
-		sendGNSSTelemetry(gnssData.latitude, gnssData.longitude, groundSpeed, fcStatusData.headingHomeRef, homeDistance, satCountAndReliability);
-		break;
-	case TELEMETRY_STEP_FC_STATUS:
-		prepareGNSSData();
-		prepareFCStatus();
-		sendFlightModeTelemetry(fcStatusBuf, (uint8_t) strlen(fcStatusBuf));
-		break;
-	default:
-		currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
-		return;
-	}
-
-// Advance to next frame step, wrapping around smoothly
-	currentTelemetryStep++;
-	if (currentTelemetryStep >= TELEMETRY_STEP_COUNT) {
-		currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
-#if TELEMETRY_OSD_ENABLED == 1
-		sendOSDData();
-#endif
+		// Advance to next frame step, wrapping around smoothly
+		currentTelemetryStep++;
+		if (currentTelemetryStep >= TELEMETRY_STEP_COUNT) {
+			currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
+		#if OSD_ENABLED == 1
+				sendOSDData();
+		#endif
+		}
 	}
 }
 
 uint8_t initTelemetryManager() {
-
-#if TELEMETRY_OSD_ENABLED == 1
-	if (uart8Init()) {
+#if OSD_ENABLED == 1
+	if (uart5Init()) {
 		logString("[Telemetry Manager] >> OSD UART Init >> Success\n");
 	}
 #endif

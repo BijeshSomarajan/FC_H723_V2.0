@@ -1,17 +1,19 @@
 #include "MissionNavigationHelper.h"
 
 #include <math.h>
-#include <stdio.h>
+#include <sys/_stdint.h>
 
-#include "MissionManager.h"
-#include "../../memory/Memory.h"
-#include "../../logger/Logger.h"
-#include "../../status/FCStatus.h"
 #include "../../control/position/PositionControl.h"
+#include "../../memory/Memory.h"
+#include "../../sensors/groundStation/GroundStation.h"
+#include "../../status/FCStatus.h"
 #include "../../util/MathUtil.h"
+#include "../attitude/helpers/HeadingCommandHelper.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/estimator/PositionEstimatorHelper.h"
 #include "../position/helpers/PositionManagerHelper.h"
+#include "../position/PositionManager.h"
+#include "MissionManager.h"
 
 #ifndef MISSION_MGR_TRACE_ENABLED
 #define MISSION_MGR_TRACE_ENABLED 0
@@ -28,14 +30,19 @@
 extern MissionData *currentMissionData;
 extern MissionWPData *currentMissionWPData;
 extern float missionCruiseSpeed;
+extern float missionRTHSpeed;
 extern float missionWPCompleteDt;
 extern float missionWPDistanceFiltered;
 extern float missionVxCommand;
 extern float missionVyCommand;
 void resetWPStates(void);
 
+// Where the drone holds while the nose turns at the start of a course-locked leg
+static float navTurnHoldX = 0.0f;
+static float navTurnHoldY = 0.0f;
+
 __ATTR_ITCM_TEXT
-void updateNavCommand(float dt) {
+static void navigateToWaypoint(float dt) {
 	// ---------------------------------------------------------------
 	// Position error to waypoint
 	// ---------------------------------------------------------------
@@ -66,6 +73,7 @@ void updateNavCommand(float dt) {
 		desiredVx = dirX * targetSpeed;
 		desiredVy = dirY * targetSpeed;
 	}
+
 	// ---------------------------------------------------------------
 	// Acceleration limiting
 	// ---------------------------------------------------------------
@@ -78,15 +86,55 @@ void updateNavCommand(float dt) {
 		dvx *= scale;
 		dvy *= scale;
 	}
+
+	// ---------------------------------------------------------------
+	// Deceleration check (must be computed BEFORE the command is updated)
+	// Command is slowing down when the change opposes the current command.
+	// ---------------------------------------------------------------
+	uint8_t decelerating = ((dvx * missionVxCommand + dvy * missionVyCommand) < 0.0f);
+
 	// ---------------------------------------------------------------
 	// Smoothed mission velocity command
 	// ---------------------------------------------------------------
 	missionVxCommand += dvx;
 	missionVyCommand += dvy;
+
+	// ---------------------------------------------------------------
+	// Acceleration feedforward (earth frame, signed)
+	// Only while decelerating, magnitude capped so it can't saturate
+	// the rate loop. Zero while accelerating or cruising.
+	// ---------------------------------------------------------------
+	float invDt = (dt > 1e-4f) ? (1.0f / dt) : 0.0f;
+	float cmdAccX = decelerating ? (dvx * invDt) : 0.0f;
+	float cmdAccY = decelerating ? (dvy * invDt) : 0.0f;
+	float accMagSq = cmdAccX * cmdAccX + cmdAccY * cmdAccY;
+	if (accMagSq > (POSITION_MISSION_FF_ACC_MAX * POSITION_MISSION_FF_ACC_MAX)) {
+		float accScale = POSITION_MISSION_FF_ACC_MAX / fastSqrtf(accMagSq);
+		cmdAccX *= accScale;
+		cmdAccY *= accScale;
+	}
+
 	// ---------------------------------------------------------------
 	// Feed into position / velocity controller
 	// ---------------------------------------------------------------
+	setPositionAccelFeedforward(cmdAccX, cmdAccY);
 	setExpectedPositionVelocity(dt, missionVxCommand, missionVyCommand);
+}
+
+/**
+ * Course-lock leg: while the nose is still turning to the bearing the drone holds position
+ * at the point where the turn started (no drift in wind), then the leg is flown.
+ */
+__ATTR_ITCM_TEXT
+void updateWpNavCommand(float dt) {
+	if (isHeadingCommandComplete()) {
+		navigateToWaypoint(dt);
+	} else {
+		controlPositionCordinatesWithGains(dt, navTurnHoldX, navTurnHoldY, 1.0f);
+		// Track the real velocity so the leg starts without a velocity step when the turn ends
+		missionVxCommand = positionCordinateData.xVelocity;
+		missionVyCommand = positionCordinateData.yVelocity;
+	}
 }
 
 __ATTR_ITCM_TEXT
@@ -110,24 +158,83 @@ uint8_t checkNavCompletion(float dt) {
 		// (noise) shouldn't erase several seconds of accumulated dwell.
 		missionWPCompleteDt = fmaxf(missionWPCompleteDt - dt, 0.0f);
 	}
-	// Normal path: inside radius and settled
-	// Worst case:  inside radius for DWELL_TIMEOUT regardless of speed
+	// Normal path:  inside radius and speed <= COMPLETE_MAX_GROUND_SPEED
+	// Fallback:     inside radius for DWELL_TIMEOUT and speed <= DWELL_MAX_GROUND_SPEED (wind)
 	uint8_t dwellTimeout = (missionWPCompleteDt >= POSITION_MISSION_WP_DWELL_TIMEOUT);
-	return (insideRadius && (lowGroundSpeed || dwellTimeout)) ? 1 : 0;
+	uint8_t dwellSpeedOk = (getGroundSpeed() <= POSITION_MISSION_WP_DWELL_MAX_GROUND_SPEED);
+	return (insideRadius && (lowGroundSpeed || (dwellTimeout && dwellSpeedOk))) ? 1 : 0;
 }
 
+/**
+ * Course lock: points the nose along the direction of flight (current position to the target).
+ * Waypoints without the lock keep whatever heading the drone already has.
+ */
 __ATTR_ITCM_TEXT
-void loadNavCordinates() {
+static void loadMissionHeading(void) {
+	cancelHeadingCommand();
+	if (currentMissionWPData->courseLock != 0) {
+		float dx = fcStatusData.positionXRefMission - positionCordinateData.xPosition;   // north
+		float dy = fcStatusData.positionYRefMission - positionCordinateData.yPosition;   // east
+		// A bearing is meaningless when the target is too close
+		if ((dx * dx + dy * dy) >= MISSION_COURSE_LOCK_MIN_LEG_SQ) {
+			float bearing = atan2Approx(dy, dx) * (180.0f / (float) M_PI);   // clockwise from north
+			if (bearing < 0.0f) {
+				bearing += 360.0f;
+			}
+			navTurnHoldX = positionCordinateData.xPosition;   // hold here while the nose turns
+			navTurnHoldY = positionCordinateData.yPosition;
+			setAbsoluteHeadingCommand(bearing);
+		}
+	}
+}
+
+/** Common part of every navigation target: reference, speed, distance filter seed, dwell timer. */
+static void setNavTarget(float posX, float posY, float speed) {
 	resetWPStates();
-	float posX, posY;
-	convertGNSSToXYCordinates(currentMissionWPData->latitude, currentMissionWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
 	fcStatusData.positionXRefMission = posX;
 	fcStatusData.positionYRefMission = posY;
-	fcStatusData.positionVelMission = constrainToRangeF(fabsf(currentMissionWPData->velocity), MISSION_MGR_SPEED_MIN, missionCruiseSpeed);
+	fcStatusData.positionVelMission = constrainToRangeF(fabsf(speed), MISSION_MGR_SPEED_MIN, missionCruiseSpeed);
 	float dx = posX - positionCordinateData.xPosition;
 	float dy = posY - positionCordinateData.yPosition;
 	missionWPDistanceFiltered = dx * dx + dy * dy;   // seed with the real distance
 	missionWPCompleteDt = 0;
+}
+
+__ATTR_ITCM_TEXT
+void loadNavCordinates() {
+	float posX, posY;
+	convertGNSSToXYCordinates(currentMissionWPData->latitude, currentMissionWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
+	setNavTarget(posX, posY, currentMissionWPData->velocity);
+}
+
+/**
+ * Soft RTH (mission operation): retargets the navigation to the home point.
+ * The operation then flies the leg through doOpNavigation().
+ */
+__ATTR_ITCM_TEXT
+void startRTHOpNavigation(void) {
+	float posX, posY;
+	convertGNSSToXYCordinates(fcStatusData.positionLatHome, fcStatusData.positionLongHome, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
+	setNavTarget(posX, posY, missionRTHSpeed);
+	cancelHeadingCommand();   // no course lock on the way home: the nose keeps its heading
+	missionVxCommand = positionCordinateData.xVelocity;
+	missionVyCommand = positionCordinateData.yVelocity;
+}
+
+/**
+ * Navigation owned by an operation (soft RTH): flies toward the current navigation target
+ * and returns 1 once it is reached. The target is loaded by the operation's start (loadNavHome).
+ */
+__ATTR_ITCM_TEXT
+uint8_t doRTHOpNavigation(float dt) {
+	uint8_t navCompletionStatus = 0;
+	if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
+		navigateToWaypoint(dt);              // plain leg, no course-lock turn/hold
+		navCompletionStatus = checkNavCompletion(dt);
+	} else {
+		navCompletionStatus = 1;
+	}
+	return navCompletionStatus;
 }
 
 __ATTR_ITCM_TEXT
@@ -136,12 +243,13 @@ uint8_t doWPNavigation(float dt) {
 	if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
 		if (currentMissionWPData->status == MISSION_STATUS_WIP) {
 			loadNavCordinates();
+			loadMissionHeading();
 			missionVxCommand = positionCordinateData.xVelocity;
 			missionVyCommand = positionCordinateData.yVelocity;
 			currentMissionWPData->status = MISSION_STATUS_WIP_NAV;
 			MISSION_TRACE("[MM] WP%u NAV start\n", MM_WP());
 		}
-		updateNavCommand(dt);
+		updateWpNavCommand(dt);
 		if (checkNavCompletion(dt)) {
 			MISSION_TRACE("[MM] WP%u NAV reached\n", MM_WP());
 			navCompletionStatus = 1;

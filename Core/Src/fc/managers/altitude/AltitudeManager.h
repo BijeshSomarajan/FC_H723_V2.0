@@ -2,6 +2,7 @@
 #define SRC_FC_MANAGERS_ALTITUDE_ALTITUDEMANAGER_H_
 
 #include <sys/_stdint.h>
+#include "AltitudeCommon.h"
 
 uint8_t initAltitudeManager(void);
 void doAltitudeManagement(void);
@@ -78,18 +79,14 @@ void resetAltitudeManager(void);
 
 #define ALT_MGR_TILT_COMP_MIN_ANGLE        0.5f    // Start compensation above this tilt angle (degrees)
 #define ALT_MGR_TILT_COMP_MAX_ANGLE        45.0f   // Maximum tilt angle considered for compensation (degrees)
-#define ALT_MGR_TILT_COMP_TAU_RISE         0.001f    // Rise time constant; allows compensation to build quickly
+#define ALT_MGR_TILT_COMP_TAU_RISE         0.08f    // Rise time constant; allows compensation to build quickly
 #define ALT_MGR_TILT_COMP_TAU_FADE         3.0f    // Fade time constant; removes compensation gradually
 #define ALT_MGR_TILT_COMP_MAX_LIMIT        50.0f   // Maximum allowed tilt compensation throttle contribution
 #define ALT_MGR_TILT_COMP_GAIN             2.0f    // Overall compensation gain; 1.0 = full calculated compensation
 #define ALT_MGR_THROTTLE_THRESHOLD_PERIOD  0.50f
 
 #define ALT_MGR_MAX_ALT_DELTA 3.0f //This is a safety net , max alt delta in normal flying is expected to be within this limit.
-#define ALT_MGR_LANDING_DELTA 2.0f //While landing , the target is set below the home altitude.
-
-typedef enum {
-	ALT_HOLD_STATE_IDLE = 0, ALT_HOLD_STATE_BRAKING, ALT_HOLD_STATE_LOCKED
-} ALTITUDE_MGR_STATE;
+#define ALT_MGR_LANDING_DELTA 5.0f //While landing , the target is set below the home altitude.
 
 /**
  * Brake configurations

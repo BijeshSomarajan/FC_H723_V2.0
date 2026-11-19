@@ -99,6 +99,7 @@ uint8_t initAltitudeManager(void) {
 		sprintf(buf, "[Altitude Manager] AltSpeedGain=%.2f, TiltCompGain:=%.2f, TiltCompFadeTau=%.2f\n", altMgrAltSpeedGain, altMgrTiltCompGain, altMgrTiltCompFadeTau);
 		logString(buf);
 
+		initAltCommandHelper(altMgrTakeOffCommandAlt);
 		initAltitudeControl();
 	} else {
 		logString("[Altitude Manager] Init > Failed!\n");
@@ -165,7 +166,7 @@ void handleThrottleChange(float dt) {
 __ATTR_ITCM_TEXT
 void updateAltitudeHomeReference() {
 	fcStatusData.altitudeRef = positionCordinateData.zPosition;
-	fcStatusData.altitudeSLHome = fcStatusData.altitudeRef;
+	fcStatusData.altitudeHome = fcStatusData.altitudeRef;
 }
 
 __ATTR_ITCM_TEXT
@@ -314,7 +315,7 @@ void updateAltCommand() {
 			if (fcStatusData.isFlying) {
 				wasLandingModeActive = 1;
 				abortAltCommand();
-				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome - ALT_MGR_LANDING_DELTA, ALT_COMMAND_TYPE_LANDING);
+				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeHome - ALT_MGR_LANDING_DELTA, ALT_COMMAND_TYPE_LANDING);
 			} else {
 				skipAltCommand();
 			}
@@ -326,6 +327,7 @@ void updateAltCommand() {
 			if (!fcStatusData.isFlying) {
 				wasTakeOffModeActive = 1;
 				abortAltCommand();
+				updatePositionReference();
 				startAltCommand(positionCordinateData.zPosition, positionCordinateData.zPosition + altMgrTakeOffCommandAlt, ALT_COMMAND_TYPE_TAKEOFF);
 			} else {
 				skipAltCommand();
@@ -338,7 +340,7 @@ void updateAltCommand() {
 			if (fcStatusData.isFlying) {
 				wasAltChangeModeActive = 1;
 				abortAltCommand();
-				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeSLHome + getTargetAltForAltChangeCommand(), ALT_COMMAND_TYPE_NORMAL);
+				startAltCommand(positionCordinateData.zPosition, fcStatusData.altitudeHome + getTargetAltForAltChangeCommand(), ALT_COMMAND_TYPE_NORMAL);
 			} else {
 				skipAltCommand();
 			}

@@ -65,4 +65,7 @@ int32_t shiftBitsLeft32(int32_t value, int32_t nBits);
 /* --- Power Functions --- */
 float power2f(float x);
 float power3f(float x);
+
+float wrap360(float d);
+float wrap180(float d);
 #endif

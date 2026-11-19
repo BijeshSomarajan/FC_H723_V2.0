@@ -9,7 +9,8 @@
 #include "../../../util/MathUtil.h"
 #include "../../position/common/PositionCommon.h"
 #include "../../position/helpers/PositionManagerHelper.h"
-#include "../AltitudeManager.h"
+#include "../AltitudeCommon.h"
+#include "TerrainAsisstanceHelper.h"
 
 uint8_t altCommandMode = 0;
 uint8_t altCommandComplete = 0;
@@ -34,7 +35,8 @@ void adjustPreLiftOffBaseThrottle(float dt, uint8_t increasing) {
 		float rampRate = altCommandLiftOffThrottle / ALT_COMMAND_PRE_LIFTOFF_THROTTLE_INCREASE_RAMP_TIME;
 		fcStatusData.currentThrottle += rampRate * dt;
 	} else {
-		float rampRate = altCommandLiftOffThrottle / ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME;
+		float rampTime = isTerrainLandingComplete() ? ALT_COMMAND_PRE_LIFTOFF_TERRAIN_THROTTLE_DECREASE_RAMP_TIME : ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME;
+		float rampRate = altCommandLiftOffThrottle / rampTime;
 		fcStatusData.currentThrottle -= rampRate * dt;
 	}
 	fcStatusData.currentThrottle = constrainToRangeF(fcStatusData.currentThrottle, 0.0f, altCommandLiftOffThrottle + 1);
@@ -51,6 +53,7 @@ void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType
 	altCommandThrottleRefreshRequired = (type != ALT_COMMAND_TYPE_TAKEOFF);
 	altCommandStepIssued = 0;
 	altCommandStepTimer = 0;
+	resetTerrainLandingStates();
 }
 
 void setTargetAltForAltChangeCommand(float alt) {
@@ -89,6 +92,8 @@ void resetAltCommandStates(void) {
 	altCommandThrottleRefreshRequired = 0;
 	altCommandStepIssued = 0;
 	altCommandSkipped = 0;
+
+	resetTerrainLandingStates();
 }
 
 __ATTR_ITCM_TEXT
@@ -100,21 +105,25 @@ uint8_t isAltCommandThrottleUpdateRequired() {
 
 __ATTR_ITCM_TEXT
 void handleTakeOff(float dt) {
+	handleTerrainAssistedTakeoff();   // once per tick; terrain status is read through the queries below
 	if (fcStatusData.currentThrottle < altCommandLiftOffThrottle) {
 		adjustPreLiftOffBaseThrottle(dt, 1);
-	} else if (isTargetAltitudeReached()) {
+	} else if (isTerrainTakeoffActive() ? isTerrainAltitudeReached() : isTargetAltitudeReached()) {
 		altCommandMode = 0;
 		altCommandComplete = 1;
 		altCommandThrottleRefreshRequired = 1;
 	} else {
-		fcStatusData.altitudeRef = altCommandTargetAltitude;
+		fcStatusData.altitudeRef = isTerrainTakeoffActive() ? getTerrainTakeoffRef() : altCommandTargetAltitude;
 		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_LOCKED;
 	}
 }
 
 __ATTR_ITCM_TEXT
 void handleStepAltChange(float dt) {
-	if (altCommandType == ALT_COMMAND_TYPE_LANDING && fcStatusData.currentThrottle < altCommandLiftOffThrottle) {
+	if (altCommandType == ALT_COMMAND_TYPE_LANDING) {
+		handleTerrainAssistedLanding(dt);   // advances terrain state; owns altitudeRef while active
+	}
+	if (altCommandType == ALT_COMMAND_TYPE_LANDING && (isTerrainLandingComplete() || fcStatusData.currentThrottle < altCommandLiftOffThrottle)) {
 		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_IDLE;
 		if (fcStatusData.currentThrottle >= ALT_COMMAND_THROTTLE_ZERO_TOLERANCE) {
 			adjustPreLiftOffBaseThrottle(dt, 0);
@@ -123,7 +132,9 @@ void handleStepAltChange(float dt) {
 			altCommandComplete = 1;
 		}
 	} else if (fcStatusData.altitudeHoldState == ALT_HOLD_STATE_LOCKED) {
-		if (!altCommandStepIssued) {
+		if (isTerrainLandingActive()) {
+			altCommandStepIssued = 0;   // terrain owns the ref; baro stepping restarts fresh if we fall back
+		} else if (!altCommandStepIssued) {
 			float remainingDistance = fabsf(altCommandTargetAltitude - fcStatusData.altitudeRef);
 			float step = constrainToRangeF(remainingDistance * ALT_COMMAND_DISTANCE_STEP_GAIN, ALT_COMMAND_DISTANCE_STEP_MIN, ALT_COMMAND_DISTANCE_STEP_MAX);
 			fcStatusData.altitudeRef += constrainToRangeF(altCommandTargetAltitude - fcStatusData.altitudeRef, -step, step);
@@ -164,4 +175,8 @@ void manageAltCommand(float dt) {
 			}
 		}
 	}
+}
+
+void initAltCommandHelper(float liftOffHeight) {
+	initTerrainAssistedHelper(liftOffHeight);
 }
