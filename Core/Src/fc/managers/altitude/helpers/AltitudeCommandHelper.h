@@ -26,13 +26,15 @@
 // Linear throttle ramps below lift-off throttle
 // ---------------------------------------------------------------------------
 #define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_INCREASE_RAMP_TIME  0.5f   // s, throttle 0 -> lift-off throttle
-#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME  1.2f//0.3f   // s, lift-off throttle -> 0
+#define ALT_COMMAND_PRE_LIFTOFF_THROTTLE_DECREASE_RAMP_TIME  0.3f   // s, lift-off throttle -> 0
+#define ALT_COMMAND_PRE_LIFTOFF_TERRAIN_THROTTLE_DECREASE_RAMP_TIME   2.5f  // s, lift-off throttle -> 0 after a terrain-detected touchdown
 #define ALT_COMMAND_THROTTLE_ZERO_TOLERANCE                  2.0f  // throttle units, landing completes at/below this
 
 typedef enum {
 	ALT_COMMAND_TYPE_NONE = 0, ALT_COMMAND_TYPE_NORMAL, ALT_COMMAND_TYPE_LANDING, ALT_COMMAND_TYPE_TAKEOFF
 } AltCommandType;
 
+void initAltCommandHelper(float altMgrTakeOffCommandAlt);
 void resetAltCommandStates(void);
 void startAltCommand(float currentAltitude, float targetAltitude, AltCommandType type);
 void abortAltCommand(void);

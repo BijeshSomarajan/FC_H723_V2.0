@@ -99,6 +99,7 @@ uint8_t initAltitudeManager(void) {
 		sprintf(buf, "[Altitude Manager] AltSpeedGain=%.2f, TiltCompGain:=%.2f, TiltCompFadeTau=%.2f\n", altMgrAltSpeedGain, altMgrTiltCompGain, altMgrTiltCompFadeTau);
 		logString(buf);
 
+		initAltCommandHelper(altMgrTakeOffCommandAlt);
 		initAltitudeControl();
 	} else {
 		logString("[Altitude Manager] Init > Failed!\n");

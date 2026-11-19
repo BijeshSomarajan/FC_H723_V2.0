@@ -165,14 +165,13 @@ void debufFFT() {
 }
 
 extern DEVICE_ALTITUDE_DATA deviceAltitudeData;
+extern TFMini tfMini;
 void debugAltGraph() {
 	DEBUG_DATA_BUFFER[0] = sensorAltitudeData.altitudeTerrainFiltered * 100;
-	DEBUG_DATA_BUFFER[1] = deviceAltitudeData.altitudeSL * 100;
-	DEBUG_DATA_BUFFER[2] = sensorAltitudeData.altitudeSLFiltered * 100;
-	DEBUG_DATA_BUFFER[3] = positionCordinateData.zPosition * 100;
-	DEBUG_DATA_BUFFER[4] = positionCordinateData.zVelocity * 100;
-	DEBUG_DATA_BUFFER[5] = positionCordinateData.zAcceleration * 100;
-	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 6, CMD_FC_DATA, 0);
+	DEBUG_DATA_BUFFER[1] = deviceAltitudeData.altitudeTerrainQlty * 100;
+	DEBUG_DATA_BUFFER[2] = tfMini.distance* 100;
+	DEBUG_DATA_BUFFER[3] = tfMini.strength;
+	sendConfigDataToDektopApp(DEBUG_DATA_BUFFER, 4, CMD_FC_DATA, 0);
 }
 
 void debugNavStates() {

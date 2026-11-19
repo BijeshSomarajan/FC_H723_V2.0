@@ -83,14 +83,11 @@
 #define POSITION_MGR_POS_HOLD_LATCH_LEAD_TIME_S   0.25f  // seconds, tune 0.15-0.4
 #define POSITION_MGR_POS_HOLD_LATCH_ACC_MAX       0.5f   // m/s²
 
-
 #define POSITION_MGR_POS_HOLD_BRAKE_DECEL_MIN          0.05f
 #define POSITION_MGR_POS_HOLD_BRAKE_DECEL_MAX          0.30f
 
 #define POSITION_MGR_CRUISE_SPEED_MIN                 0.5f   // 1.0f //Note this will be clamped by the Postion PID settings
 #define POSITION_MGR_CRUISE_SPEED_MAX                 20.0f  // 1.0f //Note this will be clamped by the Postion PID settings
-
-
 
 typedef enum {
 	POS_HOLD_STATE_IDLE = 0, POS_HOLD_STATE_BRAKING, POS_HOLD_STATE_SETTLING, POS_HOLD_STATE_LOCKED
