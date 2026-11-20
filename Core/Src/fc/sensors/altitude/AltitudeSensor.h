@@ -20,6 +20,10 @@
 #define SENSOR_LIDAR_QUAL_MIN     DEVICE_LIDAR_QUAL_MIN
 #define SENSOR_LIDAR_ALT_MIN      DEVICE_LIDAR_ALT_MIN
 #define SENSOR_LIDAR_ALT_MAX      DEVICE_LIDAR_ALT_MAX
+#define SENSOR_LIDAR_MAX_RATE            3.0f    // m/s, vertical speed limit for outlier rejection
+#define SENSOR_LIDAR_NOISE_MARGIN        0.10f   // m, allowance for sensor noise between samples
+#define SENSOR_LIDAR_MAX_REJECT_STREAK   10       // after this many rejects in a row, accept the new level
+
 
 typedef struct _SENSOR_ALTITUDE_DATA SENSOR_ALTITUDE_DATA;
 struct _SENSOR_ALTITUDE_DATA {
@@ -36,7 +40,7 @@ struct _SENSOR_ALTITUDE_DATA {
 	float altitudeTerrainZOffset;
 	float altitudeTerrainQual;
 	float altitudeTerrainUpdateDt;
-
+	float altitudeTerrainDataValid;
 	float altitudeTerrainFiltered;
 	float altitudeSLUpdateDt;
 

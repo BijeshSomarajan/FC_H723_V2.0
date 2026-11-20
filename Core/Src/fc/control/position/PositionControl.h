@@ -10,11 +10,12 @@
 
 /*------ FF Configurations -----*/
 #define POSITION_CONTROL_VEL_FF_ENABLED 1
-#define POSITION_CONTROL_VEL_FF_GAIN    0.1f //0.05f // was 0.0125f
+//#define POSITION_CONTROL_VEL_FF_GAIN    0.1f //0.05f // was 0.0125f // Externalized
+
 /*------ Disturbance Estimations -----*/
 #define POSITION_CONTROL_DOB_ENABLED     1
 #define POSITION_CONTROL_DOB_ACC_TAU     0.04f
-#define POSITION_CONTROL_DOB_ACC_GAIN    0.30f     // was 0.55f
+//#define POSITION_CONTROL_DOB_ACC_GAIN    0.30f     // was 0.55f Externalized
 // Model the attitude loop lag so the acc-DOB stops fighting its own commands
 #define POSITION_CONTROL_DOB_ATT_TAU     0.15f
 

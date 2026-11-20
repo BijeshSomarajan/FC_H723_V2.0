@@ -16,9 +16,9 @@
 #define CFG_N_ALT_MASTER_PID 4
 #define CFG_N_ALT_RATE_PID   5
 #define CFG_N_POS_MASTER_PID 4
-#define CFG_N_POS_RATE_PID   5
+#define CFG_N_POS_RATE_PID   7
 #define CFG_N_STICK_GAIN     3
-#define CFG_N_DEVICE         4
+#define CFG_N_DEVICE         5
 #define CFG_N_MISC           8
 #define CFG_N_EST_PROCESS    5
 #define CFG_N_EST_MEASUREMENT 7
@@ -153,6 +153,8 @@ void mergeConfigDataFromMobileApp(int32_t *data, ConfigDataPacket *pkt) {
 		data[CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR] = v[2];
 		data[CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR] = v[3];
 		data[CALIB_PROP_POS_HOLD_BRAKE_DECEL_ADDR] = v[4];
+		data[CALIB_PROP_POS_HOLD_VEL_FF_GAIN_ADDR] = v[5];
+		data[CALIB_PROP_POS_HOLD_DOB_ACC_GAIN_ADDR] = v[6];
 		break;
 	}
 	case SUB_CMD_STICK_GAIN: {
@@ -166,6 +168,7 @@ void mergeConfigDataFromMobileApp(int32_t *data, ConfigDataPacket *pkt) {
 		data[CALIB_PROP_BAT_TYPE_ADDR] = v[1];
 		data[CALIB_PROP_BAT_NOM_VOLT_ADDR] = v[2];
 		data[CALIB_PROP_FRAME_ALIGN_ERROR_ADDR] = v[3];
+		data[CALIB_PROP_DRONE_MOUNT_HEIGHT_ADDR] = v[4];
 		break;
 	}
 	case SUB_CMD_MISC: {
@@ -234,7 +237,7 @@ void sendConfigDataToMobileApp(int32_t *data, int32_t length, int32_t cmd, int32
 		break;
 	}
 	case SUB_CMD_ALT_MASTER_PID: {
-		int32_t values[CFG_N_ALT_MASTER_PID] = { data[CALIB_PROP_ALT_HOLD_PID_KP_ADDR], data[CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR], data[CALIB_PROP_ALT_HOLD_SPEED_ADDR] ,data[CALIB_PROP_ALT_HOLD_DOB_FF_GAIN_ADDR] };
+		int32_t values[CFG_N_ALT_MASTER_PID] = { data[CALIB_PROP_ALT_HOLD_PID_KP_ADDR], data[CALIB_PROP_ALT_HOLD_PID_LIMIT_ADDR], data[CALIB_PROP_ALT_HOLD_SPEED_ADDR], data[CALIB_PROP_ALT_HOLD_DOB_FF_GAIN_ADDR] };
 		sendCRSFConfigData(values, CFG_N_ALT_MASTER_PID, cmd, subCmd);
 		break;
 	}
@@ -249,7 +252,8 @@ void sendConfigDataToMobileApp(int32_t *data, int32_t length, int32_t cmd, int32
 		break;
 	}
 	case SUB_CMD_POS_RATE_PID: {
-		int32_t values[CFG_N_POS_RATE_PID] = { data[CALIB_PROP_POS_HOLD_RATE_PID_KP_ADDR], data[CALIB_PROP_POS_HOLD_RATE_PID_KI_ADDR], data[CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR], data[CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR], data[CALIB_PROP_POS_HOLD_BRAKE_DECEL_ADDR] };
+		int32_t values[CFG_N_POS_RATE_PID] = { data[CALIB_PROP_POS_HOLD_RATE_PID_KP_ADDR], data[CALIB_PROP_POS_HOLD_RATE_PID_KI_ADDR], data[CALIB_PROP_POS_HOLD_RATE_PID_KD_ADDR], data[CALIB_PROP_POS_HOLD_RATE_PID_LIMIT_ADDR], data[CALIB_PROP_POS_HOLD_BRAKE_DECEL_ADDR],
+				data[CALIB_PROP_POS_HOLD_VEL_FF_GAIN_ADDR], data[CALIB_PROP_POS_HOLD_DOB_ACC_GAIN_ADDR] };
 		sendCRSFConfigData(values, CFG_N_POS_RATE_PID, cmd, subCmd);
 		break;
 	}
@@ -259,7 +263,7 @@ void sendConfigDataToMobileApp(int32_t *data, int32_t length, int32_t cmd, int32
 		break;
 	}
 	case SUB_CMD_DEVICE: {
-		int32_t values[CFG_N_DEVICE] = { data[CALIB_PROP_MODEL_VERSION_ADDR], data[CALIB_PROP_BAT_TYPE_ADDR], data[CALIB_PROP_BAT_NOM_VOLT_ADDR],data[CALIB_PROP_FRAME_ALIGN_ERROR_ADDR]  };
+		int32_t values[CFG_N_DEVICE] = { data[CALIB_PROP_MODEL_VERSION_ADDR], data[CALIB_PROP_BAT_TYPE_ADDR], data[CALIB_PROP_BAT_NOM_VOLT_ADDR], data[CALIB_PROP_FRAME_ALIGN_ERROR_ADDR], data[CALIB_PROP_DRONE_MOUNT_HEIGHT_ADDR] };
 		sendCRSFConfigData(values, CFG_N_DEVICE, cmd, subCmd);
 		break;
 	}

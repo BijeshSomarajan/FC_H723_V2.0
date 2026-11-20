@@ -1,6 +1,7 @@
 #include "PositionControl.h"
 
 #include "../../calibration/Calibration.h"
+#include "../../logger/Logger.h"
 #include "../../managers/position/common/PositionCommon.h"
 #include "../../memory/Memory.h"
 #include "../../util/MathUtil.h"
@@ -14,6 +15,8 @@ float posHoldRatePIDLimit, posHoldPIDLimit;
 float previousEffectivePositionControlXw = 0.0f;
 float previousEffectivePositionControlYw = 0.0f;
 float dobExpectedAccXFilt = 0.0f, dobExpectedAccYFilt = 0.0f;
+float posHoldVelFFGain = 0.0f;
+float posHoldDobAccGain;
 /**
  * Initializes the attitude control
  */
@@ -48,6 +51,10 @@ uint8_t initPositionControl(float masterControlFrequency, float rateControlFrequ
 	//Set D limit
 	pidSetDOutputLimits(&positionXRatePID, -posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO, posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO);
 	pidSetDOutputLimits(&positionYRatePID, -posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO, posHoldRatePIDLimit * POSITION_CONTROL_RATE_PID_D_LIMIT_RATIO);
+
+	posHoldVelFFGain = constrainToRangeF(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_VEL_FF_GAIN_ADDR), 0, 2.0f);
+	posHoldDobAccGain  = constrainToRangeF(get1KXScaledCalibrationValue(CALIB_PROP_POS_HOLD_DOB_ACC_GAIN_ADDR), 0, 2.0f);
+	logPrintf("[PositionControl]:PIDLimit:%f, RatePIDLimit:%f, DobAccGain:%f, VelFFGain:%f\n", posHoldPIDLimit, posHoldRatePIDLimit, posHoldDobAccGain, posHoldVelFFGain);
 
 	return 1;
 }
@@ -100,7 +107,6 @@ float positionControlAccelFF(float accelCmd) {
 #endif
 }
 
-
 /* Single-axis disturbance observer.
  *
  * Estimates an external velocity+acceleration disturbance and returns the
@@ -137,9 +143,8 @@ static float positionControlDOBAxis(float *velDist, float *accDist, float measVe
 	*accDist = constrainToRangeF(*accDist, -POSITION_CONTROL_DOB_STATE_LIMIT, POSITION_CONTROL_DOB_STATE_LIMIT);
 
 	// Compensation delta to subtract from the rate output
-	return constrainToRangeF((*velDist) * POSITION_CONTROL_DOB_VEL_GAIN + (*accDist) * POSITION_CONTROL_DOB_ACC_GAIN, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
+	return constrainToRangeF((*velDist) * POSITION_CONTROL_DOB_VEL_GAIN + (*accDist) * posHoldDobAccGain, -POSITION_CONTROL_DOB_OUTPUT_LIMIT, POSITION_CONTROL_DOB_OUTPUT_LIMIT);
 }
-
 
 /* Joint (2D) vector saturation with back-calculation anti-windup.
  *
@@ -203,8 +208,8 @@ void controlPositionRateWithGains(float dt, float ratePGain, float rateIGain, fl
 
 	/*---------------- 3. Feedforward ----------------*/
 #if POSITION_CONTROL_VEL_FF_ENABLED == 1
-	outputX += (velocityTargetX * POSITION_CONTROL_VEL_FF_GAIN);
-	outputY += (velocityTargetY * POSITION_CONTROL_VEL_FF_GAIN);
+	outputX += (velocityTargetX * posHoldVelFFGain);
+	outputY += (velocityTargetY * posHoldVelFFGain);
 #endif
 
 #if POSITION_CONTROL_ACCEL_FF_ENABLED == 1

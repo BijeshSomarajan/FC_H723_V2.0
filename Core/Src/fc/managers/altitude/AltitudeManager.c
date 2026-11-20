@@ -479,15 +479,13 @@ void doAltitudeManagement(void) {
 		if (fcStatusData.isTerrainSensorExist == 1) {
 			if (dataAvailableMask & SENSOR_DATA_LIDAR) {
 				updateTerrainAltDataReliability(altMgrTerrainAltUpdateDt);
-				if (fcStatusData.isTerrainAltDataReliable && fcStatusData.isTerrainAltModeActive) {
+				if (fcStatusData.isTerrainAltDataReliable && fcStatusData.isTerrainAltModeActive && sensorAltitudeData.altitudeTerrainDataValid) {
 					updateZPositionTerrain(sensorAltitudeData.altitudeTerrainZOffset, sensorAltitudeData.altitudeTerrain, sensorAltitudeData.altitudeTerrainQual, POSITION_TERRAIN_ALT_DIST_MIN, POSITION_TERRAIN_ALT_DIST_MAX, altMgrTerrainAltUpdateDt);
 				}
 				altMgrTerrainAltUpdateDt = 0.0f;
 			}
 		}
-
 	}
-
 }
 
 void resetAltMgrStates() {
