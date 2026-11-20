@@ -1,8 +1,11 @@
 #include "TerrainAsisstanceHelper.h"
 
 #include <math.h>
+#include <sys/_stdint.h>
 
+#include "../../../calibration/Calibration.h"
 #include "../../../FCConfig.h"
+#include "../../../logger/Logger.h"
 #include "../../../memory/Memory.h"
 #include "../../../sensors/altitude/AltitudeSensor.h"
 #include "../../../status/FCStatus.h"
@@ -21,10 +24,14 @@ static float tlInvalidTimer = 0.0f;
 static float tlPhaseTimer = 0.0f;
 static uint8_t tlTakeoffValid = 0;       // terrain reading usable this tick (takeoff)
 static float tlTakeoffAlt = 0.0f;        // height at the gear this tick (takeoff)
+static float tlMountHeight = ALT_COMMAND_TERRAIN_MOUNT_HEIGHT;        // height at the gear this tick (takeoff)
 
 void initTerrainAssistedHelper(float liftOffHeight) {
 	// must stay clear of the low zone, where a lost signal means touchdown
 	tlLiftOffHeight = fmaxf(liftOffHeight, ALT_COMMAND_TERRAIN_LOW_ZONE_HEIGHT * 2.0f);
+	tlMountHeight = get100XScaledCalibrationValue(CALIB_PROP_DRONE_MOUNT_HEIGHT_ADDR);
+	tlMountHeight = constrainToRangeF(tlMountHeight, ALT_COMMAND_TERRAIN_MOUNT_HEIGHT, tlMountHeight);
+	logPrintf("[TerrainAssistedHelper]: tlLiftOffHeight:%.2f, tlMountHeight:%.2f\n", tlLiftOffHeight, tlMountHeight);
 	resetTerrainLandingStates();
 }
 
@@ -54,7 +61,7 @@ static uint8_t getTerrainAltitude(float *altitude) {
 	if (h < SENSOR_LIDAR_ALT_MIN || h > SENSOR_LIDAR_ALT_MAX) {
 		return 0;
 	}
-	*altitude = fmaxf(h - ALT_COMMAND_TERRAIN_MOUNT_HEIGHT, 0.0f);
+	*altitude = fmaxf(h - tlMountHeight, 0.0f);
 	return 1;
 }
 
