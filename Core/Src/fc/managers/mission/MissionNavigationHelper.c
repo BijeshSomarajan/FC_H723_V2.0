@@ -3,7 +3,9 @@
 #include <math.h>
 #include <sys/_stdint.h>
 
+#include "../../calibration/Calibration.h"
 #include "../../control/position/PositionControl.h"
+#include "../../logger/Logger.h"
 #include "../../memory/Memory.h"
 #include "../../sensors/groundStation/GroundStation.h"
 #include "../../status/FCStatus.h"
@@ -40,6 +42,12 @@ void resetWPStates(void);
 // Where the drone holds while the nose turns at the start of a course-locked leg
 static float navTurnHoldX = 0.0f;
 static float navTurnHoldY = 0.0f;
+static float missionXTrackKp;
+static float navLegStartX = 0.0f;
+static float navLegStartY = 0.0f;
+static float navLegUx = 0.0f;
+static float navLegUy = 0.0f;
+static uint8_t navLegValid = 0;
 
 __ATTR_ITCM_TEXT
 static void navigateToWaypoint(float dt) {
@@ -65,13 +73,25 @@ static void navigateToWaypoint(float dt) {
 	// ---------------------------------------------------------------
 	if (distance > POSITION_MISSION_WP_STOP_RADIUS) {
 		float invDist = 1.0f / distance;
-		float dirX = dx * invDist;
-		float dirY = dy * invDist;
 		float remainingDistance = distance - POSITION_MISSION_WP_STOP_RADIUS;
 		float brakingSpeed = fastSqrtf(2.0f * POSITION_MISSION_BRAKE_DECEL * remainingDistance);
 		float targetSpeed = fminf(fcStatusData.positionVelMission, brakingSpeed);
-		desiredVx = dirX * targetSpeed;
-		desiredVy = dirY * targetSpeed;
+
+		// Default: plain pursuit toward the waypoint
+		desiredVx = dx * invDist * targetSpeed;
+		desiredVy = dy * invDist * targetSpeed;
+
+		// Cross-track: enabled when Kp > 0, while the target is still ahead along the leg
+		if (missionXTrackKp > 0.0f && navLegValid && (dx * navLegUx + dy * navLegUy) > 0.0f) {
+			float rx = positionCordinateData.xPosition - navLegStartX;
+			float ry = positionCordinateData.yPosition - navLegStartY;
+			float e = (-rx * navLegUy) + (ry * navLegUx);   // signed offset, normal n = (-uy, ux)
+			float vcMax = fminf(POSITION_MISSION_XTRACK_VMAX, targetSpeed);
+			float vc = constrainToRangeF(-missionXTrackKp * e, -vcMax, vcMax);
+			float va = fastSqrtf(fmaxf(targetSpeed * targetSpeed - vc * vc, 0.0f));
+			desiredVx = navLegUx * va - navLegUy * vc;
+			desiredVy = navLegUy * va + navLegUx * vc;
+		}
 	}
 
 	// ---------------------------------------------------------------
@@ -188,8 +208,11 @@ static void loadMissionHeading(void) {
 	}
 }
 
-/** Common part of every navigation target: reference, speed, distance filter seed, dwell timer. */
-static void setNavTarget(float posX, float posY, float speed) {
+static void setNavTarget(float posX, float posY, float speed, uint8_t lineFromPrevTarget) {
+	// Read the previous target before it is overwritten
+	float prevX = fcStatusData.positionXRefMission;
+	float prevY = fcStatusData.positionYRefMission;
+
 	resetWPStates();
 	fcStatusData.positionXRefMission = posX;
 	fcStatusData.positionYRefMission = posY;
@@ -198,13 +221,35 @@ static void setNavTarget(float posX, float posY, float speed) {
 	float dy = posY - positionCordinateData.yPosition;
 	missionWPDistanceFiltered = dx * dx + dy * dy;   // seed with the real distance
 	missionWPCompleteDt = 0;
+
+	// Leg line: previous waypoint -> target if the drone is at the previous waypoint, else drone -> target
+	float startX = positionCordinateData.xPosition;
+	float startY = positionCordinateData.yPosition;
+	if (lineFromPrevTarget) {
+		float px = startX - prevX;
+		float py = startY - prevY;
+		if ((px * px + py * py) <= (POSITION_MISSION_XTRACK_PREV_SNAP * POSITION_MISSION_XTRACK_PREV_SNAP)) {
+			startX = prevX;
+			startY = prevY;
+		}
+	}
+	float legDx = posX - startX;
+	float legDy = posY - startY;
+	float legLen = fastSqrtf(legDx * legDx + legDy * legDy);
+	navLegValid = (legLen >= POSITION_MISSION_XTRACK_MIN_LEG) ? 1 : 0;
+	if (navLegValid) {
+		navLegStartX = startX;
+		navLegStartY = startY;
+		navLegUx = legDx / legLen;
+		navLegUy = legDy / legLen;
+	}
 }
 
 __ATTR_ITCM_TEXT
 void loadNavCordinates() {
 	float posX, posY;
 	convertGNSSToXYCordinates(currentMissionWPData->latitude, currentMissionWPData->longitude, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
-	setNavTarget(posX, posY, currentMissionWPData->velocity);
+	setNavTarget(posX, posY, currentMissionWPData->velocity, (currentMissionData->currentWaypointIndex > 0) ? 1 : 0);
 }
 
 /**
@@ -215,7 +260,7 @@ __ATTR_ITCM_TEXT
 void startRTHOpNavigation(void) {
 	float posX, posY;
 	convertGNSSToXYCordinates(fcStatusData.positionLatHome, fcStatusData.positionLongHome, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &posX, &posY);
-	setNavTarget(posX, posY, missionRTHSpeed);
+	setNavTarget(posX, posY, missionRTHSpeed, 0);
 	cancelHeadingCommand();   // no course lock on the way home: the nose keeps its heading
 	missionVxCommand = positionCordinateData.xVelocity;
 	missionVyCommand = positionCordinateData.yVelocity;
@@ -266,4 +311,14 @@ void missionPositionRelock(void) {
 	missionVxCommand = positionCordinateData.xVelocity;
 	missionVyCommand = positionCordinateData.yVelocity;
 	MISSION_TRACE("[MM] RELOCK after stick override\n");
+}
+
+uint8_t initMissionNavigationHelper(void) {
+	float xkp = get1KXScaledCalibrationValue(CALIB_PROP_MISSION_XTRACK_KP_ADDR);
+	if (xkp < 0.0f || xkp > POSITION_MISSION_XTRACK_KP_MAX) {
+		xkp = 0.0f;   // unset, stale or invalid: disabled, which is the safe state
+	}
+	missionXTrackKp = xkp;
+	logPrintf("[MissionNavigationHelper] missionXTrackKp:%.3f\n", missionXTrackKp);
+	return 1;
 }
