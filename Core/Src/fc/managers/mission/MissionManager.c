@@ -421,6 +421,8 @@ uint8_t initMissionManager(void) {
 
 		logPrintf("[Mission Manager] RTHSpd:%.3f, CruiseSpd:%.3f, MaxClimbAlt:%.2f\n", missionRTHSpeed, missionCruiseSpeed, missionMaxAltClimb);
 
+		initMissionNavigationHelper();
+
 	} else {
 		logString("[Mission Manager] Init > Failed!\n");
 		return 0;

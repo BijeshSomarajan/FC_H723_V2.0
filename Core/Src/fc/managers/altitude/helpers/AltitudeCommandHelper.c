@@ -105,7 +105,10 @@ uint8_t isAltCommandThrottleUpdateRequired() {
 
 __ATTR_ITCM_TEXT
 void handleTakeOff(float dt) {
-	handleTerrainAssistedTakeoff();   // once per tick; terrain status is read through the queries below
+	handleTerrainAssistedTakeoff();
+	if (isTerrainTakeoffActive()) {
+		altCommandTargetAltitude = getTerrainTakeoffRef();
+	}
 	if (fcStatusData.currentThrottle < altCommandLiftOffThrottle) {
 		adjustPreLiftOffBaseThrottle(dt, 1);
 	} else if (isTerrainTakeoffActive() ? isTerrainAltitudeReached() : isTargetAltitudeReached()) {
@@ -113,7 +116,7 @@ void handleTakeOff(float dt) {
 		altCommandComplete = 1;
 		altCommandThrottleRefreshRequired = 1;
 	} else {
-		fcStatusData.altitudeRef = isTerrainTakeoffActive() ? getTerrainTakeoffRef() : altCommandTargetAltitude;
+		fcStatusData.altitudeRef = altCommandTargetAltitude;
 		fcStatusData.altitudeHoldState = ALT_HOLD_STATE_LOCKED;
 	}
 }
