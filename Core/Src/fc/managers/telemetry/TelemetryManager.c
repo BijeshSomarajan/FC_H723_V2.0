@@ -105,6 +105,9 @@ char tmOpTypeChar(uint8_t op) {
 	case MISSION_OPERATION_RTH:
 		opChar = 'Z';
 		break;
+	case MISSION_OPERATION_POI:
+		opChar = 'P';
+		break;
 	case MISSION_OPERATION_CUSTOM:
 		opChar = 'X';
 		break;
@@ -120,7 +123,7 @@ void tmAnnounceOps(MissionWPData *wp, uint8_t from, uint8_t to) {
 	char c = 0;
 	for (uint8_t i = from; i < to && i < NAV_MAX_OPERATIONS; i++) {
 		char t = tmOpTypeChar(wp->operations[i].operation);
-		if (t == 'T' || t == 'L' || t == 'A' || t == 'W' || t == 'H' || t == 'R' || t == 'X' || t == 'Z') {   // announceable types only
+		if (t == 'T' || t == 'L' || t == 'A' || t == 'W' || t == 'H' || t == 'R' || t == 'X' || t == 'Z' || t == 'P') {   // announceable types only
 			c = t;
 		}
 	}
@@ -262,6 +265,8 @@ void prepareFCStatus() {
 		fcStatusBuf[3] = 'L';
 	} else if (fcStatusData.isTakeOffModeActive && isAltCommandMode()) {
 		fcStatusBuf[3] = 'T';
+	} else if (isPOIModeActive()) {
+		fcStatusBuf[3] = 'P';
 	} else {
 		fcStatusBuf[3] = 'F';
 	}
@@ -352,7 +357,7 @@ void telemetryUpdateTask() {
 		currentTelemetryStep++;
 		if (currentTelemetryStep >= TELEMETRY_STEP_COUNT) {
 			currentTelemetryStep = TELEMETRY_STEP_ALTITUDE;
-		#if OSD_ENABLED == 1
+#if OSD_ENABLED == 1
 				sendOSDData();
 		#endif
 		}

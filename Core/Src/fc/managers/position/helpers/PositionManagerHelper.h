@@ -42,5 +42,6 @@ uint8_t isMissionModeActive();
 uint8_t isFailSafeModeActive();
 uint8_t isPositionHomeSet();
 uint8_t isNavDataReliable();
+uint8_t isPOIModeActive();
 
 #endif /* SRC_FC_MANAGERS_POSITION_HELPERS_POSITIONMANAGERHELPER_H_ */

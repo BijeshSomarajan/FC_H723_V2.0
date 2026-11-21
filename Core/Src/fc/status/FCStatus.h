@@ -12,7 +12,7 @@ struct _FC_STATUS_DATA {
 	//FC Modes
 	uint8_t isNavModeActive, isRTHModeActive, isCruiseModeActive ,isFailSafeModeActive, isMissionModeActive, isTerrainAltModeActive,isHeadlessModeActive;
 	//Flag to state if landing landing or Take Off mode is active
-	uint8_t isTakeOffModeActive,isLandingModeActive,isAltChangeModeActive,isHeadingChangeModeActive ;
+	uint8_t isTakeOffModeActive,isLandingModeActive,isAltChangeModeActive,isHeadingChangeModeActive,isPoIModeActive ;
 
 	//Flight debug status enabled
 	uint8_t isDebugEnabled;
