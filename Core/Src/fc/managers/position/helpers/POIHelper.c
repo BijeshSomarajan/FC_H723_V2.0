@@ -29,15 +29,19 @@ static uint8_t poiMissionOwned = 0;      // 1 while a mission operation owns the
 static float poiCfgRadius = POSITION_POI_DEFAULT_RADIUS;
 static uint8_t poiCfgCcw = POSITION_POI_DEFAULT_CCW;
 static uint8_t poiCfgIterations = POSITION_POI_DEFAULT_ITERATIONS;
+static float poiCfgSpeed = POSITION_POI_SPEED;
 
 static float poiCenterX = 0.0f, poiCenterY = 0.0f;
-static float poiEntryX = 0.0f, poiEntryY = 0.0f, poiEntryHeading = 0.0f;
+static float poiEntryX = 0.0f, poiEntryY = 0.0f, poiEntryHeading = 0.0f;   // entry heading: from the entry point to the centre, constant
+static float poiNoseHold = 0.0f;         // nose direction held during ENTRY, SETTLE and RETURN
+static float poiAlignHeading = 0.0f;     // heading ALIGN waits for
+static float poiHdgTarget = 0.0f;        // orbit nose target: driven by the orbit rate, corrected slowly by the measured bearing
 static float poiReturnX = 0.0f, poiReturnY = 0.0f;
 static uint8_t poiReturnToAnchor = 0;
 static float poiTargetX = 0.0f, poiTargetY = 0.0f;       // current leg target
 static float poiHoldX = 0.0f, poiHoldY = 0.0f;           // held during ALIGN and SETTLE
 static float poiYawHoldX = 0.0f, poiYawHoldY = 0.0f;
-static float poiRadius = 0.0f, poiOrbitSpeed = 0.0f;
+static float poiRadius = 0.0f, poiOrbitSpeed = 0.0f, poiLegSpeed = POSITION_POI_SPEED;
 static float poiDirection = 1.0f;                        // +1 clockwise, -1 counter-clockwise (seen from above)
 static float poiTargetAngle = 0.0f;                      // rad, iterations * 2*pi
 static float poiPrevRx = 0.0f, poiPrevRy = 0.0f, poiSwept = 0.0f;
@@ -78,6 +82,7 @@ static void poiReleaseMission(void) {
 	poiPhase = poiRestingPhase();
 }
 
+/** Measured bearing from the drone to the centre. Only used once per phase change, never every cycle. */
 static float poiBearingToCenter(void) {
 	float px = positionCordinateData.xPosition - poiCenterX;
 	float py = positionCordinateData.yPosition - poiCenterY;
@@ -87,8 +92,9 @@ static float poiBearingToCenter(void) {
 	return calculateBearing(px, py);
 }
 
+/** Holds the current nose direction. Commanded every cycle: the heading helper slews from headingRef, so repeats are harmless. */
 static void poiAimNose(void) {
-	setAbsoluteHeadingCommand(poiBearingToCenter());   // every cycle on purpose: completion is judged numerically
+	setAbsoluteHeadingCommand(poiNoseHold);
 }
 
 static void poiTrackVelocity(void) {
@@ -107,9 +113,9 @@ static void poiSetLegTarget(float x, float y) {
 	poiTrackVelocity();
 }
 
-/** Acceleration limit, feedforward and velocity setpoint. decelOnlyFF: 1 = feedforward only while slowing (legs), 0 = always (orbit). */
+/** Legs: acceleration limit, deceleration-only feedforward and velocity setpoint. */
 __ATTR_ITCM_TEXT
-static void poiCommandVelocity(float desiredVx, float desiredVy, float dt, uint8_t decelOnlyFF) {
+static void poiCommandVelocity(float desiredVx, float desiredVy, float dt) {
 	float dvx = desiredVx - poiVxCmd;
 	float dvy = desiredVy - poiVyCmd;
 	float deltaMag = fastSqrtf(dvx * dvx + dvy * dvy);
@@ -123,10 +129,9 @@ static void poiCommandVelocity(float desiredVx, float desiredVy, float dt, uint8
 	poiVxCmd += dvx;
 	poiVyCmd += dvy;
 
-	uint8_t useFF = decelOnlyFF ? decelerating : 1;
 	float invDt = (dt > 1e-4f) ? (1.0f / dt) : 0.0f;
-	float ax = useFF ? (dvx * invDt) : 0.0f;
-	float ay = useFF ? (dvy * invDt) : 0.0f;
+	float ax = decelerating ? (dvx * invDt) : 0.0f;
+	float ay = decelerating ? (dvy * invDt) : 0.0f;
 	float accMagSq = ax * ax + ay * ay;
 	if (accMagSq > (POSITION_POI_FF_ACC_MAX * POSITION_POI_FF_ACC_MAX)) {
 		float s = POSITION_POI_FF_ACC_MAX / fastSqrtf(accMagSq);
@@ -134,6 +139,22 @@ static void poiCommandVelocity(float desiredVx, float desiredVy, float dt, uint8
 		ay *= s;
 	}
 	setPositionAccelFeedforward(ax, ay);
+	setExpectedPositionVelocity(dt, poiVxCmd, poiVyCmd);
+}
+
+/** Orbit: lightly smoothed velocity setpoint and an analytic acceleration feedforward (not differentiated from the noisy setpoint). */
+__ATTR_ITCM_TEXT
+static void poiCommandVelocityFF(float desiredVx, float desiredVy, float ffx, float ffy, float dt) {
+	float alpha = dt / (POSITION_POI_ORBIT_CMD_TAU + dt);
+	poiVxCmd += alpha * (desiredVx - poiVxCmd);
+	poiVyCmd += alpha * (desiredVy - poiVyCmd);
+	float accMagSq = ffx * ffx + ffy * ffy;
+	if (accMagSq > (POSITION_POI_FF_ACC_MAX * POSITION_POI_FF_ACC_MAX)) {
+		float s = POSITION_POI_FF_ACC_MAX / fastSqrtf(accMagSq);
+		ffx *= s;
+		ffy *= s;
+	}
+	setPositionAccelFeedforward(ffx, ffy);
 	setExpectedPositionVelocity(dt, poiVxCmd, poiVyCmd);
 }
 
@@ -145,12 +166,12 @@ static void poiFlyToTarget(float dt) {
 	float desiredVx = 0.0f, desiredVy = 0.0f;
 	if (distance > POSITION_POI_STOP_RADIUS) {
 		float braking = fastSqrtf(2.0f * POSITION_POI_BRAKE_DECEL * (distance - POSITION_POI_STOP_RADIUS));
-		float speed = fminf(POSITION_POI_SPEED, braking);
+		float speed = fminf(poiLegSpeed, braking);
 		float inv = 1.0f / distance;
 		desiredVx = dx * inv * speed;
 		desiredVy = dy * inv * speed;
 	}
-	poiCommandVelocity(desiredVx, desiredVy, dt, 1);
+	poiCommandVelocity(desiredVx, desiredVy, dt);
 }
 
 __ATTR_ITCM_TEXT
@@ -188,6 +209,8 @@ static void beginPOIAlign(float holdX, float holdY, uint8_t resumeOrbit) {
 	poiHoldX = holdX;
 	poiHoldY = holdY;
 	poiResumeOrbit = resumeOrbit;
+	// First alignment: the constant entry heading. After a pilot move mid-orbit: face the centre from where the drone is now (computed once)
+	poiAlignHeading = resumeOrbit ? poiBearingToCenter() : poiEntryHeading;
 	poiPhase = POI_PHASE_ALIGN;
 	poiPhaseTime = 0.0f;
 	poiStableTime = 0.0f;
@@ -198,6 +221,7 @@ static void beginPOIOrbit(uint8_t resume) {
 	if (!resume) {
 		poiSwept = 0.0f;
 	}
+	poiHdgTarget = poiAlignHeading;           // the nose is already there
 	poiPrevValid = 0;                         // seeded on the first orbit cycle
 	poiPhase = POI_PHASE_ORBIT;
 	poiPhaseTime = 0.0f;
@@ -205,6 +229,7 @@ static void beginPOIOrbit(uint8_t resume) {
 }
 
 static void beginPOISettle(void) {
+	poiNoseHold = wrap360(poiHdgTarget);      // the nose direction at the end of the orbit (facing the centre)
 	poiHoldX = positionCordinateData.xPosition;   // hold where the orbit ended
 	poiHoldY = positionCordinateData.yPosition;
 	poiPhase = POI_PHASE_SETTLE;
@@ -281,21 +306,41 @@ static uint8_t runPOIOrbit(float dt) {
 		return 1;
 	}
 
-	float bearing = calculateBearing(px, py);
-	setAbsoluteHeadingCommand(bearing);
-	float hdgErr = fabsf(wrap180(bearing - sensorAttitudeData.heading));
-	float hdgScale = constrainToRangeF((POSITION_POI_HDG_ZERO_DEG - hdgErr) / (POSITION_POI_HDG_ZERO_DEG - POSITION_POI_HDG_FULL_DEG), 0.0f, 1.0f);
-
+	// Tangential speed and the acceleration of its start/end profile
 	float vr = constrainToRangeF(-POSITION_POI_RADIAL_KP * (d - poiRadius), -POSITION_POI_RADIAL_VMAX, POSITION_POI_RADIAL_VMAX);
 	float vt = fastSqrtf(fmaxf(poiOrbitSpeed * poiOrbitSpeed - vr * vr, 0.0f));
-	float endSpeed = fastSqrtf(2.0f * POSITION_POI_BRAKE_DECEL * fmaxf(arcRemaining - POSITION_POI_ARC_STOP, 0.0f));
+	float aTan = 0.0f;
 	float startSpeed = fastSqrtf(2.0f * POSITION_POI_BRAKE_DECEL * (arcDone + POSITION_POI_ARC_STOP));
-	vt = fminf(vt, fminf(endSpeed, startSpeed)) * hdgScale;
+	float endSpeed = fastSqrtf(2.0f * POSITION_POI_BRAKE_DECEL * fmaxf(arcRemaining - POSITION_POI_ARC_STOP, 0.0f));
+	if (startSpeed < vt) {
+		vt = startSpeed;
+		aTan = POSITION_POI_BRAKE_DECEL;
+	}
+	if (endSpeed < vt) {
+		vt = endSpeed;
+		aTan = -POSITION_POI_BRAKE_DECEL;
+	}
 
+	// Heading gate on the smooth nose target, not on the noisy bearing
+	float hdgErr = fabsf(wrap180(poiHdgTarget - sensorAttitudeData.heading));
+	float hdgScale = constrainToRangeF((POSITION_POI_HDG_ZERO_DEG - hdgErr) / (POSITION_POI_HDG_ZERO_DEG - POSITION_POI_HDG_FULL_DEG), 0.0f, 1.0f);
+	vt *= hdgScale;
+	if (hdgScale < 1.0f) {
+		aTan = 0.0f;
+	}
+
+	// Nose target: driven by the orbit rate, corrected slowly by the measured bearing (complementary filter)
+	float bearing = calculateBearing(px, py);
+	float omegaDeg = poiDirection * (vt / poiRadius) * (180.0f / (float) M_PI);
+	poiHdgTarget = wrap360(poiHdgTarget + (omegaDeg + POSITION_POI_HDG_TRACK_K * wrap180(bearing - poiHdgTarget)) * dt);
+	setAbsoluteHeadingCommand(poiHdgTarget);
+
+	// Setpoint, and an analytic feedforward: centripetal (toward the centre) plus the profile's tangential acceleration
 	// Tangent for increasing angle (clockwise seen from above) is (-ry, rx)
-	float desiredVx = poiDirection * (-ry) * vt + rx * vr;
-	float desiredVy = poiDirection * (rx) * vt + ry * vr;
-	poiCommandVelocity(desiredVx, desiredVy, dt, 0);   // full feedforward: carries the centripetal acceleration
+	float tx = poiDirection * (-ry);
+	float ty = poiDirection * (rx);
+	float centripetal = (vt * vt) / poiRadius;
+	poiCommandVelocityFF(tx * vt + rx * vr, ty * vt + ry * vr, -centripetal * rx + aTan * tx, -centripetal * ry + aTan * ty, dt);
 	return 0;
 }
 
@@ -303,7 +348,7 @@ static uint8_t runPOIOrbit(float dt) {
 
 /** Validates and starts the sequence. anchored = 1: the drone starts at the centre (a mission waypoint), so it backs up
  *  one radius behind the nose and returns to the centre. anchored = 0: radio start, nearest point on the circle, returns to the start point. */
-static uint8_t poiStart(float radius, float centerX, float centerY, uint8_t ccw, uint8_t iterations, uint8_t anchored) {
+static uint8_t poiStart(float radius, float centerX, float centerY, uint8_t ccw, uint8_t iterations, float speed, uint8_t anchored) {
 	if (!(radius >= POSITION_POI_MIN_RADIUS && radius <= POSITION_POI_MAX_RADIUS) || iterations < 1 || iterations > POSITION_POI_MAX_ITERATIONS || !isfinite(centerX) || !isfinite(centerY)) {
 		return poiReject(1);
 	}
@@ -318,10 +363,9 @@ static uint8_t poiStart(float radius, float centerX, float centerY, uint8_t ccw,
 	float py = positionCordinateData.yPosition - centerY;
 	float d = fastSqrtf(px * px + py * py);
 
-	poiEntryHeading = sensorAttitudeData.heading;
 	float ux, uy;
 	if (anchored || d < POSITION_POI_MIN_DIST) {
-		float h = convertDegToRadF(poiEntryHeading);      // behind the nose, so the nose already faces the centre
+		float h = convertDegToRadF(sensorAttitudeData.heading);   // behind the nose, so the nose already faces the centre
 		ux = -cosApproxF(h);
 		uy = -sinApproxF(h);
 	} else {
@@ -344,14 +388,25 @@ static uint8_t poiStart(float radius, float centerX, float centerY, uint8_t ccw,
 	poiTargetAngle = (float) iterations * 2.0f * (float) M_PI;
 	poiEntryX = entryX;
 	poiEntryY = entryY;
+	poiEntryHeading = calculateBearing(ux, uy);   // bearing from the entry point to the centre: constant, free of position noise
+	poiNoseHold = poiEntryHeading;
+	poiAlignHeading = poiEntryHeading;
+	poiHdgTarget = poiEntryHeading;
 	poiReturnToAnchor = (anchored || POSITION_POI_RETURN_TO_START == 1) ? 1 : 0;
 	poiReturnX = anchored ? centerX : positionCordinateData.xPosition;
 	poiReturnY = anchored ? centerY : positionCordinateData.yPosition;
 
-	// Orbit speed: capped by lateral acceleration and by what the nose can follow (heading slew rate)
+	// Speed: the request sets the legs and caps the orbit, which is further limited by lateral acceleration and by what the nose can follow
+	speed = fabsf(speed);
+	if (!(speed > 0.0f)) {
+		speed = POSITION_POI_SPEED;
+	}
+	speed = constrainToRangeF(speed, POSITION_POI_SPEED_MIN, POSITION_POI_SPEED_MAX);
+	poiLegSpeed = speed;
 	float latLimited = fastSqrtf(POSITION_POI_LAT_ACC * radius);
 	float yawLimited = POSITION_POI_YAW_FRACTION * convertDegToRadF(HEADING_COMMAND_ROTATION_RATE) * radius;
-	poiOrbitSpeed = fminf(POSITION_POI_SPEED, fminf(latLimited, yawLimited));
+	poiOrbitSpeed = fminf(speed, fminf(latLimited, yawLimited));
+	logPrintf("[POI] R:%.1f requested:%.2f orbit:%.2f\n", radius, speed, poiOrbitSpeed);
 
 	poiResumePending = 0;
 	poiResumeOrbit = 0;
@@ -362,9 +417,9 @@ static uint8_t poiStart(float radius, float centerX, float centerY, uint8_t ccw,
 }
 
 /** Radio start: the centre is R metres ahead of the nose, so the drone is already on the circle facing the centre. */
-static uint8_t poiStartAhead(float radius, uint8_t ccw, uint8_t iterations) {
+static uint8_t poiStartAhead(float radius, uint8_t ccw, uint8_t iterations, float speed) {
 	float h = convertDegToRadF(sensorAttitudeData.heading);
-	return poiStart(radius, positionCordinateData.xPosition + radius * cosApproxF(h), positionCordinateData.yPosition + radius * sinApproxF(h), ccw, iterations, 0);
+	return poiStart(radius, positionCordinateData.xPosition + radius * cosApproxF(h), positionCordinateData.yPosition + radius * sinApproxF(h), ccw, iterations, speed, 0);
 }
 
 /* ---------------------------------------------------------------- sequence */
@@ -380,14 +435,14 @@ static void runPOISequence(float dt) {
 			beginPOIAlign(poiEntryX, poiEntryY, 0);
 		}
 		break;
+
 	case POI_PHASE_ALIGN: {
 		controlPositionCordinatesWithGains(dt, poiHoldX, poiHoldY, 1.0f);   // hold while the nose turns
 		poiTrackVelocity();
-		float bearing = poiBearingToCenter();
-		setAbsoluteHeadingCommand(bearing);
+		setAbsoluteHeadingCommand(poiAlignHeading);
 		// Numeric completion: the heading reference has arrived and the real nose is within tolerance
-		float refErr = fabsf(wrap180(bearing - fcStatusData.headingRef));
-		float noseErr = fabsf(wrap180(bearing - sensorAttitudeData.heading));
+		float refErr = fabsf(wrap180(poiAlignHeading - fcStatusData.headingRef));
+		float noseErr = fabsf(wrap180(poiAlignHeading - sensorAttitudeData.heading));
 		if (refErr <= POSITION_POI_ALIGN_REF_DEG && noseErr <= POSITION_POI_ALIGN_TOL_DEG) {
 			poiStableTime += dt;
 		} else {
@@ -400,6 +455,7 @@ static void runPOISequence(float dt) {
 		}
 		break;
 	}
+
 	case POI_PHASE_ORBIT: {
 		float orbitTimeout = 3.0f * (poiTargetAngle * poiRadius / poiOrbitSpeed) + 20.0f;
 		if (runPOIOrbit(dt) || poiPhaseTime > orbitTimeout) {
@@ -407,6 +463,7 @@ static void runPOISequence(float dt) {
 		}
 		break;
 	}
+
 	case POI_PHASE_SETTLE:
 		controlPositionCordinatesWithGains(dt, poiHoldX, poiHoldY, 1.0f);
 		poiTrackVelocity();
@@ -420,8 +477,9 @@ static void runPOISequence(float dt) {
 			beginPOIReturn();
 		}
 		break;
+
 	case POI_PHASE_RETURN:
-		poiAimNose();                         // the nose stays on the centre while returning
+		poiAimNose();                         // the nose stays where the orbit left it, facing the centre
 		poiFlyToTarget(dt);
 		if (poiLegReached(dt) || poiPhaseTime > POSITION_POI_LEG_TIMEOUT) {
 			poiFinish(poiTargetX, poiTargetY);
@@ -435,14 +493,11 @@ static void runPOISequence(float dt) {
 
 /* ---------------------------------------------------------------- mission interface */
 
-uint8_t decodePOIValue(float value, float *radius, uint8_t *iterations, uint8_t *ccw) {
+uint8_t decodePOIValue(float value, float *radius, uint8_t *iterations, uint8_t *ccw, float *speed) {
 	if (!(value >= 0.0f) || value > 16777215.0f) {   // also rejects NaN
-		return 0;
+		return poiReject(9);
 	}
 	uint32_t packed = (uint32_t) (value + 0.5f);
-	if (packed & POI_VALUE_RESERVED_MASK) {
-		return poiReject(10);
-	}
 	float r = (float) (packed & POI_VALUE_RADIUS_MASK) / 10.0f;
 	uint32_t n = (packed >> POI_VALUE_REV_SHIFT) & POI_VALUE_REV_MASK;
 	if (n == 0) {
@@ -454,19 +509,25 @@ uint8_t decodePOIValue(float value, float *radius, uint8_t *iterations, uint8_t 
 	if ((float) n * 2.0f * (float) M_PI * r > POSITION_POI_MAX_ARC) {
 		return poiReject(12);
 	}
+	uint32_t sp = (packed >> POI_VALUE_SPEED_SHIFT) & POI_VALUE_SPEED_MASK;
+	float spd = (float) sp / 10.0f;               // 0 = not given
+	if (sp != 0 && (spd < POSITION_POI_SPEED_MIN || spd > POSITION_POI_SPEED_MAX)) {
+		return poiReject(13);
+	}
 	*radius = r;
 	*iterations = (uint8_t) n;
 	*ccw = (packed & POI_VALUE_DIR_BIT) ? 1 : 0;
+	*speed = spd;
 	return 1;
 }
 
-uint8_t startPOIOperation(double anchorLat, double anchorLon, float radius, uint8_t ccw, uint8_t iterations) {
+uint8_t startPOIOperation(double anchorLat, double anchorLon, float radius, uint8_t ccw, uint8_t iterations, float speed) {
 	if (!isfinite(anchorLat) || !isfinite(anchorLon)) {
 		return poiReject(5);
 	}
 	float cx, cy;
 	convertGNSSToXYCordinates(anchorLat, anchorLon, fcStatusData.positionLatHome, fcStatusData.positionLongHome, &cx, &cy);
-	if (!poiStart(radius, cx, cy, ccw, iterations, 1)) {
+	if (!poiStart(radius, cx, cy, ccw, iterations, speed, 1)) {
 		return 0;
 	}
 	poiMissionOwned = 1;
@@ -533,8 +594,8 @@ void poiOperationRelock(void) {
 __ATTR_ITCM_TEXT
 void handlePOI(float dt) {
 	if (poiMissionOwned) {
-		cancelPOIOperation();
-		return;                               // the mission owns it
+		cancelPOIOperation();                 // only reached with no mission or RTH active, so a mission-owned POI is stale
+		return;
 	}
 	// Anything unsafe or unwanted cancels: no navigation data, or the yaw stick (the manager catches pitch and roll)
 	if (poiPhase != POI_PHASE_DONE && (!fcStatusData.isFlying || !isNavDataReliable() || POI_PILOT_YAW_ACTIVE())) {
@@ -547,7 +608,7 @@ void handlePOI(float dt) {
 		poiHoldReference(dt);
 		// Start once the drone is at rest in the locked hold (a request made while moving simply waits)
 		if (getGroundSpeed() <= POSITION_POI_START_MAX_SPEED) {
-			if (!poiStartAhead(poiCfgRadius, poiCfgCcw, poiCfgIterations)) {
+			if (!poiStartAhead(poiCfgRadius, poiCfgCcw, poiCfgIterations, poiCfgSpeed)) {
 				poiPhase = POI_PHASE_DONE;    // rejected: no retry until the switch is cycled
 			}
 		}
@@ -573,10 +634,11 @@ void resetPOIStates(void) {
 	poiPhase = poiRestingPhase();
 }
 
-void setPOIParameters(float radius, uint8_t ccw, uint8_t iterations) {
+void setPOIParameters(float radius, uint8_t ccw, uint8_t iterations, float speed) {
 	poiCfgRadius = radius;
 	poiCfgCcw = ccw;
 	poiCfgIterations = iterations;
+	poiCfgSpeed = (speed > 0.0f) ? speed : POSITION_POI_SPEED;
 }
 
 uint8_t getPOIPhase(void) {

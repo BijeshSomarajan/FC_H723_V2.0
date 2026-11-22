@@ -16,7 +16,10 @@
 #define POSITION_POI_START_MAX_SPEED     0.5f    // m/s, must be at rest to start
 #define POSITION_POI_RETURN_TO_START     1       // 1 = fly back to where it started, 0 = stay at the end point
 
-#define POSITION_POI_SPEED               2.0f    // m/s, leg speed and orbit speed ceiling
+/* Speed: the requested speed sets the entry/return legs and caps the orbit, which is further limited by lateral acceleration and the nose slew rate */
+#define POSITION_POI_SPEED               2.0f    // m/s, default when no speed is given
+#define POSITION_POI_SPEED_MIN           0.5f    // m/s
+#define POSITION_POI_SPEED_MAX           5.0f    // m/s, keep within the mission cruise speed
 #define POSITION_POI_BRAKE_DECEL         0.75f   // m/s²
 #define POSITION_POI_MAX_ACCEL           5.0f    // m/s²
 #define POSITION_POI_FF_ACC_MAX          1.0f    // m/s², acceleration feedforward cap
@@ -28,6 +31,7 @@
 #define POSITION_POI_ARC_STOP            0.15f   // m, start and end speed profiles reach zero this far from the ends
 #define POSITION_POI_DONE_ARC            0.5f    // m
 #define POSITION_POI_DONE_SPEED          0.3f    // m/s
+#define POSITION_POI_ORBIT_CMD_TAU       0.1f    // s, smoothing of the orbit velocity setpoint
 
 /* Entry and return legs */
 #define POSITION_POI_STOP_RADIUS         0.15f   // m, leg speed profile reaches zero here
@@ -44,29 +48,35 @@
 #define POSITION_POI_ALIGN_TIMEOUT       25.0f   // s, above the heading helper's own worst case
 #define POSITION_POI_HDG_FULL_DEG        10.0f   // orbit at full speed below this nose error
 #define POSITION_POI_HDG_ZERO_DEG        30.0f   // orbit speed falls to zero at this nose error
+#define POSITION_POI_HDG_TRACK_K         1.0f    // 1/s, how strongly the model-driven nose target follows the measured bearing
 
 /* Settle before return */
 #define POSITION_POI_SETTLE_SPEED        0.2f    // m/s
 #define POSITION_POI_SETTLE_TIME         0.3f    // s
 #define POSITION_POI_SETTLE_TIMEOUT      5.0f    // s
 
-uint8_t decodePOIValue(float value, float *radius, uint8_t *iterations, uint8_t *ccw);   // packed value from the mission operation
-uint8_t startPOIOperation(double anchorLat, double anchorLon, float radius, uint8_t ccw, uint8_t iterations);   // mission start, 1 = accepted
+/* Packed operation value (a float holding an integer, 24 bits):
+ *   bits 0-9    radius in 0.1 m
+ *   bits 10-14  revolutions (0 reads as 1)
+ *   bit  15     direction (1 = counter-clockwise)
+ *   bits 16-23  speed in 0.1 m/s (0 = not given: the waypoint's speed in a mission, the default on the radio) */
+#define POI_VALUE_RADIUS_MASK            0x000003FFu
+#define POI_VALUE_REV_SHIFT              10
+#define POI_VALUE_REV_MASK               0x1Fu
+#define POI_VALUE_DIR_BIT                0x00008000u
+#define POI_VALUE_SPEED_SHIFT            16
+#define POI_VALUE_SPEED_MASK             0xFFu
+#define POSITION_POI_ANCHOR_ENTRY_MARGIN 5.0f    // m, added to the radius for the entry leg of an anchored POI
+
+uint8_t decodePOIValue(float value, float *radius, uint8_t *iterations, uint8_t *ccw, float *speed);   // speed 0 = not given
+uint8_t startPOIOperation(double anchorLat, double anchorLon, float radius, uint8_t ccw, uint8_t iterations, float speed);   // mission start, 1 = accepted
 uint8_t isPOIOperationComplete(float dt);   // runs one step; returns 1 when back at the anchor (or nothing is running)
 void cancelPOIOperation(void);              // mission reset: controlled stop
 void poiOperationRelock(void);              // mission re-locked after a stick override: resume
 
 void handlePOI(float dt);                   // radio switch path (position manager)
 void resetPOIStates(void);
-void setPOIParameters(float radius, uint8_t ccw, uint8_t iterations);
+void setPOIParameters(float radius, uint8_t ccw, uint8_t iterations, float speed);
 uint8_t getPOIPhase(void);
-
-/* Packed operation value: bits 0-9 radius in 0.1 m, bits 10-14 revolutions (0 reads as 1), bit 15 direction (1 = ccw), bits 16-23 reserved */
-#define POI_VALUE_RADIUS_MASK            0x000003FFu
-#define POI_VALUE_REV_SHIFT              10
-#define POI_VALUE_REV_MASK               0x1Fu
-#define POI_VALUE_DIR_BIT                0x00008000u
-#define POI_VALUE_RESERVED_MASK          0x00FF0000u
-#define POSITION_POI_ANCHOR_ENTRY_MARGIN 5.0f    // m, added to the radius for the entry leg of an anchored POI
 
 #endif

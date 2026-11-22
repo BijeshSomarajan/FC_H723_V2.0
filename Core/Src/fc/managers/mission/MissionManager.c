@@ -111,9 +111,9 @@ void startOperation(float dt) {
 		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
 	case MISSION_OPERATION_POI: {          // value packed: radius, revolutions, direction. Anchor = current waypoint
-		float radius;
+		float radius, speed;
 		uint8_t iterations, ccw;
-		uint8_t ok = decodePOIValue(currentMissionOperationData->value, &radius, &iterations, &ccw) && startPOIOperation(currentMissionWPData->latitude, currentMissionWPData->longitude, radius, ccw, iterations);
+		uint8_t ok = decodePOIValue(currentMissionOperationData->value, &radius, &iterations, &ccw, &speed) && startPOIOperation(currentMissionWPData->latitude, currentMissionWPData->longitude, radius, ccw, iterations, speed);
 		currentMissionOperationData->status = ok ? MISSION_STATUS_WIP : MISSION_STATUS_COMPLETE;   // rejected: skip
 		break;
 	}
