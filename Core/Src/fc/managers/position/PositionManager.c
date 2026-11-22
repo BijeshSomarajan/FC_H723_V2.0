@@ -24,6 +24,7 @@
 #include "estimator/VenturiBiasEstimator.h"
 #include "helpers/PositionManagerHelper.h"
 #include "helpers/PositionManagerHomeAquisitionHelper.h"
+#include "helpers/POIHelper.h"
 
 LOWPASSFILTER positionMgrAccXLPF, positionMgrAccYLPF, positionMgrAccZLPF;
 LOWPASSFILTER positionMgrVelXLPF, positionMgrVelYLPF, positionMgrVelZLPF;
@@ -40,6 +41,9 @@ float postionMgrRateDtSum, postionMgrPositionDtSum;
 float positionMgrPosHoldElapseDtSum;
 float positionMgrPosHoldRatePIDGain;
 float positionMgrSettleStableTime = 0.0f;
+
+/* Previous-cycle state of "RTH or mission active", used to detect the moment one of them ends */
+uint8_t positionMgrWasMissionOrRTHActive = 0;
 
 float positionMgrBrakeVx, positionMgrBrakeVy, positionMgrBrakeAccFFx, positionMgrBrakeAccFFy;
 void managePositionTask(void);
@@ -220,8 +224,6 @@ void manageCruiseCommand(float dt) {
 	float refHeading = fcStatusData.isHeadlessModeActive == 1 ? fcStatusData.headingHomeRef : sensorAttitudeData.heading;
 	convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, refHeading, &xVel, &yVel);
 
-	//convertBodyToEarthCordinates(expectedPitchVel, expectedRollVel, sensorAttitudeData.heading, &xVel, &yVel);
-
 	setExpectedPositionVelocity(dt, xVel, yVel);
 	updatePositionReference();
 	positionCommandData.targetXVel = xVel;
@@ -233,12 +235,18 @@ void updatePositionReferenceWithLead(float vx, float vy, float leadTimeS) {
 	if (fcStatusData.canFly && isNavDataReliable() && isPositionHomeSet()) {
 		fcStatusData.positionXRef = positionCordinateData.xPosition + vx * leadTimeS;
 		fcStatusData.positionYRef = positionCordinateData.yPosition + vy * leadTimeS;
+	} else {
+		// Guard failed: never leave a stale reference behind, hold where the drone is
+		fcStatusData.positionXRef = positionCordinateData.xPosition;
+		fcStatusData.positionYRef = positionCordinateData.yPosition;
 	}
 }
 
 __ATTR_ITCM_TEXT
 void updatePositionCordinateCommand(float dt) {
+
 	if (!rcData.pitchCentered || !rcData.rollCentered) {
+		resetPOIStates();                   // a stick touch cancels POI: controlled stop, latched off until the switch is cycled
 		if (isCruiseModeActive()) {
 			manageCruiseCommand(dt);
 		} else {
@@ -251,12 +259,25 @@ void updatePositionCordinateCommand(float dt) {
 	}
 
 	if (!isRTHModeActive() && !isMissionModeActive()) {
-		resetMissionStates(1);
-	} else if (!isRTHModeActive()) {
-		resetRTHStates();
+		if (positionMgrWasMissionOrRTHActive && !fcStatusData.isMissionComplete) {
+			updatePositionReference();
+		}
+		positionMgrWasMissionOrRTHActive = 0;
+		if (!isPOIModeActive()) {
+			resetMissionStates(1);
+		}
+	} else {
+		positionMgrWasMissionOrRTHActive = 1;
+		if (!isRTHModeActive()) {
+			resetRTHStates();
+		}
 	}
 
-	if (isNavModeActive() || isRTHModeActive() || isMissionModeActive()) {
+	if (!isPOIModeActive()) {
+		resetPOIStates();                   // edge-acting: stops a running POI, then re-arms (switch low) or latches off (switch high)
+	}
+
+	if (isNavModeActive() || isRTHModeActive() || isMissionModeActive() || isPOIModeActive()) {
 		switch (fcStatusData.postionHoldState) {
 		case POS_HOLD_STATE_IDLE:
 			resetPositionCommands();
@@ -283,7 +304,6 @@ void updatePositionCordinateCommand(float dt) {
 				positionMgrSettleStableTime = 0.0f;
 			}
 			uint8_t settled = (positionMgrSettleStableTime >= POSITION_MGR_POS_HOLD_LATCH_STABLE_TIME_S);
-
 			if ((positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_BRAKE_SETTLING_PERIOD && settled) || positionMgrPosHoldElapseDtSum >= POSITION_MGR_POS_HOLD_SETTLING_TIMEOUT) {
 				updatePositionReferenceWithLead(positionCordinateData.xVelocity, positionCordinateData.yVelocity, POSITION_MGR_POS_HOLD_LATCH_LEAD_TIME_S);
 				resetPositionControl(1);
@@ -300,6 +320,8 @@ void updatePositionCordinateCommand(float dt) {
 			resetBrakingStates();
 			if ((isRTHModeActive() || isMissionModeActive()) && !fcStatusData.isMissionComplete) {
 				handleMission(dt);
+			} else if (isPOIModeActive()) {
+				handlePOI(dt);
 			} else {
 				controlPositionCordinatesWithGains(dt, fcStatusData.positionXRef, fcStatusData.positionYRef, 1.0f);
 			}
@@ -308,6 +330,7 @@ void updatePositionCordinateCommand(float dt) {
 	} else {
 		positionMgrPosHoldElapseDtSum = 0;
 		positionMgrSettleStableTime = 0.0f;
+		positionMgrWasMissionOrRTHActive = 0;
 		fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 		resetPositionCommands();
 		resetMissionStates(1);
@@ -436,11 +459,13 @@ void resetPositionManager(uint8_t hard) {
 	positionCommandData.rollCommand = 0.0f;
 
 	positionMgrSettleStableTime = 0.0f;
+	positionMgrWasMissionOrRTHActive = 0;
 	positionMgrPosHoldElapseDtSum = 0;
 	positionMgrPosHoldRatePIDGain = 1.0f;
 	fcStatusData.postionHoldState = POS_HOLD_STATE_IDLE;
 
 	resetMissionStates(1);
+	resetPOIStates();
 
 	fcStatusData.isFailSafeModeActive = 0;
 

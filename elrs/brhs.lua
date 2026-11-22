@@ -115,6 +115,7 @@ local aAlertLandModes = {
     ["C"] = "/SOUNDS/en/brhs/land/altc.wav",
     ["T"] = "/SOUNDS/en/brhs/land/takeoff.wav",
     ["L"] = "/SOUNDS/en/brhs/land/land.wav",
+	["P"] = "/SOUNDS/en/brhs/land/poi.wav",
     ["F"] = "/SOUNDS/en/brhs/land/fly.wav",
 }
 
@@ -139,6 +140,7 @@ local aAlertOpDoneModes = {
 	["C"] = "/SOUNDS/en/brhs/mission/courseAdj.wav",
 	["X"] = "/SOUNDS/en/brhs/mission/opCustom.wav",
 	["Z"] = "/SOUNDS/en/brhs/mission/opRTH.wav",
+	["P"] = "/SOUNDS/en/brhs/mission/opPOI.wav",
 }
 
 -- ==========================================================================

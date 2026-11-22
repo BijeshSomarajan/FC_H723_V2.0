@@ -27,21 +27,17 @@
 #define RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX       10 //Channel 11 //Vario
 
 #else
-#define RC_ROLL_CHANNEL_INDEX        0 // Channel 1 // Rudder
-#define RC_PITCH_CHANNEL_INDEX       1 // Channel 2 // Ele
-#define RC_TH_CHANNEL_INDEX          2 // Channel 3 // Throttle
-#define RC_YAW_CHANNEL_INDEX         3 // Channel 4 // Aileron
+#define RC_ROLL_CHANNEL_INDEX            0 // Channel 1 // Rudder
+#define RC_PITCH_CHANNEL_INDEX       	 1 // Channel 2 // Ele
+#define RC_TH_CHANNEL_INDEX            	 2 // Channel 3 // Throttle
+#define RC_YAW_CHANNEL_INDEX          	 3 // Channel 4 // Aileron
 
-//#define RC_START_CHANNEL_INDEX     4 //Channel 5  //SA    //ARM
-#define RC_START_CHANNEL_INDEX       6 //Channel 5  //SC    //Off/Start/Headless
-
-#define RC_NAV_CHANNEL_INDEX         5 //Channel 6  //SB    //Stab/Nav/Cruise
-#define RC_ALT_MODE_CHANNEL_INDEX    9 //Channel 7  //vario //Terrain/ASL
-
-
-#define RC_RTH_CHANNEL_INDEX                  7 //Channel 8 //SD Off/RTH
-#define RC_TOFF_AND_LAND_CHANNEL_INDEX        8 //Channel 9 //SE Press button
-#define RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX   4 //Channel 5 //SA Land/TakeOff
+#define RC_ALT_MODE_CHANNEL_INDEX     	 4 //Channel 5  //SA //Baro/Terrain
+#define RC_NAV_CHANNEL_INDEX          	 5 //Channel 6  //SB    //Stab/Nav/Cruise
+#define RC_START_CHANNEL_INDEX        	 6 //Channel 7  //SC    //Off/Start/Headless
+#define RC_RTH_CHANNEL_INDEX         	 7 //Channel 8  //SD Off/RTH
+#define RC_TOFF_AND_LAND_CHANNEL_INDEX   8 //Channel 9  //SE Press button ( 2Sec Land , 5 Sec Take Off )
+#define RC_POI_CHANNEL_INDEX             9 //Channel 10 //S1 Vario
 
 #endif
 

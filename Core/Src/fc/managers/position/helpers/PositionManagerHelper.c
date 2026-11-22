@@ -103,7 +103,12 @@ uint8_t isPositionHomeSet() {
 
 __ATTR_ITCM_TEXT
 uint8_t isNavDataReliable() {
-	return  fcStatusData.isNavDataReliable;
+	return fcStatusData.isNavDataReliable;
+}
+
+__ATTR_ITCM_TEXT
+uint8_t isPOIModeActive() {
+	return isNavModeActive() && fcStatusData.isPoIModeActive && !isRTHModeActive() && !isMissionModeActive() && !isCruiseModeActive();
 }
 
 __ATTR_ITCM_TEXT

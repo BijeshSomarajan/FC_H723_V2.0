@@ -14,6 +14,7 @@
 #include "../attitude/helpers/HeadingCommandHelper.h"
 #include "../position/common/PositionCommon.h"
 #include "../position/helpers/PositionManagerHelper.h"
+#include "../position/helpers/POIHelper.h"
 #include "MissionNavigationHelper.h"
 
 // ---------------------------------------------------------------------------
@@ -109,6 +110,13 @@ void startOperation(float dt) {
 		startRTHOpNavigation();
 		currentMissionOperationData->status = MISSION_STATUS_WIP;
 		break;
+	case MISSION_OPERATION_POI: {          // value packed: radius, revolutions, direction. Anchor = current waypoint
+		float radius, speed;
+		uint8_t iterations, ccw;
+		uint8_t ok = decodePOIValue(currentMissionOperationData->value, &radius, &iterations, &ccw, &speed) && startPOIOperation(currentMissionWPData->latitude, currentMissionWPData->longitude, radius, ccw, iterations, speed);
+		currentMissionOperationData->status = ok ? MISSION_STATUS_WIP : MISSION_STATUS_COMPLETE;   // rejected: skip
+		break;
+	}
 	default:
 		currentMissionOperationData->status = MISSION_STATUS_COMPLETE;  // unknown: skip
 		MISSION_TRACE("[MM] WP%u OP%u skip (unknown)\n", MM_WP(), MM_OP());
@@ -154,6 +162,9 @@ uint8_t checkOperation(float dt) {
 		break;
 	case MISSION_OPERATION_RTH:
 		complete = doRTHOpNavigation(dt);
+		break;
+	case MISSION_OPERATION_POI:
+		complete = isPOIOperationComplete(dt);
 		break;
 	default:
 		complete = 1;
@@ -252,7 +263,7 @@ void handleMission(float dt) {
 		}
 	} else if (currentMissionWPData->status == MISSION_STATUS_WIP_OP) {
 		// An operation that navigates (soft RTH) commands the position itself
-		uint8_t opNavigating = (currentMissionOperationData != NULL && currentMissionOperationData->operation == MISSION_OPERATION_RTH && currentMissionOperationData->status == MISSION_STATUS_WIP);
+		uint8_t opNavigating = (currentMissionOperationData != NULL && currentMissionOperationData->status == MISSION_STATUS_WIP && (currentMissionOperationData->operation == MISSION_OPERATION_RTH || currentMissionOperationData->operation == MISSION_OPERATION_POI));
 		if (!opNavigating) {
 			if (fcStatusData.isFlying && fcStatusData.isPositionHomeSet) {
 				controlPositionCordinatesWithGains(dt, fcStatusData.positionXRefMission, fcStatusData.positionYRefMission, 1.0f);
@@ -470,8 +481,7 @@ void resetMissionStates(uint8_t abort) {
 	resetRTHStates();
 	resetWPStates();
 	cancelHeadingCommand();
-	updatePositionReferenceToPresent();
-
+	cancelPOIOperation();
 	fcStatusData.positionVelMission = MISSION_MGR_SPEED_MIN;
 	missionVxCommand = 0;
 	missionVyCommand = 0;

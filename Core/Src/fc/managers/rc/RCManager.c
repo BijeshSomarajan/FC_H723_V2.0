@@ -20,6 +20,7 @@ static float rcStickPitchGain = 0;
 static float rcStickRollGain = 0;
 static float rcStickYawGain = 0;
 static float rcStickThrottleGain = 0;
+static float tOffLandingDt = 0;
 
 void resetFCStatus();
 void determineFCState(float dt);
@@ -111,25 +112,18 @@ int16_t applyStickDeadBand(int16_t rcChannelValue) {
 
 /** Loads stick deltas (value minus calibrated mid) and raw aux channels. */
 void loadRCStickDelta() {
-	// Sticks
-	rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX] = getRCValue(RC_TH_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_TH_CHANNEL_INDEX];
-	rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX] = getRCValue(RC_PITCH_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_PITCH_CHANNEL_INDEX];
-	rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX] = getRCValue(RC_ROLL_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_ROLL_CHANNEL_INDEX];
-	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = getRCValue(RC_YAW_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_YAW_CHANNEL_INDEX];
-
+	// Sticks with deadbands
+	rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX] = applyStickDeadBand(getRCValue(RC_TH_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_TH_CHANNEL_INDEX]);
+	rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX] = applyStickDeadBand(getRCValue(RC_PITCH_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_PITCH_CHANNEL_INDEX]);
+	rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX] = applyStickDeadBand(getRCValue(RC_ROLL_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_ROLL_CHANNEL_INDEX]);
+	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = applyStickDeadBand(getRCValue(RC_YAW_CHANNEL_INDEX) - rcData.RC_MID_DATA[RC_YAW_CHANNEL_INDEX]);
 	// Aux channels
 	rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] = getRCValue(RC_NAV_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_RTH_CHANNEL_INDEX] = getRCValue(RC_RTH_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_START_CHANNEL_INDEX] = getRCValue(RC_START_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = getRCValue(RC_ALT_MODE_CHANNEL_INDEX);
 	rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_CHANNEL_INDEX] = getRCValue(RC_TOFF_AND_LAND_CHANNEL_INDEX);
-	rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX] = getRCValue(RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX);
-
-	// Dead bands (sticks only)
-	rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_TH_CHANNEL_INDEX]);
-	rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_PITCH_CHANNEL_INDEX]);
-	rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_ROLL_CHANNEL_INDEX]);
-	rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX] = applyStickDeadBand(rcData.RC_DELTA_DATA[RC_YAW_CHANNEL_INDEX]);
+	rcData.RC_DELTA_DATA[RC_POI_CHANNEL_INDEX] = getRCValue(RC_POI_CHANNEL_INDEX);
 }
 
 /** Applies the RC stick effectiveness (gains). */
@@ -189,14 +183,14 @@ uint8_t checkNavRTHModeActivation() {
 	return (rcData.RC_DELTA_DATA[RC_RTH_CHANNEL_INDEX] > RTH_MODE_ACT_TSH);
 }
 
-/** Checks if the takeoff/landing switch is engaged. */
+/** Checks if the RTH mode is active. */
 uint8_t checkTOffLandingActivation() {
-	return (rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_CHANNEL_INDEX] > LANDING_MODE_ACT_TSH);
+	return (rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_CHANNEL_INDEX] > TOFF_LANDING_MODE_ACT_TSH);
 }
 
-/** Selects takeoff (1) or landing (0) when the takeoff/landing switch is engaged. */
-uint8_t checkTOffLandingModeActivation() {
-	return (rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_MODE_CHANNEL_INDEX] > LANDING_MODE_ACT_TSH);
+/** Checks if the POI mode is active. */
+uint8_t checkPOIActivation() {
+	return (rcData.RC_DELTA_DATA[RC_POI_CHANNEL_INDEX] > POI_MODE_ACT_TSH);
 }
 
 /** Checks if the model can be started. */
@@ -215,15 +209,25 @@ uint8_t canArmModel() {
 /* ------------------------------------------------------------------------ */
 
 /** Updates the takeoff / landing mode flags. */
-static void updateTakeOffLandingModes() {
-	if (checkTOffLandingActivation()) {
-		uint8_t isTakeOff = checkTOffLandingModeActivation();
-		fcStatusData.isTakeOffModeActive = isTakeOff;
-		fcStatusData.isLandingModeActive = !isTakeOff;
-	} else if (!rcData.throttleCentered) {
-		// Throttle movement cancels both
+/** Updates the takeoff / landing mode flags. */
+static void updateTakeOffLandingModes(float dt) {
+	if (!rcData.throttleCentered) {
+		tOffLandingDt = 0;
 		fcStatusData.isLandingModeActive = 0;
 		fcStatusData.isTakeOffModeActive = 0;
+	} else {
+		if (checkTOffLandingActivation()) {
+			tOffLandingDt += dt;
+			if (!fcStatusData.isFlying && tOffLandingDt > TAKE_OFF_MODE_PRESS_PERIOD) {
+				fcStatusData.isLandingModeActive = 0;
+				fcStatusData.isTakeOffModeActive = 1;
+			} else if (fcStatusData.isFlying && tOffLandingDt > LANDING_MODE_PRESS_PERIOD && tOffLandingDt < TAKE_OFF_MODE_PRESS_PERIOD) {
+				fcStatusData.isLandingModeActive = 1;
+				fcStatusData.isTakeOffModeActive = 0;
+			}
+		} else {
+			tOffLandingDt = 0;
+		}
 	}
 }
 
@@ -252,8 +256,9 @@ void processRCData(float dt) {
 	fcStatusData.isCruiseModeActive = checkNavCruiseModeActivation();
 	fcStatusData.isHeadlessModeActive = checkHeadlessModeActivation();
 	fcStatusData.isTerrainAltModeActive = checkTerrainAltModeActivation();
+	fcStatusData.isPoIModeActive = checkPOIActivation();
 
-	updateTakeOffLandingModes();
+	updateTakeOffLandingModes(dt);
 }
 
 void resetFCStatus() {
@@ -262,6 +267,7 @@ void resetFCStatus() {
 	fcStatusData.canStabilize = 0;
 	fcStatusData.isStabilized = 0;
 	rcStablilizationDt = 0;
+	tOffLandingDt = 0;
 }
 
 void determineFCState(float dt) {
@@ -324,6 +330,7 @@ void resetRCManager() {
 	rcData.RC_DELTA_DATA[RC_NAV_CHANNEL_INDEX] = 0;
 	rcData.RC_DELTA_DATA[RC_TOFF_AND_LAND_CHANNEL_INDEX] = 0;
 	rcData.RC_DELTA_DATA[RC_ALT_MODE_CHANNEL_INDEX] = 0;
+	rcData.RC_DELTA_DATA[RC_POI_CHANNEL_INDEX] = 0;
 }
 
 /* ------------------------------------------------------------------------ */
